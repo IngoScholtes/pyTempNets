@@ -128,11 +128,13 @@ class TemporalNetwork:
                                 s = e_in[0]
                                 d = e_out[1]
                                 
-                                indeg_v = float(1)
-                                outdeg_v = float(1)
-                                
-                                # TODO: Count actual degrees 
+                                # TODO: Add support for weighted time-
+                                # stamped links
                                 pass
+                                indeg_v = len(targets[prev_t][v])
+                                outdeg_v = len(sources[t][v])
+                                
+
                                 
                                 # Create weighted two-path tuple
                                 two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
@@ -165,15 +167,14 @@ class TemporalNetwork:
         
         for v in self.nodes:
             g1.add_vertex(str(v))
-       
+
+        # We first keep multiple (weighted) edges
         for tp in self.twopaths:
-            n1 = str(tp[0])
-            n2 = str(tp[1])
-            n3 = str(tp[2])
-            if not g1.are_connected(n1, n2):
-                g1.add_edge(n1, n2)
-            if not g1.are_connected(n2, n3):
-                g1.add_edge(n2, n3)
+            g1.add_edge(str(tp[0]), str(tp[1]), weight=tp[3])
+            g1.add_edge(str(tp[1]), str(tp[2]), weight=tp[3])
+            
+        # We then collapse them, while summing their weights
+        g1 = g1.simplify(combine_edges="sum")
         return g1
 
         
@@ -194,7 +195,7 @@ class TemporalNetwork:
             if not n2 in g2.vs["name"]:
                 g2.add_vertex(name=n2)
             if not g2.are_connected(n1, n2):
-                g2.add_edge(n1, n2)
+                g2.add_edge(n1, n2, weight=tp[3])
         return g2
 
         
