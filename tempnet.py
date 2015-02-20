@@ -7,6 +7,8 @@ Created on Thu Feb 19 11:49:39 2015
 
 import igraph    
 import collections
+import numpy as np
+import scipy.linalg as spl
 
 class TemporalNetwork:
     """A python class for the analysis of 
@@ -132,16 +134,16 @@ class TemporalNetwork:
                                 # stamped links
                                 pass
                                 indeg_v = len(targets[prev_t][v])
-                                outdeg_v = len(sources[t][v])
+                                outdeg_v = len(sources[t][v])                                
                                 
-
-                                
-                                # Create weighted two-path tuple
+                                # Create a weighted two-path tuple
+                                # (s, v, d, weight)
+                                # representing (s,v) -> (v,d)
                                 two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
                                 self.twopaths.append(two_path)
             prev_t = t
         
-        # Update count of two-paths 
+        # Update the count of two-paths 
         self.tpcount = len(self.twopaths)
 
         
@@ -205,14 +207,50 @@ class TemporalNetwork:
 
         g1 = self.iGraphFirstOrder()
         
+        D = g1.strength(mode="OUT", weights=g1.es["weight"])
+        
         g2n = igraph.Graph(directed=True)
         g2n.vs["name"] = []
         
-        #TODO: Built actual second order null model
-        pass
-        
+        for e_in in g1.es:
+            for e_out in g1.es:
+                if e_in.target == e_out.source:
+                    n1 = g1.vs[e_in.source]["name"]+";"+g1.vs[e_in.target]["name"]
+                    n2 = g1.vs[e_out.source]["name"]+";"+g1.vs[e_out.target]["name"]
+                    if n1 not in g2n.vs["name"]:
+                        g2n.add_vertex(name=n1)
+                    if n2 not in g2n.vs["name"]:
+                        g2n.add_vertex(name=n2)
+                    
+                    w = 0.5 * e_in["weight"] * e_out["weight"] / D[e_out.source]
+                    g2n.add_edge(n1, n2, weight = w)
         return g2n
+        
+        
+    def getSlowDown(self):
+        g2 = self.iGraphSecondOrder().components(mode="STRONG").giant()
+        g2n = self.iGraphSecondOrderNull().components(mode="STRONG").giant()
+        
+        A2 = np.matrix(list(g2.get_adjacency()))
+        T2 = np.zeros(shape=(len(g2.vs), len(g2.vs)))
+        D2 = np.diag(g2.strength(mode='out', weights=g2.es["weight"]))
+        
+        for i in range(len(g2.vs)):
+            for j in range(len(g2.vs)):
+                T2[i,j] = A2[i,j]/D2[i,i]
+        
+        A2n = np.matrix(list(g2n.get_adjacency()))
+        T2n = np.zeros(shape=(len(g2n.vs), len(g2n.vs)))
+        D2n = np.diag(g2n.strength(mode='out', weights=g2n.es["weight"]))
+    
+        for i in range(len(g2n.vs)):
+                    for j in range(len(g2n.vs)):
+                        T2n[i,j] = A2n[i,j]/D2n[i,i]
 
+        w2, v2 = spl.eig(T2, left=True, right=False)
+        w2n, v2n = spl.eig(T2n, left=True, right=False)
+        
+        return np.log(np.abs(w2n[1]))/np.log(np.abs(w2[1]))
         
     def exportMovie(self, filename):
         """Exports an animated movie showing the temporal
