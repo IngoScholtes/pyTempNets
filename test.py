@@ -8,7 +8,7 @@ Created on Fri Feb 20 11:59:22 2015
 import igraph
 import tempnet
 
-# Set up a canonical example network in order to make sure that everything 
+# Set up a canonical example network in order to ensure that everything 
 # is calculated correctly
 t = tempnet.TemporalNetwork()
 t.addEdge("c", "e", 1);
@@ -94,4 +94,4 @@ print("First-order aggregate network has", len(g1.vs), "nodes and", len(g1.es), 
 g2 = t.iGraphSecondOrder().components(mode="STRONG").giant()
 print("Second-order aggregate network has", len(g2.vs), "nodes and", len(g2.es), "edges")
 
-print("Slow-down factor for diffusion is", t.getSlowDown())
+print("Slow-down factor for diffusion is", tempnet.Measures.SlowDown(t))
