@@ -227,11 +227,29 @@ class TemporalNetwork:
         return g2n
 
         
-    def exportMovie(self, filename):
+    def exportMovie(self, filename, fps=5, dpi=100):
         """Exports an animated movie showing the temporal
            evolution of the network"""
-        #TODO: Write code to generate movie frames using igraph
-        pass
+        
+        import matplotlib.animation as anim
+        import matplotlib.image as mpimg
+        import matplotlib.pyplot as plt
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.set_aspect('equal')
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+
+        
+        def next_img(n):                        
+            g = igraph.Graph.Erdos_Renyi(n=5, m=7)
+            igraph.plot(g, "frame.png")
+            return plt.imshow(mpimg.imread("frame.png"))
+        
+        ani = anim.FuncAnimation(fig, next_img, 300, interval=30)
+        writer = anim.FFMpegWriter(fps=fps)
+        ani.save(filename, writer=writer, dpi=dpi)
     
 
 class Measures:
@@ -276,8 +294,8 @@ class Measures:
                 P_s += P[s, d_prime]
             marginal_s.append(P_s)
         
-        H_s = Entropy(marginal_s)
-        H_d = Entropy(marginal_d)
+        H_s = Measures.Entropy(marginal_s)
+        H_d = Measures.Entropy(marginal_d)
         
         # Here we just compute equation (4) of the paper ... 
         for s in range(indeg):

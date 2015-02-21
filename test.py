@@ -8,6 +8,8 @@ Created on Fri Feb 20 11:59:22 2015
 import igraph
 import tempnet
 
+import matplotlib.pyplot as plt
+
 # Set up a canonical example network in order to ensure that everything 
 # is calculated correctly
 t = tempnet.TemporalNetwork()
@@ -46,6 +48,10 @@ t.addEdge("e", "f", 19);
 
 t.addEdge("c", "e", 20);
 t.addEdge("e", "f", 21);
+
+# ffmpeg needs to be installed and we need to set the path in pyplot
+plt.rcParams['animation.ffmpeg_path'] = 'C:/ffmpeg/bin/ffmpeg'
+t.exportMovie("temporalnet.mpg")
 
 print("Test network has", t.TwoPathCount(), "two-paths")
 
