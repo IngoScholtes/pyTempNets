@@ -5,14 +5,12 @@ Created on Fri Feb 20 11:59:22 2015
 @author: Ingo
 """
 
+import pyTempNet as tn
 import igraph
-import tempnet
 
-import matplotlib.pyplot as plt
-
-# Set up a canonical example network in order to ensure that everything 
+# Set up a canonical example network in order to make sure that everything 
 # is calculated correctly
-t = tempnet.TemporalNetwork()
+t = tn.TemporalNetwork()
 t.addEdge("c", "e", 1);
 t.addEdge("e", "f", 2);
 
@@ -49,10 +47,6 @@ t.addEdge("e", "f", 19);
 t.addEdge("c", "e", 20);
 t.addEdge("e", "f", 21);
 
-# ffmpeg needs to be installed and we need to set the path in pyplot
-plt.rcParams['animation.ffmpeg_path'] = 'C:/ffmpeg/bin/ffmpeg'
-t.exportMovie("temporalnet.mpg")
-
 print("Test network has", t.TwoPathCount(), "two-paths")
 
 # Plot the three aggregate networks
@@ -85,7 +79,7 @@ igraph.plot(g2n, **visual_style)
 
 
 # Read a temporal network from a file
-t = tempnet.TemporalNetwork.readFile("example.tedges", sep=' ')
+t = tn.TemporalNetwork.readFile("example.tedges", sep=' ')
 print("Temporal network has", t.vcount(), "nodes")
 print("Temporal network has", t.ecount(), "time-stamped edges")
 
@@ -100,4 +94,4 @@ print("First-order aggregate network has", len(g1.vs), "nodes and", len(g1.es), 
 g2 = t.iGraphSecondOrder().components(mode="STRONG").giant()
 print("Second-order aggregate network has", len(g2.vs), "nodes and", len(g2.es), "edges")
 
-print("Slow-down factor for diffusion is", tempnet.Measures.SlowDown(t))
+print("Slow-down factor for diffusion is", tn.Measures.SlowDownFactor(t))

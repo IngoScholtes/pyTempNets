@@ -7,15 +7,12 @@ Created on Thu Feb 19 11:49:39 2015
 
 import igraph    
 import collections
-import numpy as np
-import scipy.linalg as spl
 
 class TemporalNetwork:
-    """A python class for the analysis of 
-    temporal networks"""
-        
+    """A class representing a temporal network"""
+    
     def __init__(self, tedges = None):
-        """Constructor for temporal network instance"""
+        """Constructor generating an empty temporal network"""
         self.tedges = []
         self.nodes = []
         if tedges is not None:
@@ -33,7 +30,18 @@ class TemporalNetwork:
         
         
     def readFile(filename, sep=',', fformat="TEDGE"):
-        """Reads a tedge file """
+        """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
+            the file is expected to contain lines in the format 'v,w,t' each line 
+            representing a directed time-stamped link from v to w at time t.
+            Semantics of columns should be given in a header file indicating either 
+            'node1,node2,time' or 'source,target,time' (in arbitrary order).
+            If fformat is TRIGRAM the file is expected to contain lines in the format
+            'u,v,w' each line representing a time-respecting path (u,v) -> (v,w) consisting 
+            of two consecutive links (u,v) and (v,w). Timestamps should be integer numbers.
+        """
+        
+        assert filename is not ""
+        
         f = open(filename, 'r')
         tedges = []
         
@@ -64,10 +72,11 @@ class TemporalNetwork:
                 pass
             line = f.readline()
         return TemporalNetwork(tedges)
-        
+
+
 
     def addEdge(self, source, target, time):
-        """Adds a time-stamped edge to the temporal network"""
+        """Adds a (directed) time-stamped edge to the temporal network"""
         
         self.tedges.append((source, target, time))
         if source not in self.nodes:
@@ -77,9 +86,10 @@ class TemporalNetwork:
             
         self.tpcount = -1
 
+
         
     def vcount(self):
-        """Returns the number of vertices"""
+        """Returns the number of vertices in the static network"""
         return len(self.nodes)
 
         
@@ -89,7 +99,11 @@ class TemporalNetwork:
 
 
     def extractTwoPaths(self, delta=1):
-        """Extracts all time-respecting paths of length two"""
+        """Extracts all time-respecting paths of length two. The delta parameter indicates the maximum
+        temporal distance below which two consecutive links will be considered as a time-respecting path.
+        For (u,v,3) and (v,w,7) a time-respecting path (u,v)->(v,w) will be inferred for all delta < 4, 
+        while no time-respecting path will be inferred for all delta >= 4.
+        """
         
         self.twopaths = []
         
@@ -143,12 +157,14 @@ class TemporalNetwork:
                                 self.twopaths.append(two_path)
             prev_t = t
         
-        # Update the count of two-paths 
+        # Update the count of two-paths
         self.tpcount = len(self.twopaths)
+
 
         
     def TwoPathCount(self):
-        """Returns the number of two-paths edges"""
+        """Returns the total number of time-respecting paths of length two which have
+            been extracted from the time-stamped edge sequence."""
         
         # If two-paths have not been extracted yet, do it now
         if self.tpcount == -1:
@@ -157,9 +173,12 @@ class TemporalNetwork:
         return self.tpcount
     
     
+    
     def iGraphFirstOrder(self):
-        """Returns the first-order Markov model
-           corresponding to this temporal network"""
+        """Returns the first-order time-aggregated network
+           corresponding to this temporal network. This network corresponds to 
+           a first-order Markov model reproducing the link statistics in the 
+           weighted, time-aggregated network."""
            
         # If two-paths have not been extracted yet, do it now
         if self.tpcount == -1:
@@ -179,10 +198,13 @@ class TemporalNetwork:
         g1 = g1.simplify(combine_edges="sum")
         return g1
 
+
         
     def iGraphSecondOrder(self):
-        """Returns the second-order Markov model
-           corresponding to this temporal network"""
+        """Returns the second-order time-aggregated network
+           corresponding to this temporal network. This network corresponds to 
+           a second-order Markov model reproducing both the link statistics and 
+           (first-order) order correlations in the underlying temporal network."""
 
         if self.tpcount == -1:
             self.extractTwoPaths()        
@@ -200,10 +222,12 @@ class TemporalNetwork:
                 g2.add_edge(n1, n2, weight=tp[3])
         return g2
 
+
         
     def iGraphSecondOrderNull(self):
-        """Returns the second-order null Markov model 
-           corresponding to the first-order aggregate network"""
+        """Returns a second-order null Markov model 
+           corresponding to the first-order aggregate network. This network
+           is a second-order representation of the weighted time-aggregated network."""
 
         g1 = self.iGraphFirstOrder()
         
@@ -226,6 +250,7 @@ class TemporalNetwork:
                     g2n.add_edge(n1, n2, weight = w)
         return g2n
 
+
         
     def exportMovie(self, filename, fps=5, dpi=100):
         """Exports an animated movie showing the temporal
@@ -234,13 +259,13 @@ class TemporalNetwork:
         import matplotlib.animation as anim
         import matplotlib.image as mpimg
         import matplotlib.pyplot as plt
-
+    
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.set_aspect('equal')
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
-
+    
         
         def next_img(n):                        
             g = igraph.Graph.Erdos_Renyi(n=5, m=7)
@@ -250,97 +275,3 @@ class TemporalNetwork:
         ani = anim.FuncAnimation(fig, next_img, 300, interval=30)
         writer = anim.FFMpegWriter(fps=fps)
         ani.save(filename, writer=writer, dpi=dpi)
-    
-
-class Measures:
-    """Computes a set of temporal network measures"""
-    
-    def EntropyGrowthRateRatio(t):
-        """Computes the ratio between the entropy growth rate of the 
-           second-order model and the first-order model"""
-        pass
-
-    def BetweennessPreference(t, v, normalized = False):
-        """Computes a list of betweenness preferences of nodes"""
-        
-        g = t.iGraphFirstOrder()        
-        
-        # If the network is empty, just return zero
-        if len(g.vs) == 0:
-            return 0.0
-        
-        I = 0.0
-        
-        indeg = g[v].degree(mode="IN")
-        outdeg = g[v].degree(mode="OUT")
-                
-        P = np.zeros(shape=(indeg, outdeg))
-        # TODO: compute betweenness preference matrix                
-        
-        marginal_s = []
-        marginal_d = []
-        
-        # Marginal probabilities P_d = \sum_s'{P_{s'd}}
-        for d in range(d):
-            P_d = 0.0
-            for s_prime in range(indeg):
-                P_d += P[s_prime, d]
-            marginal_d.append(P_d)
-        
-        # Marginal probabilities P_s = \sum_d'{P_{sd'}}
-        for s in range(indeg):
-            P_s = 0.0
-            for d_prime in range(outdeg):
-                P_s += P[s, d_prime]
-            marginal_s.append(P_s)
-        
-        H_s = Measures.Entropy(marginal_s)
-        H_d = Measures.Entropy(marginal_d)
-        
-        # Here we just compute equation (4) of the paper ... 
-        for s in range(indeg):
-            for d in range(outdeg):
-                if P[s, d] != 0: # 0 * Log(0)  = 0
-                    # Compute Mutual information
-                    I += P[s, d] * np.log2(P[s, d] / (marginal_s[s] * marginal_d[d]))
-        
-        if normalized:
-            return I/(H_s+H_d)
-        else:
-            return I
-    
-    
-    def Entropy(prob):        
-        H = 0
-        for p in prob:
-            H = H+np.log2(p)*p
-        return -H
-
-    
-    def SlowDown(t):
-        """Computes the slow-down ratio of the corresponding
-           second-order model, compared to a first-order model"""
-           
-        g2 = t.iGraphSecondOrder().components(mode="STRONG").giant()
-        g2n = t.iGraphSecondOrderNull().components(mode="STRONG").giant()
-        
-        A2 = np.matrix(list(g2.get_adjacency()))
-        T2 = np.zeros(shape=(len(g2.vs), len(g2.vs)))
-        D2 = np.diag(g2.strength(mode='out', weights=g2.es["weight"]))
-        
-        for i in range(len(g2.vs)):
-            for j in range(len(g2.vs)):
-                T2[i,j] = A2[i,j]/D2[i,i]
-        
-        A2n = np.matrix(list(g2n.get_adjacency()))
-        T2n = np.zeros(shape=(len(g2n.vs), len(g2n.vs)))
-        D2n = np.diag(g2n.strength(mode='out', weights=g2n.es["weight"]))
-        
-        for i in range(len(g2n.vs)):
-                    for j in range(len(g2n.vs)):
-                        T2n[i,j] = A2n[i,j]/D2n[i,i]
-        
-        w2, v2 = spl.eig(T2, left=True, right=False)
-        w2n, v2n = spl.eig(T2n, left=True, right=False)
-        
-        return np.log(np.abs(w2n[1]))/np.log(np.abs(w2[1]))
