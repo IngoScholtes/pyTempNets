@@ -35,10 +35,12 @@ def FiedlerVector(temporalnet, model="SECOND"):
     w2, v2 = spl.eig(T2, left=True, right=False)
     return v2[1]
     
+    
 def EntropyGrowthRateRatio(t):
         """Computes the ratio between the entropy growth rate of the 
            second-order model and the first-order model"""
         pass
+
 
 def __Entropy(prob):
         H = 0
@@ -46,54 +48,97 @@ def __Entropy(prob):
             H = H+np.log2(p)*p
         return -H
 
-def BetweennessPreference(t, v, normalized = False):
-        """Computes a list of betweenness preferences of nodes"""
+def __BWPrefMatrix(t, v):
+    """Computes a betweenness preference matrix for a node v in a temporal network t"""
+    g = t.iGraphFirstOrder()
+    v_vertex = g.vs.find(name=v)
+    indeg = v_vertex.degree(mode="IN")        
+    outdeg = v_vertex.degree(mode="OUT")
+    index_succ = {}
+    index_pred = {}
+    
+    B_v = np.matrix(np.zeros(shape=(indeg, outdeg)))
         
-        g = t.iGraphFirstOrder()        
+    # Create an index-to-node mapping for predecessors and successors
+    i = 0
+    for u in v_vertex.predecessors():
+        index_pred[u["name"]] = i
+        i = i+1
+    
+    
+    i = 0
+    for w in v_vertex.successors():
+        index_succ[w["name"]] = i
+        i = i+1
+
+    # Calculate entries of betweenness preference matrix
+    for time in t.twopathsByNode[v]:
+        for tp in t.twopathsByNode[v][time]:
+            B_v[index_pred[tp[0]], index_succ[tp[2]]] += (1. / float(len(t.twopathsByNode[v][time])))
+    
+    return B_v
+
+def BetweennessPreference(t, v, normalized = False):
+        """Computes the betweenness preference of a node v in a temporal network t"""
+        
+        g = t.iGraphFirstOrder()
         
         # If the network is empty, just return zero
         if len(g.vs) == 0:
-            return 0.0
+            return 0.0        
         
-        I = 0.0
+        v_vertex = g.vs.find(name=v)    
+        indeg = v_vertex.degree(mode="IN")        
+        outdeg = v_vertex.degree(mode="OUT")
+    
+        # First create the betweenness preference matrix (equation (2) of the paper)
+        B_v = __BWPrefMatrix(t, v)
         
-        indeg = g[v].degree(mode="IN")
-        outdeg = g[v].degree(mode="OUT")
-                
-        P = np.zeros(shape=(indeg, outdeg))
-        # TODO: compute betweenness preference matrix                
+        # Normalize matrix (equation (3) of the paper)
+        P_v = np.matrix(np.zeros(shape=(indeg, outdeg)))
+        S = 0.0
+        for s in range(indeg):
+            for d in range(outdeg):
+                S += B_v[s,d]
         
+        if S>0:
+            for s in range(indeg):
+                for d in range(outdeg):
+                    P_v[s,d] = B_v[s,d]/S                    
+        
+        # Compute marginal probabilities
         marginal_s = []
         marginal_d = []
         
-        # Marginal probabilities P_d = \sum_s'{P_{s'd}}
-        for d in range(d):
+        # Marginal probabilities P^v_d = \sum_s'{P_{s'd}}
+        for d in range(outdeg):
             P_d = 0.0
             for s_prime in range(indeg):
-                P_d += P[s_prime, d]
+                P_d += P_v[s_prime, d]
             marginal_d.append(P_d)
         
-        # Marginal probabilities P_s = \sum_d'{P_{sd'}}
+        # Marginal probabilities P^v_s = \sum_d'{P_{sd'}}
         for s in range(indeg):
             P_s = 0.0
             for d_prime in range(outdeg):
-                P_s += P[s, d_prime]
+                P_s += P_v[s, d_prime]
             marginal_s.append(P_s)
         
         H_s = __Entropy(marginal_s)
         H_d = __Entropy(marginal_d)
         
+        I = 0.0
         # Here we just compute equation (4) of the paper ... 
         for s in range(indeg):
             for d in range(outdeg):
-                if P[s, d] != 0: # 0 * Log(0)  = 0
+                if B_v[s, d] != 0: # 0 * Log(0)  = 0
                     # Compute Mutual information
-                    I += P[s, d] * np.log2(P[s, d] / (marginal_s[s] * marginal_d[d]))
+                    I += P_v[s, d] * np.log2(P_v[s, d] / (marginal_s[s] * marginal_d[d]))
         
         if normalized:
-            return I/(H_s+H_d)
+            return I/np.min([H_s,H_d])
         else:
-            return I    
+            return I
 
 
 def SlowDownFactor(temporalnet):    

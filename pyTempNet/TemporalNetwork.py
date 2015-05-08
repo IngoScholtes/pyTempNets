@@ -7,6 +7,8 @@ Created on Thu Feb 19 11:49:39 2015
 
 import igraph    
 import collections
+import datetime as dt
+import time
 
 class TemporalNetwork:
     """A class representing a temporal network"""
@@ -26,10 +28,11 @@ class TemporalNetwork:
             if target not in self.nodes:
                 self.nodes.append(target)        
         self.twopaths = []
+        self.twopathsByNode = {}
         self.tpcount = -1
         
         
-    def readFile(filename, sep=',', fformat="TEDGE"):
+    def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s"):
         """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
             the file is expected to contain lines in the format 'v,w,t' each line 
             representing a directed time-stamped link from v to w at time t.
@@ -37,7 +40,8 @@ class TemporalNetwork:
             'node1,node2,time' or 'source,target,time' (in arbitrary order).
             If fformat is TRIGRAM the file is expected to contain lines in the format
             'u,v,w' each line representing a time-respecting path (u,v) -> (v,w) consisting 
-            of two consecutive links (u,v) and (v,w). Timestamps should be integer numbers.
+            of two consecutive links (u,v) and (v,w). Timestamps can be integer numbers or
+            string timestamps (in which case the timestampformat string is used for parsing)
         """
         
         assert filename is not ""
@@ -65,7 +69,14 @@ class TemporalNetwork:
         while not line is '':
             fields = line.rstrip().split(sep)
             if fformat =="TEDGE":
-                tedge = (fields[source_ix], fields[target_ix], int(fields[time_ix]))
+                timestamp = fields[time_ix]
+                if (timestamp.isdigit()):
+                    t = int(timestamp)
+                else:
+                    x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
+                    t = int(time.mktime(x.timetuple()))
+
+                tedge = (fields[source_ix], fields[target_ix], t)
                 tedges.append(tedge)
             elif fformat =="TRIGRAM":
                 # TODO: Add support for trigram files
@@ -155,6 +166,13 @@ class TemporalNetwork:
                                 # representing (s,v) -> (v,d)
                                 two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
                                 self.twopaths.append(two_path)
+                                if not v in self.twopathsByNode:
+                                    # Generate dictionary indexed by time stamps
+                                    self.twopathsByNode[v] = {}
+                                if not t in self.twopathsByNode[v]:
+                                    # Generate list taking all two paths through node v at time t
+                                    self.twopathsByNode[v][t] = []
+                                self.twopathsByNode[v][t].append(two_path)
             prev_t = t
         
         # Update the count of two-paths

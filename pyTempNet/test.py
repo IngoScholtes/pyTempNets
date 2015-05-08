@@ -7,6 +7,9 @@ Created on Fri Feb 20 11:59:22 2015
 
 import pyTempNet as tn
 import igraph
+import pkg_resources
+
+
 
 # Set up a canonical example network in order to make sure that everything 
 # is calculated correctly
@@ -52,6 +55,11 @@ print("Test network has", t.TwoPathCount(), "two-paths")
 # Plot the three aggregate networks
 g1 = t.iGraphFirstOrder()
 
+# Compute betweenness preference of nodes
+bw = tn.Measures.BetweennessPreference(t, v='e')
+
+assert bw == 1.2954618442383219
+
 visual_style = {}
 visual_style["layout"] = g1.layout_auto()
 visual_style["vertex_size"] = 30
@@ -78,8 +86,10 @@ visual_style["edge_label"] = g2n.es["weight"]
 igraph.plot(g2n, **visual_style)
 
 
-# Read a temporal network from a file
-t = tn.TemporalNetwork.readFile("example.tedges", sep=' ')
+# Read temporal network from sample data file
+filename = pkg_resources.resource_filename('pyTempNet', 'example.tedges')
+
+t = tn.TemporalNetwork.readFile(filename, sep=' ')
 print("Temporal network has", t.vcount(), "nodes")
 print("Temporal network has", t.ecount(), "time-stamped edges")
 
