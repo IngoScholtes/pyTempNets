@@ -9,8 +9,6 @@ import pyTempNet as tn
 import igraph
 import pkg_resources
 
-
-
 # Set up a canonical example network in order to make sure that everything 
 # is calculated correctly
 t = tn.TemporalNetwork()
@@ -58,6 +56,8 @@ g1 = t.iGraphFirstOrder()
 # Compute betweenness preference of nodes
 bw = tn.Measures.BetweennessPreference(t, v='e')
 
+print("Betweenness pref of node e =", bw)
+
 assert bw == 1.2954618442383219
 
 visual_style = {}
@@ -85,7 +85,6 @@ visual_style["vertex_label"] = g2n.vs["name"]
 visual_style["edge_label"] = g2n.es["weight"]
 igraph.plot(g2n, **visual_style)
 
-
 # Read temporal network from sample data file
 filename = pkg_resources.resource_filename('pyTempNet', 'example.tedges')
 
@@ -95,8 +94,9 @@ print("Temporal network has", t.ecount(), "time-stamped edges")
 
 # If the following explicit call is omitted, the two-path extraction will be 
 # executed whenever the time-respecting paths are needed the first time
-print("Extracting two-paths")
+print("Extracting two-paths ...")
 t.extractTwoPaths()
+print("Temporal network has", t.TwoPathCount(), "two-paths")
 
 g1 = t.iGraphFirstOrder()
 print("First-order aggregate network has", len(g1.vs), "nodes and", len(g1.es), "edges")
@@ -104,4 +104,9 @@ print("First-order aggregate network has", len(g1.vs), "nodes and", len(g1.es), 
 g2 = t.iGraphSecondOrder().components(mode="STRONG").giant()
 print("Second-order aggregate network has", len(g2.vs), "nodes and", len(g2.es), "edges")
 
+g2n = t.iGraphSecondOrderNull().components(mode="STRONG").giant()
+print("Second-order null aggregate network has", len(g2n.vs), "nodes and", len(g2n.es), "edges")
+
 print("Slow-down factor for diffusion is", tn.Measures.SlowDownFactor(t))
+
+print("Entropy growth rate ratio is", tn.Measures.EntropyGrowthRateRatio(t))

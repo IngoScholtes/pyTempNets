@@ -7,6 +7,8 @@ Created on Thu Feb 19 11:49:39 2015
 
 import numpy as np
 import scipy.linalg as spl
+from pyTempNet import *
+from pyTempNet.Processes import *
 
 
 def FiedlerVector(temporalnet, model="SECOND"):
@@ -20,27 +22,56 @@ def FiedlerVector(temporalnet, model="SECOND"):
     if model == "SECOND":
         network = temporalnet.iGraphSecondOrder().components(mode="STRONG").giant()
     elif model == "NULL": 
-        network = temporalnet.iGraphSecondOrderNull().components(mode="STRONG").giant()
-
-    n = len(network.vs)    
+        network = temporalnet.iGraphSecondOrderNull().components(mode="STRONG").giant()  
     
-    A2 = np.matrix(list(network.get_adjacency()))
-    T2 = np.zeros(shape=(n, n))
-    D2 = np.diag(network.strength(mode='out', weights=network.es["weight"]))
-    
-    for i in range(n):
-        for j in range(n):
-            T2[i,j] = A2[i,j]/D2[i,i]
+    T = Processes.RWTransitionMatrix(network)
             
-    w2, v2 = spl.eig(T2, left=True, right=False)
-    return v2[1]
+    w, v = spl.eig(T, left=True, right=False)
+    return v[:,np.argsort(-np.absolute(w))][:,1] 
+
+
+def __log(p):
+    """Logarithm (base two) which defines log2(0)=0"""
+    if p == 0: 
+        return 0.0
+    else:
+        return np.log2(p)
+
+def EntropyGrowthRate(T):
+    """Computes the entropy growth rate of a transition matrix"""
+    
+    # Compute normalized leading eigenvector of T (stationary distribution)
+    w, v = spl.eig(T, left=True, right=False)
+    pi = v[:,np.argsort(-np.absolute(w))][:,0]
+    pi = pi/sum(pi)
+    
+    H = 0.0
+    for i in range(T.shape[0]):
+        for j in range(T.shape[1]):                 
+            H += pi[i] * T[i,j] * __log(T[i,j])
+    return -H
     
     
 def EntropyGrowthRateRatio(t):
-        """Computes the ratio between the entropy growth rate of the 
-           second-order model and the first-order model"""
-        pass
+        """Computes the ratio between the entropy growth rate ratio between
+        the second-order and first-order model of a temporal network t. Ratios smaller
+        than one indicate that the temporal network exhibits non-Markovian characteristics"""
+        
+        # Generate strongly connected component of second-order networks
+        g2 = t.iGraphSecondOrder().components(mode="STRONG").giant()
+        g2n = t.iGraphSecondOrderNull().components(mode="STRONG").giant()
+        
+        # Calculate transition matrices
+        T2 = Processes.RWTransitionMatrix(g2)
+        T2n = Processes.RWTransitionMatrix(g2n)
 
+        # Compute entropy growth rates of transition matrices        
+        H2 = np.absolute(EntropyGrowthRate(T2))
+        H2n = np.absolute(EntropyGrowthRate(T2n))
+        
+        # Return ratio
+        return H2/H2n        
+        
 
 def __Entropy(prob):
         H = 0
@@ -141,32 +172,23 @@ def BetweennessPreference(t, v, normalized = False):
             return I
 
 
-def SlowDownFactor(temporalnet):    
+def SlowDownFactor(t):    
     """Returns a factor S that indicates how much slower (S>1) or faster (S<1)
     a diffusion process in the temporal network evolves on a second-order model 
     compared to a first-order model. This value captures the effect of order
-    correlations on dynamical processes.
+    correlations on a diffusion process in the temporal network.
     """
-    g2 = temporalnet.iGraphSecondOrder().components(mode="STRONG").giant()
-    g2n = temporalnet.iGraphSecondOrderNull().components(mode="STRONG").giant()
+    g2 = t.iGraphSecondOrder().components(mode="STRONG").giant()
+    g2n = t.iGraphSecondOrderNull().components(mode="STRONG").giant()
     
-    A2 = np.matrix(list(g2.get_adjacency()))
-    T2 = np.zeros(shape=(len(g2.vs), len(g2.vs)))
-    D2 = np.diag(g2.strength(mode='out', weights=g2.es["weight"]))
+    # Build transition matrices
+    T2 = Processes.RWTransitionMatrix(g2)
+    T2n = Processes.RWTransitionMatrix(g2n)    
     
-    for i in range(len(g2.vs)):
-        for j in range(len(g2.vs)):
-            T2[i,j] = A2[i,j]/D2[i,i]
-    
-    A2n = np.matrix(list(g2n.get_adjacency()))
-    T2n = np.zeros(shape=(len(g2n.vs), len(g2n.vs)))
-    D2n = np.diag(g2n.strength(mode='out', weights=g2n.es["weight"]))
-    
-    for i in range(len(g2n.vs)):
-        for j in range(len(g2n.vs)):
-            T2n[i,j] = A2n[i,j]/D2n[i,i]
-    
+    # Compute eigenvector sequences
     w2, v2 = spl.eig(T2, left=True, right=False)
+    evals2_sorted = np.sort(-np.absolute(w2))
     w2n, v2n = spl.eig(T2n, left=True, right=False)
-    
-    return np.log(np.abs(w2n[1]))/np.log(np.abs(w2[1]))
+    evals2n_sorted = np.sort(-np.absolute(w2n))
+        
+    return np.log(np.abs(evals2n_sorted[1]))/np.log(np.abs(evals2_sorted[1]))

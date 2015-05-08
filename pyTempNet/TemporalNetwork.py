@@ -249,23 +249,27 @@ class TemporalNetwork:
 
         g1 = self.iGraphFirstOrder()
         
-        D = g1.strength(mode="OUT", weights=g1.es["weight"])
+        D = g1.strength(mode="out", weights=g1.es["weight"])
         
         g2n = igraph.Graph(directed=True)
         g2n.vs["name"] = []
         
-        for e_in in g1.es:
-            for e_out in g1.es:
-                if e_in.target == e_out.source:
-                    n1 = g1.vs[e_in.source]["name"]+";"+g1.vs[e_in.target]["name"]
-                    n2 = g1.vs[e_out.source]["name"]+";"+g1.vs[e_out.target]["name"]
+        for e1 in g1.es:
+            for e2 in g1.es:
+                if e1.target == e2.source:
+                    a = e1.source
+                    b = e1.target
+                    c = e2.target
+                    n1 = g1.vs[a]["name"]+";"+g1.vs[b]["name"]
+                    n2 = g1.vs[b]["name"]+";"+g1.vs[c]["name"]
                     if n1 not in g2n.vs["name"]:
                         g2n.add_vertex(name=n1)
                     if n2 not in g2n.vs["name"]:
                         g2n.add_vertex(name=n2)
-                    
-                    w = 0.5 * e_in["weight"] * e_out["weight"] / D[e_out.source]
-                    g2n.add_edge(n1, n2, weight = w)
+                    # Compute expected weight                        
+                    w = 0.5 * g1[a,b] * g1[b,c] / D[b]
+                    if w>0 and not D[b]==0: # and not g2n.are_connected(n1, n2)
+                        g2n.add_edge(n1, n2, weight = w)
         return g2n
 
 
