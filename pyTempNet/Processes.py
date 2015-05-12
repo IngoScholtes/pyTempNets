@@ -53,4 +53,25 @@ def RWDiffusion(g, samples = 5, epsilon=0.01):
             x = np.dot(x,T)
         avg_speed += t
     return avg_speed/samples
+
+
+def Spreading(t):
+    """Run a simple spreading algorithm in a temporal network"""
+
+    infected = {}
+    infections = []
+    infection_no = 0
+    
+    g = t.iGraphFirstOrder()
+    for i in g.vs():
+        infected[i["name"]] = False
+    
+    for i in range(len(t.tedges)):
+        edge = t.tedges[i]
+        if infected[edge[0]] and not infected[edge[1]]:
+            infection_no +=1
+        infections.append(infection_no)
+    return infections
+    
+    
     

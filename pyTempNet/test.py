@@ -56,9 +56,18 @@ g1 = t.iGraphFirstOrder()
 # Compute betweenness preference of nodes
 bw = tn.Measures.BetweennessPreference(t, v='e')
 
-print("Betweenness pref of node e =", bw)
+print("Betweenness pref. of node e =", bw)
 
 assert bw == 1.2954618442383219
+
+shuffled = t.ShuffleEdges(l=10000)
+bw = tn.Measures.BetweennessPreference(shuffled, v='e')
+print("Betweenness pref. of node e in edge-shuffled network =", bw)
+
+shuffled = t.ShuffleTwoPaths(l=10000)
+bw = tn.Measures.BetweennessPreference(shuffled, v='e')
+print("Betweenness pref. of node e in two-path-shuffled network =", bw)
+
 
 visual_style = {}
 visual_style["layout"] = g1.layout_auto()

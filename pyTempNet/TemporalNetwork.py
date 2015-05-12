@@ -9,6 +9,7 @@ import igraph
 import collections
 import datetime as dt
 import time
+import numpy as np
 
 class TemporalNetwork:
     """A class representing a temporal network"""
@@ -272,6 +273,34 @@ class TemporalNetwork:
                         g2n.add_edge(n1, n2, weight = w)
         return g2n
 
+    def ShuffleEdges(self, l=0):        
+        tedges = []
+        
+        if l==0:
+            l = len(self.tedges)
+        for i in range(l):
+            edge = self.tedges[np.random.randint(len(self.tedges))]
+            tedges.append((edge[0], edge[1], i))
+        tn = TemporalNetwork(tedges)
+        return tn
+        
+        
+    def ShuffleTwoPaths(self, l=0):
+        ""
+        tedges = []
+        
+        t = 0
+        
+        if l==0:
+            l = len(self.twopaths)
+        for i in range(int(l/2)):
+            tp = self.twopaths[np.random.randint(len(self.twopaths))]
+            tedges.append((tp[0], tp[1], t))
+            tedges.append((tp[1], tp[2], t+1))
+            t+=1
+            
+        tn = TemporalNetwork(tedges)
+        return tn
 
         
     def exportMovie(self, filename, fps=5, dpi=100):
