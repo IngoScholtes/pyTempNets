@@ -30,7 +30,11 @@ class TemporalNetwork:
                 self.nodes.append(target)        
         self.twopaths = []
         self.twopathsByNode = {}
+        self.twopathsByTime = {}
         self.tpcount = -1
+        self.g1 = 0
+        self.g2 = 0
+        self.g2n = 0
         
         
     def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s"):
@@ -120,30 +124,43 @@ class TemporalNetwork:
         self.twopaths = []
         
         # An index structure to quickly access tedges by time
-        time = collections.OrderedDict()
+        time = {}
         for e in self.tedges:
-            if not e[2] in time:
-                time[e[2]] = []
-            time[e[2]].append(e)
+            try:
+                time[e[2]].append(e)
+            except KeyError:
+                time[e[2]] = [e]
 
-        # An index structure to quickly access tedges by time and target/source
-        targets = collections.OrderedDict()
-        sources = collections.OrderedDict()
-        for e in self.tedges:
-            if not e[2] in targets:
-                targets[e[2]] = dict()
-            if not e[2] in sources:
-                sources[e[2]] = dict()
-            if not e[1] in targets[e[2]]:
-                targets[e[2]][e[1]] = []
-            if not e[0] in sources[e[2]]:
-                sources[e[2]][e[0]] = []
-            targets[e[2]][e[1]].append(e)
-            sources[e[2]][e[0]].append(e)
+        # Index structures to quickly access tedges by time and target/source
+        targets = {}
+        sources = {}
+        for e in self.tedges:            
+            source = e[0]
+            target = e[1]
+            ts = e[2]
+            
+            try:
+                t = targets[ts]
+            except KeyError:
+                targets[ts] = dict()
+            try:
+                targets[ts][target].append(e)
+            except KeyError:
+                targets[ts][target] = [e]
+                
+            try:
+                s = sources[ts]
+            except KeyError:
+                sources[ts] = dict()
+            try:
+                sources[ts][source].append(e)
+            except KeyError:
+                sources[ts][source] = [e]
+                
 
         # Extract time-respecting paths of length two             
         prev_t = -1
-        for t in time:
+        for t in np.sort(list(time.keys())):
             if prev_t ==-1: 
                 pass
             elif prev_t < t-delta:
@@ -166,14 +183,32 @@ class TemporalNetwork:
                                 # (s, v, d, weight)
                                 # representing (s,v) -> (v,d)
                                 two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
-                                self.twopaths.append(two_path)
-                                if not v in self.twopathsByNode:
+                                self.twopaths.append(two_path)                                
+                                
+                                # fast solution with try/except
+                                try:
+                                    x = self.twopathsByNode[v]
+                                except KeyError:
                                     # Generate dictionary indexed by time stamps
-                                    self.twopathsByNode[v] = {}
-                                if not t in self.twopathsByNode[v]:
+                                   self.twopathsByNode[v] = {}
+
+                                try:
+                                    self.twopathsByNode[v][t].append(two_path)
+                                except KeyError:
                                     # Generate list taking all two paths through node v at time t
-                                    self.twopathsByNode[v][t] = []
-                                self.twopathsByNode[v][t].append(two_path)
+                                    self.twopathsByNode[v][t] = [two_path]
+                                    
+                                try:
+                                    x = self.twopathsByTime[t]
+                                except KeyError:
+                                    # Generate dictionary indexed by time stamps
+                                   self.twopathsByTime[t] = {}
+
+                                try:
+                                    self.twopathsByTime[t][v].append(two_path)
+                                except KeyError:
+                                    # Generate list taking all two paths through node v at time t
+                                    self.twopathsByTime[t][v] = [two_path]
             prev_t = t
         
         # Update the count of two-paths
@@ -199,23 +234,27 @@ class TemporalNetwork:
            a first-order Markov model reproducing the link statistics in the 
            weighted, time-aggregated network."""
            
+        if self.g1 != 0:
+            return self.g1
+           
+           
         # If two-paths have not been extracted yet, do it now
         if self.tpcount == -1:
             self.extractTwoPaths()
 
-        g1 = igraph.Graph(directed=True)
+        self.g1 = igraph.Graph(directed=True)
         
         for v in self.nodes:
-            g1.add_vertex(str(v))
+            self.g1.add_vertex(str(v))
 
         # We first keep multiple (weighted) edges
         for tp in self.twopaths:
-            g1.add_edge(str(tp[0]), str(tp[1]), weight=tp[3])
-            g1.add_edge(str(tp[1]), str(tp[2]), weight=tp[3])
+            self.g1.add_edge(str(tp[0]), str(tp[1]), weight=tp[3])
+            self.g1.add_edge(str(tp[1]), str(tp[2]), weight=tp[3])
             
         # We then collapse them, while summing their weights
-        g1 = g1.simplify(combine_edges="sum")
-        return g1
+        self.g1 = self.g1.simplify(combine_edges="sum")
+        return self.g1
 
 
         
@@ -224,22 +263,25 @@ class TemporalNetwork:
            corresponding to this temporal network. This network corresponds to 
            a second-order Markov model reproducing both the link statistics and 
            (first-order) order correlations in the underlying temporal network."""
+           
+        if self.g2 != 0:
+            return self.g2
 
         if self.tpcount == -1:
             self.extractTwoPaths()        
         
-        g2 = igraph.Graph(directed=True)
-        g2.vs["name"] = []
+        self.g2 = igraph.Graph(directed=True)
+        self.g2.vs["name"] = []
         for tp in self.twopaths:            
             n1 = str(tp[0])+";"+str(tp[1])
             n2 = str(tp[1])+";"+str(tp[2])
-            if not n1 in g2.vs["name"]:
-                g2.add_vertex(name=n1)
-            if not n2 in g2.vs["name"]:
-                g2.add_vertex(name=n2)
-            if not g2.are_connected(n1, n2):
-                g2.add_edge(n1, n2, weight=tp[3])
-        return g2
+            if not n1 in self.g2.vs["name"]:
+                self.g2.add_vertex(name=n1)
+            if not n2 in self.g2.vs["name"]:
+                self.g2.add_vertex(name=n2)
+            if not self.g2.are_connected(n1, n2):
+                self.g2.add_edge(n1, n2, weight=tp[3])
+        return self.g2
 
 
         
@@ -248,12 +290,15 @@ class TemporalNetwork:
            corresponding to the first-order aggregate network. This network
            is a second-order representation of the weighted time-aggregated network."""
 
+        if self.g2n != 0:
+            return self.g2n
+
         g1 = self.iGraphFirstOrder()
         
         D = g1.strength(mode="out", weights=g1.es["weight"])
         
-        g2n = igraph.Graph(directed=True)
-        g2n.vs["name"] = []
+        self.g2n = igraph.Graph(directed=True)
+        self.g2n.vs["name"] = []
         
         for e1 in g1.es:
             for e2 in g1.es:
@@ -263,41 +308,64 @@ class TemporalNetwork:
                     c = e2.target
                     n1 = g1.vs[a]["name"]+";"+g1.vs[b]["name"]
                     n2 = g1.vs[b]["name"]+";"+g1.vs[c]["name"]
-                    if n1 not in g2n.vs["name"]:
-                        g2n.add_vertex(name=n1)
-                    if n2 not in g2n.vs["name"]:
-                        g2n.add_vertex(name=n2)
+                    if n1 not in self.g2n.vs["name"]:
+                        self.g2n.add_vertex(name=n1)
+                    if n2 not in self.g2n.vs["name"]:
+                        self.g2n.add_vertex(name=n2)
                     # Compute expected weight                        
                     w = 0.5 * g1[a,b] * g1[b,c] / D[b]
                     if w>0 and not D[b]==0: # and not g2n.are_connected(n1, n2)
-                        g2n.add_edge(n1, n2, weight = w)
-        return g2n
+                        self.g2n.add_edge(n1, n2, weight = w)                
+        return self.g2n
+
 
     def ShuffleEdges(self, l=0):        
+        """Generates a shuffled version of the temporal network in which edge statistics (i.e.
+        the frequencies of time-stamped edges) are preserved, while all order correlations are 
+        destroyed"""
         tedges = []
         
+        if self.tpcount == -1:
+            self.extractTwoPaths()
+        
         if l==0:
-            l = len(self.tedges)
+            l = 2*int(len(self.tedges)/2)
         for i in range(l):
-            edge = self.tedges[np.random.randint(len(self.tedges))]
+            # We simply shuffle the order of all edges
+            edge = self.tedges[np.random.randint(0, len(self.tedges))]
             tedges.append((edge[0], edge[1], i))
         tn = TemporalNetwork(tedges)
         return tn
         
         
     def ShuffleTwoPaths(self, l=0):
-        ""
+        """Generates a shuffled version of the temporal network in which two-path statistics (i.e.
+        first-order correlations in the order of time-stamped edges) are preserved"""
+        
         tedges = []
+        
+        if self.tpcount == -1:
+            self.extractTwoPaths()
         
         t = 0
         
+        times = list(self.twopathsByTime.keys())        
+        
         if l==0:
-            l = len(self.twopaths)
+            l = len(self.tedges)
         for i in range(int(l/2)):
-            tp = self.twopaths[np.random.randint(len(self.twopaths))]
+            # Chose a time uniformly at random
+            rt = times[np.random.randint(0, len(self.twopathsByTime))]
+            
+            # Chose a node active at that time uniformly at random
+            rn = list(self.twopathsByTime[rt].keys())[np.random.randint(0, len(self.twopathsByTime[rt]))]
+            
+            # Chose a two path uniformly at random
+            paths = self.twopathsByTime[rt][rn]
+            tp = paths[np.random.randint(0, len(paths))]
+            
             tedges.append((tp[0], tp[1], t))
             tedges.append((tp[1], tp[2], t+1))
-            t+=1
             
         tn = TemporalNetwork(tedges)
         return tn
