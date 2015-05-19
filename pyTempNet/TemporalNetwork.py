@@ -6,7 +6,6 @@ Created on Thu Feb 19 11:49:39 2015
 """
 
 import igraph    
-import collections
 import datetime as dt
 import time
 import numpy as np
@@ -131,7 +130,7 @@ class TemporalNetwork:
             except KeyError:
                 time[e[2]] = [e]
 
-        # Index structures to quickly access tedges by time and target/source
+        # Index structures to quickly access tedges by target/source
         targets = {}
         sources = {}
         for e in self.tedges:            
@@ -228,7 +227,7 @@ class TemporalNetwork:
     
     
     
-    def iGraphFirstOrder(self):
+    def igraphFirstOrder(self):
         """Returns the first-order time-aggregated network
            corresponding to this temporal network. This network corresponds to 
            a first-order Markov model reproducing the link statistics in the 
@@ -258,7 +257,7 @@ class TemporalNetwork:
 
 
         
-    def iGraphSecondOrder(self):
+    def igraphSecondOrder(self):
         """Returns the second-order time-aggregated network
            corresponding to this temporal network. This network corresponds to 
            a second-order Markov model reproducing both the link statistics and 
@@ -285,7 +284,7 @@ class TemporalNetwork:
 
 
         
-    def iGraphSecondOrderNull(self):
+    def igraphSecondOrderNull(self):
         """Returns a second-order null Markov model 
            corresponding to the first-order aggregate network. This network
            is a second-order representation of the weighted time-aggregated network."""
@@ -293,7 +292,7 @@ class TemporalNetwork:
         if self.g2n != 0:
             return self.g2n
 
-        g1 = self.iGraphFirstOrder()
+        g1 = self.igraphFirstOrder()
         
         D = g1.strength(mode="out", weights=g1.es["weight"])
         
@@ -370,6 +369,72 @@ class TemporalNetwork:
         tn = TemporalNetwork(tedges)
         return tn
 
+
+    def exportTikzUnfolded(self, filename):
+        """Generates a tikz file that can be compiled to obtaina time-unfolded 
+            representation of the temporal network"""    
+    
+        time = {}
+        for e in self.tedges:
+            try:
+                time[e[2]].append(e)
+            except KeyError:
+                time[e[2]] = [e]
+        
+        output = []
+            
+        output.append('\\documentclass{article}\n')
+        output.append('\\usepackage{tikz}\n')
+        output.append('\\usepackage{verbatim}\n')
+        output.append('\\usepackage[active,tightpage]{preview}\n')
+        output.append('\\PreviewEnvironment{tikzpicture}\n')
+        output.append('\\setlength\PreviewBorder{5pt}%\n')
+        output.append('\\usetikzlibrary{arrows}\n')
+        output.append('\\usetikzlibrary{positioning}\n')
+        output.append('\\begin{document}\n')
+        output.append('\\begin{center}\n')
+        output.append('\\newcounter{a}\n')
+        output.append("\\begin{tikzpicture}[->,>=stealth',auto,scale=0.5, every node/.style={scale=0.9}]\n")
+        output.append("\\tikzstyle{node} = [fill=lightgray,text=black,circle]\n")
+        output.append("\\tikzstyle{v} = [fill=black,text=white,circle]\n")
+        output.append("\\tikzstyle{dst} = [fill=lightgray,text=black,circle]\n")
+        output.append("\\tikzstyle{lbl} = [fill=white,text=black,circle]\n")
+
+        last = ''
+            
+        for n in self.nodes:
+            if last == '':
+                output.append("\\node[lbl]                     (" + n + "-0)   {$" + n + "$};\n")
+            else:
+                output.append("\\node[lbl,right=0.5cm of "+last+"-0] (" + n + "-0)   {$" + n + "$};\n")
+            last = n
+            
+        output.append("\\setcounter{a}{0}\n")
+        output.append("\\foreach \\number in {1,...," + str(len(self.tedges)+2) + "}{\n")
+        output.append("\\setcounter{a}{\\number}\n")
+        output.append("\\addtocounter{a}{-1}\n")
+        output.append("\\pgfmathparse{\\thea}\n")
+        
+        for n in self.nodes:
+            output.append("\\node[v,below=0.3cm of " + n + "-\\pgfmathresult]     (" + n + "-\\number) {};\n")
+        output.append("\\node[lbl,left=0.5cm of " + self.nodes[0] + "-\\number]    (col-\\pgfmathresult) {$t=$\\number};\n")
+        output.append("}\n")
+        output.append("\\path[->,thick]\n")
+        i = 1
+        
+        for t in time:
+            for edge in time[t]:
+                output.append("(" + edge[0] + "-" + str(t+1) + ") edge (" + edge[1] + "-" + str(t + 2) + ")\n")
+                i += 1                                
+        output.append(";\n")
+        output.append("""\end{tikzpicture}
+\end{center}
+\end{document}""")
+        text_file = open(filename, "w")
+        text_file.write(''.join(output))
+        text_file.close()
+                    
+        
         
     def exportMovie(self, filename, fps=5, dpi=100):
         """Exports an animated movie showing the temporal

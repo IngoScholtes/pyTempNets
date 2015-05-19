@@ -4,11 +4,26 @@ Created on Thu Feb 19 11:49:39 2015
 
 @author: Ingo Scholtes
 """
-
 import numpy as np
 import scipy.linalg as spl
 from pyTempNet import *
 from pyTempNet.Processes import *
+
+def Laplacian(temporalnet, model="SECOND"):
+    """Returns the Laplacian matrix corresponding to the the second-order (model=SECOND) or 
+    the second-order null (model=NULL) model for a temporal network.
+    """
+    assert model is "SECOND" or "NULL"
+    
+    if model == "SECOND":
+        network = temporalnet.igraphSecondOrder().components(mode="STRONG").giant()
+    elif model == "NULL": 
+        network = temporalnet.igraphSecondOrderNull().components(mode="STRONG").giant()  
+    
+    T2 = Processes.RWTransitionMatrix(network)
+    I = np.diag([1]*len(network.vs()))
+
+    return I-T2
 
 
 def FiedlerVector(temporalnet, model="SECOND"):
@@ -16,18 +31,25 @@ def FiedlerVector(temporalnet, model="SECOND"):
     second-order null (model=NULL) model for a temporal network. The Fiedler 
      vector can be used for a spectral bisectioning of the network.
     """
-    
     assert model is "SECOND" or "NULL"
     
-    if model == "SECOND":
-        network = temporalnet.iGraphSecondOrder().components(mode="STRONG").giant()
-    elif model == "NULL": 
-        network = temporalnet.iGraphSecondOrderNull().components(mode="STRONG").giant()  
-    
-    T = Processes.RWTransitionMatrix(network)
+    L = Laplacian(temporalnet, model)
             
-    w, v = spl.eig(T, left=True, right=False)
-    return v[:,np.argsort(-np.absolute(w))][:,1] 
+    w, v = spl.eig(L, left=True, right=False)
+    return v[:,np.argsort(np.absolute(w))][:,1]
+
+
+def AlgebraicConn(temporalnet, model="SECOND"):
+    """Returns the Fiedler vector of the second-order (model=SECOND) or the
+    second-order null (model=NULL) model for a temporal network. The Fiedler 
+     vector can be used for a spectral bisectioning of the network.
+    """
+
+    L = Laplacian(temporalnet, model)
+
+    w, v = spl.eig(L, left=True, right=False)
+    evals_sorted = np.sort(np.absolute(w))
+    return np.abs(evals_sorted[1])
 
 
 def __log(p):
@@ -58,8 +80,8 @@ def EntropyGrowthRateRatio(t):
         than one indicate that the temporal network exhibits non-Markovian characteristics"""
         
         # Generate strongly connected component of second-order networks
-        g2 = t.iGraphSecondOrder().components(mode="STRONG").giant()
-        g2n = t.iGraphSecondOrderNull().components(mode="STRONG").giant()
+        g2 = t.igraphSecondOrder().components(mode="STRONG").giant()
+        g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
         
         # Calculate transition matrices
         T2 = Processes.RWTransitionMatrix(g2)
@@ -81,7 +103,7 @@ def __Entropy(prob):
 
 def __BWPrefMatrix(t, v):
     """Computes a betweenness preference matrix for a node v in a temporal network t"""
-    g = t.iGraphFirstOrder()
+    g = t.igraphFirstOrder()
     v_vertex = g.vs.find(name=v)
     indeg = v_vertex.degree(mode="IN")        
     outdeg = v_vertex.degree(mode="OUT")
@@ -112,7 +134,7 @@ def __BWPrefMatrix(t, v):
 def BetweennessPreference(t, v, normalized = False):
         """Computes the betweenness preference of a node v in a temporal network t"""
         
-        g = t.iGraphFirstOrder()
+        g = t.igraphFirstOrder()
         
         # If the network is empty, just return zero
         if len(g.vs) == 0:
@@ -178,8 +200,8 @@ def SlowDownFactor(t):
     compared to a first-order model. This value captures the effect of order
     correlations on a diffusion process in the temporal network.
     """
-    g2 = t.iGraphSecondOrder().components(mode="STRONG").giant()
-    g2n = t.iGraphSecondOrderNull().components(mode="STRONG").giant()
+    g2 = t.igraphSecondOrder().components(mode="STRONG").giant()
+    g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
     
     # Build transition matrices
     T2 = Processes.RWTransitionMatrix(g2)

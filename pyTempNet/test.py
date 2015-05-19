@@ -51,7 +51,7 @@ t.addEdge("e", "f", 21);
 print("Test network has", t.TwoPathCount(), "two-paths")
 
 # Plot the three aggregate networks
-g1 = t.iGraphFirstOrder()
+g1 = t.igraphFirstOrder()
 
 # Compute betweenness preference of nodes
 bw = tn.Measures.BetweennessPreference(t, v='e')
@@ -107,13 +107,13 @@ print("Extracting two-paths ...")
 t.extractTwoPaths()
 print("Temporal network has", t.TwoPathCount(), "two-paths")
 
-g1 = t.iGraphFirstOrder()
+g1 = t.igraphFirstOrder()
 print("First-order aggregate network has", len(g1.vs), "nodes and", len(g1.es), "edges")
 
-g2 = t.iGraphSecondOrder().components(mode="STRONG").giant()
+g2 = t.igraphSecondOrder().components(mode="STRONG").giant()
 print("Second-order aggregate network has", len(g2.vs), "nodes and", len(g2.es), "edges")
 
-g2n = t.iGraphSecondOrderNull().components(mode="STRONG").giant()
+g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
 print("Second-order null aggregate network has", len(g2n.vs), "nodes and", len(g2n.es), "edges")
 
 print("Slow-down factor for diffusion is", tn.Measures.SlowDownFactor(t))
