@@ -371,7 +371,7 @@ class TemporalNetwork:
 
 
     def exportTikzUnfolded(self, filename):
-        """Generates a tikz file that can be compiled to obtaina time-unfolded 
+        """Generates a tikz file that can be compiled to obtain a time-unfolded 
             representation of the temporal network"""    
     
         time = {}
@@ -437,7 +437,7 @@ class TemporalNetwork:
         
         
     def exportMovie(self, filename, fps=5, dpi=100):
-        """Exports an animated movie showing the temporal
+        """Exports an animation showing the temporal
            evolution of the network"""
         
         import matplotlib.animation as anim
