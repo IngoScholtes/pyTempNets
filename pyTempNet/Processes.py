@@ -23,7 +23,6 @@ def RWTransitionMatrix(g):
     for i in range(len(g.vs)):
         for j in range(len(g.vs)):
             T[i,j] = A[i,j]/D[i,i]           
-            # print("A[", i, ",", j, "] = ", A[i,j], "/", D[i,i], " = ", T[i,j])
             assert T[i,j]>=0 and T[i,j] <= 1
     return T
 

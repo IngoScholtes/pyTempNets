@@ -13,7 +13,7 @@ import numpy as np
 class TemporalNetwork:
     """A class representing a temporal network"""
     
-    def __init__(self, tedges = None):
+    def __init__(self, tedges = None, twopaths = None):
         """Constructor generating an empty temporal network"""
         self.tedges = []
         self.nodes = []
@@ -26,11 +26,40 @@ class TemporalNetwork:
             if source not in self.nodes:
                 self.nodes.append(source)
             if target not in self.nodes:
-                self.nodes.append(target)        
+                self.nodes.append(target)
         self.twopaths = []
         self.twopathsByNode = {}
         self.twopathsByTime = {}
         self.tpcount = -1
+
+        if twopaths is not None:
+            t = 0
+            for tp in twopaths:
+                self.twopaths.append(tp)
+                s = tp[0]
+                v = tp[1]
+                d = tp[2]
+
+                if s not in self.nodes:
+                    self.nodes.append(s)
+                if v not in self.nodes:
+                    self.nodes.append(v)
+                if d not in self.nodes:
+                    self.nodes.append(d)
+
+                try:
+                    x = self.twopathsByNode[v]
+                except KeyError:
+                    # Generate dictionary indexed by (artificial) time stamps
+                    self.twopathsByNode[v] = {}
+                try:
+                    self.twopathsByNode[v][t].append(tp)
+                except KeyError:
+                    # Generate list taking all two paths through node v at (artificial) time t
+                    self.twopathsByNode[v][t] = [tp]
+                t +=1
+            self.tpcount = len(twopaths)
+
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
@@ -49,9 +78,11 @@ class TemporalNetwork:
         """
         
         assert filename is not ""
+        assert fformat is "TEDGE" or "TRIGRAM"
         
         f = open(filename, 'r')
         tedges = []
+        twopaths = []
         
         header = f.readline()
         header = header.split(sep)
@@ -59,14 +90,27 @@ class TemporalNetwork:
         # Support for arbitrary column ordering
         time_ix = -1
         source_ix = -1
-        target_ix = -1        
-        for i in range(len(header)):
-            if header[i] == 'node1' or header[i] == 'source':
-                source_ix = i
-            elif header[i] == 'node2' or header[i] == 'target':
-                target_ix = i
-            elif header[i] == 'time':
-                time_ix = i
+        mid_ix = -1
+        weight_ix = -1
+        target_ix = -1
+        if fformat =="TEDGE":
+            for i in range(len(header)):
+                if header[i] == 'node1' or header[i] == 'source':
+                    source_ix = i
+                elif header[i] == 'node2' or header[i] == 'target':
+                    target_ix = i
+                elif header[i] == 'time':
+                    time_ix = i
+        elif fformat =="TRIGRAM":
+            for i in range(len(header)):
+                if header[i] == 'node1' or header[i] == 'source':
+                    source_ix = i                
+                elif header[i] == 'node2' or header[i] == 'mid':
+                    mid_ix = i
+                elif header[i] == 'node3' or header[i] == 'target':
+                    target_ix = i
+                elif header[i] == 'weight':
+                    weight_ix = i
         
         # Read time-stamped edges
         line = f.readline()
@@ -82,11 +126,19 @@ class TemporalNetwork:
 
                 tedge = (fields[source_ix], fields[target_ix], t)
                 tedges.append(tedge)
-            elif fformat =="TRIGRAM":
-                # TODO: Add support for trigram files
-                pass
+            elif fformat =="TRIGRAM":             
+                source = fields[source_ix].strip('"')
+                mid = fields[mid_ix].strip('"')
+                target = fields[target_ix].strip('"')
+                weight = float(fields[weight_ix].strip('"'))
+                tp = (source, mid, target, weight)
+                twopaths.append(tp)
+
             line = f.readline()
-        return TemporalNetwork(tedges)
+        if fformat == "TEDGES":
+            return TemporalNetwork(tedges = tedges)
+        elif fformat =="TRIGRAM":           
+            return TemporalNetwork(twopaths = twopaths)
 
 
 
@@ -100,7 +152,6 @@ class TemporalNetwork:
             self.nodes.append(target)
             
         self.tpcount = -1
-
 
         
     def vcount(self):

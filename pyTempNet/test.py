@@ -50,6 +50,7 @@ t.addEdge("e", "f", 21);
 
 print("Test network has", t.TwoPathCount(), "two-paths")
 
+
 # Plot the three aggregate networks
 g1 = t.igraphFirstOrder()
 
@@ -120,18 +121,3 @@ print("Slow-down factor for diffusion is", tn.Measures.SlowDownFactor(t))
 
 print("Entropy growth rate ratio is", tn.Measures.EntropyGrowthRateRatio(t))
 
-
-# Test with actual data set 
-t = tn.TemporalNetwork.readFile('manufacturing_30d_agg_3600_scc.tedges', sep=' ')
-print("Temporal network has", t.vcount(), "nodes")
-print("Temporal network has", t.ecount(), "time-stamped edges")
-
-print("Slow-down factor for diffusion is", tn.Measures.SlowDownFactor(t))
-print("Entropy growth rate ratio is", tn.Measures.EntropyGrowthRateRatio(t))
-
-t = tn.TemporalNetwork.readFile('RealityMining_agg_300s_scc.tedges', sep=' ')
-print("Temporal network has", t.vcount(), "nodes")
-print("Temporal network has", t.ecount(), "time-stamped edges")
-
-print("Slow-down factor for diffusion is", tn.Measures.SlowDownFactor(t))
-print("Entropy growth rate ratio is", tn.Measures.EntropyGrowthRateRatio(t))
