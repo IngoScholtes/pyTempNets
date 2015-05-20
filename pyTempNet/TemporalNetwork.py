@@ -169,7 +169,7 @@ class TemporalNetwork:
     def extractTwoPaths(self, delta=1):
         """Extracts all time-respecting paths of length two. The delta parameter indicates the maximum
         temporal distance below which two consecutive links will be considered as a time-respecting path.
-        For (u,v,3) and (v,w,7) a time-respecting path (u,v)->(v,w) will be inferred for all delta < 4, 
+        For (u,v,3) and (v,w,7) a time-respecting path (u,v)->(v,w) will be inferred for all delta 0 < 4, 
         while no time-respecting path will be inferred for all delta >= 4.
         """
         
@@ -340,8 +340,7 @@ class TemporalNetwork:
     def igraphSecondOrderNull(self):
         """Returns a second-order null Markov model 
            corresponding to the first-order aggregate network. This network
-           is a second-order representation of the weighted time-aggregated network.
-           TODO: This operation is usually the bottleneck for large data sets!
+           is a second-order representation of the weighted time-aggregated network.           
            """
 
         if self.g2n != 0:
@@ -357,6 +356,7 @@ class TemporalNetwork:
         # make check whether vertex was already added fast!
         vertices = {}
         
+        # TODO: This operation is the bottleneck for large data sets!
         for e1 in g1.es:
             for e2 in g1.es:
                 if e1.target == e2.source:
@@ -365,6 +365,9 @@ class TemporalNetwork:
                     c = e2.target
                     n1 = g1.vs[a]["name"]+";"+g1.vs[b]["name"]
                     n2 = g1.vs[b]["name"]+";"+g1.vs[c]["name"]
+
+                    # The following code is faster than checking whether a node exists 
+                    # in the igraph object
                     try: 
                         x = vertices[n1]
                     except:
@@ -375,9 +378,12 @@ class TemporalNetwork:
                     except:
                         self.g2n.add_vertex(name=n2)
                         vertices[n2] = True
-                    # Compute expected weight                        
-                    w = 0.5 * g1[a,b] * g1[b,c] / D[b]
-                    if w>0 and not D[b]==0: # and not g2n.are_connected(n1, n2)
+                    # Compute expected weight of a two-path based on Markovian edge sequence
+                    # TODO: Error here ... 
+                    # Original code: w = 0.5 * g1[a,b] * g1[b,c] / D[b]
+                    # According to paper: 
+                    w = g1[a,b] * (g1[b,c] / D[b])
+                    if w>0 and not D[b]==0:
                         self.g2n.add_edge(n1, n2, weight = w)                
         return self.g2n
 
