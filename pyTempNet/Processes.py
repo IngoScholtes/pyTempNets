@@ -18,14 +18,11 @@ def RWTransitionMatrix(g):
         A = np.matrix(list(g.get_adjacency(attribute='weight', default=0)))
         D = np.diag(g.strength(mode='out', weights=g.es["weight"]))
 
-    T = np.zeros(shape=(len(g.vs), len(g.vs)))    
+    T = np.zeros(shape=(len(g.vs), len(g.vs)))
     
     for i in range(len(g.vs)):
-        for j in range(len(g.vs)):
-            # facilitate debugging of assertion errors ... 
-            a = A[i,j]
-            d = D[i,i]           
-            T[i,j] = a/d
+        for j in range(len(g.vs)):       
+            T[i,j] = A[i,j]/D[i,i]
             assert T[i,j]>=0 and T[i,j] <= 1
     return T
 
