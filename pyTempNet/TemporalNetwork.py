@@ -11,7 +11,7 @@ import time
 import numpy as np
 
 class TemporalNetwork:
-    """A class representing a temporal network"""
+    """A class representing a temporal network consisting of a sequence of time-stamped edges"""
     
     def __init__(self, tedges = None, twopaths = None):
         """Constructor generating an empty temporal network"""
@@ -95,6 +95,7 @@ class TemporalNetwork:
         target_ix = -1
         if fformat =="TEDGE":
             for i in range(len(header)):
+                header[i] = header[i].strip()
                 if header[i] == 'node1' or header[i] == 'source':
                     source_ix = i
                 elif header[i] == 'node2' or header[i] == 'target':
@@ -103,6 +104,7 @@ class TemporalNetwork:
                     time_ix = i
         elif fformat =="TRIGRAM":
             for i in range(len(header)):
+                header[i] = header[i].strip()
                 if header[i] == 'node1' or header[i] == 'source':
                     source_ix = i                
                 elif header[i] == 'node2' or header[i] == 'mid':
@@ -135,7 +137,7 @@ class TemporalNetwork:
                 twopaths.append(tp)
 
             line = f.readline()
-        if fformat == "TEDGES":
+        if fformat == "TEDGE":
             return TemporalNetwork(tedges = tedges)
         elif fformat =="TRIGRAM":           
             return TemporalNetwork(twopaths = twopaths)
@@ -338,7 +340,9 @@ class TemporalNetwork:
     def igraphSecondOrderNull(self):
         """Returns a second-order null Markov model 
            corresponding to the first-order aggregate network. This network
-           is a second-order representation of the weighted time-aggregated network."""
+           is a second-order representation of the weighted time-aggregated network.
+           TODO: This operation is usually the bottleneck for large data sets!
+           """
 
         if self.g2n != 0:
             return self.g2n
@@ -349,6 +353,9 @@ class TemporalNetwork:
         
         self.g2n = igraph.Graph(directed=True)
         self.g2n.vs["name"] = []
+
+        # make check whether vertex was already added fast!
+        vertices = {}
         
         for e1 in g1.es:
             for e2 in g1.es:
@@ -358,10 +365,16 @@ class TemporalNetwork:
                     c = e2.target
                     n1 = g1.vs[a]["name"]+";"+g1.vs[b]["name"]
                     n2 = g1.vs[b]["name"]+";"+g1.vs[c]["name"]
-                    if n1 not in self.g2n.vs["name"]:
+                    try: 
+                        x = vertices[n1]
+                    except:
                         self.g2n.add_vertex(name=n1)
-                    if n2 not in self.g2n.vs["name"]:
+                        vertices[n1] = True
+                    try: 
+                        x = vertices[n2]
+                    except:
                         self.g2n.add_vertex(name=n2)
+                        vertices[n2] = True
                     # Compute expected weight                        
                     w = 0.5 * g1[a,b] * g1[b,c] / D[b]
                     if w>0 and not D[b]==0: # and not g2n.are_connected(n1, n2)

@@ -22,7 +22,10 @@ def RWTransitionMatrix(g):
     
     for i in range(len(g.vs)):
         for j in range(len(g.vs)):
-            T[i,j] = A[i,j]/D[i,i]           
+            # facilitate debugging of assertion errors ... 
+            a = A[i,j]
+            d = D[i,i]           
+            T[i,j] = a/d
             assert T[i,j]>=0 and T[i,j] <= 1
     return T
 
@@ -36,8 +39,10 @@ def TVD(p1, p2):
     
     
 def RWDiffusion(g, samples = 5, epsilon=0.01):
-    """Computes the evolution of random walk convergence behavior for a random walk 
-    process in a given network"""
+    """Computes the average number of steps requires by a random walk process
+    to fall below a total variation distance below epsilon (TVD computed between the momentary 
+    visitation probabilities \pi^t and the stationary distribution \pi = \pi^{\infty}. This time can be 
+    used to measure diffusion speed in a given (weighted and directed) network."""
     avg_speed = 0
     T = RWTransitionMatrix(g)
     for s in range(samples):
@@ -45,7 +50,7 @@ def RWDiffusion(g, samples = 5, epsilon=0.01):
         pi = v[:,np.argsort(-w)][:,0]
         pi = pi/sum(pi)
         x = [0] * len(g.vs)
-        x[0] = 1
+        x[np.random.randint(len(g.vs()))] = 1
         t = 0
         while TVD(x,pi)>epsilon:
             t += 1
