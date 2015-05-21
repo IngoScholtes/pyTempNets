@@ -363,14 +363,16 @@ class TemporalNetwork:
         if self.g2n != 0:
             return self.g2n
 
-        # Compute stationary distribution to obtain expected edge weights in pi
-        A = np.matrix(list(self.g2.get_adjacency(attribute='weight', default=0)))
-        D = np.diag(self.g2.strength(mode='out', weights=self.g2.es["weight"]))
+        g2 = self.igraphSecondOrder().components().giant()
 
-        T = np.zeros(shape=(len(self.g2.vs), len(self.g2.vs)))
+        # Compute stationary distribution to obtain expected edge weights in pi
+        A = np.matrix(list(g2.get_adjacency(attribute='weight', default=0)))
+        D = np.diag(g2.strength(mode='out', weights=g2.es["weight"]))
+
+        T = np.zeros(shape=(len(g2.vs), len(g2.vs)))
     
-        for i in range(len(self.g2.vs)):
-            for j in range(len(self.g2.vs)):       
+        for i in range(len(g2.vs)):
+            for j in range(len(g2.vs)):       
                 T[i,j] = A[i,j]/D[i,i]
                 assert T[i,j]>=0 and T[i,j] <= 1
 
@@ -388,8 +390,8 @@ class TemporalNetwork:
         
         # TODO: This operation is the bottleneck for large data sets!
         # TODO: Only iterate over those edge pairs, that actually are two paths!
-        for e1 in self.g2.vs():
-            for e2 in self.g2.vs():
+        for e1 in g2.vs():
+            for e2 in g2.vs():
                 a = e1["name"].split(';')[0]
                 b = e1["name"].split(';')[1]
                 b_ = e2["name"].split(';')[0]
