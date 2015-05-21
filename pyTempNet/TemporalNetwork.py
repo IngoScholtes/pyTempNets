@@ -9,6 +9,7 @@ import igraph
 import datetime as dt
 import time
 import numpy as np
+import scipy.linalg as spl
 
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
@@ -362,10 +363,23 @@ class TemporalNetwork:
         if self.g2n != 0:
             return self.g2n
 
-        g1 = self.igraphFirstOrder()
+        # Compute stationary distribution to obtain expected edge weights in pi
+        A = np.matrix(list(self.g2.get_adjacency(attribute='weight', default=0)))
+        D = np.diag(self.g2.strength(mode='out', weights=self.g2.es["weight"]))
+
+        T = np.zeros(shape=(len(self.g2.vs), len(self.g2.vs)))
+    
+        for i in range(len(self.g2.vs)):
+            for j in range(len(self.g2.vs)):       
+                T[i,j] = A[i,j]/D[i,i]
+                assert T[i,j]>=0 and T[i,j] <= 1
+
+        w, v = spl.eig(T, left=True, right=False)
+        pi = v[:,np.argsort(-w)][:,0]
+        pi = pi/sum(pi)
+
         
-        D = g1.strength(mode="out", weights=g1.es["weight"])
-        
+        # Construct null model second-order network
         self.g2n = igraph.Graph(directed=True)
         self.g2n.vs["name"] = []
 
@@ -374,34 +388,31 @@ class TemporalNetwork:
         
         # TODO: This operation is the bottleneck for large data sets!
         # TODO: Only iterate over those edge pairs, that actually are two paths!
-        for e1 in g1.es:
-            for e2 in g1.es:
-                if e1.target == e2.source:
-                    a = e1.source
-                    b = e1.target
-                    c = e2.target
-                    n1 = g1.vs[a]["name"]+";"+g1.vs[b]["name"]
-                    n2 = g1.vs[b]["name"]+";"+g1.vs[c]["name"]
+        for e1 in self.g2.vs():
+            for e2 in self.g2.vs():
+                a = e1["name"].split(';')[0]
+                b = e1["name"].split(';')[1]
+                b_ = e2["name"].split(';')[0]
+                c = e2["name"].split(';')[1]
 
+                # Check whether this pair of nodes in the second-order 
+                # network is a *possible* two-path
+                if b == b_:
                     # The following code is faster than checking whether a node exists 
                     # in the igraph object
                     try: 
-                        x = vertices[n1]
+                        x = vertices[e1["name"]]
                     except:
-                        self.g2n.add_vertex(name=n1)
-                        vertices[n1] = True
+                        self.g2n.add_vertex(name=e1["name"])
+                        vertices[e1["name"]] = True
                     try: 
-                        x = vertices[n2]
+                        x = vertices[e2["name"]]
                     except:
-                        self.g2n.add_vertex(name=n2)
-                        vertices[n2] = True
-                    # Compute expected weight of a two-path based on Markovian edge sequence
-                    # TODO: Error here ... 
-                    # Original code: w = 0.5 * g1[a,b] * g1[b,c] / D[b]
-                    # According to paper: 
-                    w = g1[a,b] * (g1[b,c] / D[b])
-                    if w>0 and not D[b]==0:
-                        self.g2n.add_edge(n1, n2, weight = w)                
+                        self.g2n.add_vertex(name=e2["name"])
+                        vertices[e2["name"]] = True
+                    w = pi[e2.index]
+                    if w>0:
+                        self.g2n.add_edge(e1["name"], e2["name"], weight = w)
         return self.g2n
 
 
