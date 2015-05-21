@@ -534,26 +534,40 @@ class TemporalNetwork:
                     
         
         
-    def exportMovie(self, filename, fps=5, dpi=100):
+    def exportMovieFrames(self, fileprefix, visual_style = None):
         """Exports an animation showing the temporal
-           evolution of the network"""
+           evolution of the network"""       
+
+        g = self.igraphFirstOrder()
+
+         # An index structure to quickly access tedges by time
+        time = {}
+        for e in self.tedges:
+            try:
+                time[e[2]].append(e)
+            except KeyError:
+                time[e[2]] = [e]
+
+        if visual_style == None:
+            visual_style = {}
+            visual_style["vertex_color"] = "lightblue"
+            visual_style["vertex_label"] = g.vs["name"]
+            visual_style["edge_curved"] = .5
+            visual_style["vertex_size"] = 30
+
+        # Use layout from first-order aggregate network
+        visual_style["layout"] = g.layout_auto()                       
         
-        import matplotlib.animation as anim
-        import matplotlib.image as mpimg
-        import matplotlib.pyplot as plt
-    
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.set_aspect('equal')
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-    
-        
-        def next_img(n):                        
-            g = igraph.Graph.Erdos_Renyi(n=5, m=7)
-            igraph.plot(g, "frame.png")
-            return plt.imshow(mpimg.imread("frame.png"))
-        
-        ani = anim.FuncAnimation(fig, next_img, 300, interval=30)
-        writer = anim.FFMpegWriter(fps=fps)
-        ani.save(filename, writer=writer, dpi=dpi)
+        # Generate movie frames
+        for t in range(min(time.keys()), max(time.keys())+1):
+            slice = igraph.Graph(n=len(g.vs()), directed=True)
+            slice.vs["name"] = g.vs["name"]            
+            try:
+                edges = time[t]
+            except KeyError:
+                edges = []
+            for e in edges:
+                slice.add_edge(e[0], e[1])
+            igraph.plot(slice, fileprefix + '_' + str(t).zfill(5) + '.png', **visual_style)
+            if t % 100 == 0:
+                print('Wrote movie frame', t, ' of', max(time.keys())+1)
