@@ -376,7 +376,7 @@ class TemporalNetwork:
 
         w, v = spl.eig(T, left=True, right=False)
         pi = v[:,np.argsort(-w)][:,0]
-        pi = pi/sum(pi)
+        pi = np.real(pi/sum(pi))
 
         
         # Construct null model second-order network
