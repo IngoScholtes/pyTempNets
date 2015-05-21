@@ -320,19 +320,35 @@ class TemporalNetwork:
             return self.g2
 
         if self.tpcount == -1:
-            self.extractTwoPaths()        
+            self.extractTwoPaths() 
+
+        # Index dictionaries to speed up network construction
+        # (circumventing inefficient igraph operations to check 
+        # whether nodes or edges exist)
+        vertices = {}
+        edges = {}       
         
         self.g2 = igraph.Graph(directed=True)
         self.g2.vs["name"] = []
         for tp in self.twopaths:            
             n1 = str(tp[0])+";"+str(tp[1])
             n2 = str(tp[1])+";"+str(tp[2])
-            if not n1 in self.g2.vs["name"]:
+            try:
+                x = vertices[n1]
+            except KeyError:                
                 self.g2.add_vertex(name=n1)
-            if not n2 in self.g2.vs["name"]:
+                vertices[n1] = True
+            try:
+                x = vertices[n2]
+            except KeyError:                
                 self.g2.add_vertex(name=n2)
-            if not self.g2.are_connected(n1, n2):
-                self.g2.add_edge(n1, n2, weight=tp[3])
+                vertices[n2] = True
+            try:
+                x = edges[n1+n2]
+                self.g2.es()[edges[n1+n2]]["weight"] += tp[3]
+            except KeyError:
+                edges[n1+n2] = len(self.g2.es())
+                self.g2.add_edge(n1, n2, weight=tp[3])                
         return self.g2
 
 
@@ -357,6 +373,7 @@ class TemporalNetwork:
         vertices = {}
         
         # TODO: This operation is the bottleneck for large data sets!
+        # TODO: Only iterate over those edge pairs, that actually are two paths!
         for e1 in g1.es:
             for e2 in g1.es:
                 if e1.target == e2.source:
