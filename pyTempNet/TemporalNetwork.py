@@ -363,7 +363,7 @@ class TemporalNetwork:
         if self.g2n != 0:
             return self.g2n
 
-        g2 = self.igraphSecondOrder().components().giant()
+        g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
 
         # Compute stationary distribution to obtain expected edge weights in pi
         A = np.matrix(list(g2.get_adjacency(attribute='weight', default=0)))
