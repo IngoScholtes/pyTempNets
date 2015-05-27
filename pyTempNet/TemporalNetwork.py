@@ -300,13 +300,28 @@ class TemporalNetwork:
         for v in self.nodes:
             self.g1.add_vertex(str(v))
 
+        # Index dictionaries to speed up network construction
+        # (circumventing inefficient igraph operations to check 
+        # whether nodes or edges exist)
+        edges = {}  
+
         # We first keep multiple (weighted) edges
         for tp in self.twopaths:
-            self.g1.add_edge(str(tp[0]), str(tp[1]), weight=tp[3])
-            self.g1.add_edge(str(tp[1]), str(tp[2]), weight=tp[3])
-            
-        # We then collapse them, while summing their weights
-        self.g1 = self.g1.simplify(combine_edges="sum")
+
+            try:
+                x = edges[tp[0]+tp[1]]
+                self.g1.es()[edges[tp[0]+tp[1]]]["weight"] += float(tp[3])
+            except KeyError:
+                edges[tp[0]+tp[1]] = len(self.g1.es())
+                self.g1.add_edge(tp[0], tp[1], weight=tp[3])
+
+            try:
+                x = edges[tp[1]+tp[2]]
+                self.g1.es()[edges[tp[1]+tp[2]]]["weight"] += float(tp[3])
+            except KeyError:
+                edges[tp[1]+tp[2]] = len(self.g1.es())
+                self.g1.add_edge(tp[1], tp[2], weight=tp[3])            
+
         return self.g1
 
 
@@ -383,10 +398,10 @@ class TemporalNetwork:
         
         # Construct null model second-order network
         self.g2n = igraph.Graph(directed=True)
-        self.g2n.vs["name"] = []
 
-        # make check whether vertex was already added fast!
-        vertices = {}
+        # This ensures that vertices are ordered in the same way as in the empirical second-order network
+        for v in self.g2.vs():
+            self.g2n.add_vertex(name=v["name"])
         
         # TODO: This operation is the bottleneck for large data sets!
         # TODO: Only iterate over those edge pairs, that actually are two paths!
@@ -400,18 +415,6 @@ class TemporalNetwork:
                 # Check whether this pair of nodes in the second-order 
                 # network is a *possible* two-path
                 if b == b_:
-                    # The following code is faster than checking whether a node exists 
-                    # in the igraph object
-                    try: 
-                        x = vertices[e1["name"]]
-                    except:
-                        self.g2n.add_vertex(name=e1["name"])
-                        vertices[e1["name"]] = True
-                    try: 
-                        x = vertices[e2["name"]]
-                    except:
-                        self.g2n.add_vertex(name=e2["name"])
-                        vertices[e2["name"]] = True
                     w = pi[e2.index]
                     if w>0:
                         self.g2n.add_edge(e1["name"], e2["name"], weight = w)
