@@ -539,9 +539,9 @@ class TemporalNetwork:
                     
         
         
-    def exportMovieFrames(self, fileprefix, visual_style = None):
+    def exportMovieFrames(self, fileprefix, visual_style = None, realtime = True, maxSteps=-1):
         """Exports an animation showing the temporal
-           evolution of the network"""       
+           evolution of the network"""
 
         g = self.igraphFirstOrder()
 
@@ -562,9 +562,18 @@ class TemporalNetwork:
 
         # Use layout from first-order aggregate network
         visual_style["layout"] = g.layout_auto()                       
-        
+        i = 0
         # Generate movie frames
-        for t in range(min(time.keys()), max(time.keys())+1):
+        if realtime == True:
+            t_range = range(min(time.keys()), max(time.keys())+1)
+        else:
+            t_range = list(time.keys())
+
+        if maxSteps>0:
+            t_range = t_range[:maxSteps]
+
+        for t in t_range:
+            i += 1
             slice = igraph.Graph(n=len(g.vs()), directed=True)
             slice.vs["name"] = g.vs["name"]            
             try:
@@ -573,6 +582,6 @@ class TemporalNetwork:
                 edges = []
             for e in edges:
                 slice.add_edge(e[0], e[1])
-            igraph.plot(slice, fileprefix + '_' + str(t).zfill(5) + '.png', **visual_style)
-            if t % 100 == 0:
-                print('Wrote movie frame', t, ' of', max(time.keys())+1)
+            igraph.plot(slice, fileprefix + '_frame_' + str(t).zfill(5) + '.png', **visual_style)
+            if i % 100 == 0:
+                print('Wrote movie frame', i, ' of', len(t_range))
