@@ -11,7 +11,7 @@ The module is written in pure python, has no platform-specific dependencies and 
 
 ## Tutorial
 
-A detailed educational tutorial showcasing the features of ´pyTempNet' and illustrating its theoretical foundation is [available online](https://www.sg.ethz.ch/team/people/ischoltes/research-insights/temporal-networks-demo/).
+A detailed educational tutorial showcasing the features of `pyTempNet` and illustrating its theoretical foundation is [available online](https://www.sg.ethz.ch/team/people/ischoltes/research-insights/temporal-networks-demo/).
 
 ## Acknowledgements
 
