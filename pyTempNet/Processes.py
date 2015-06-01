@@ -123,6 +123,20 @@ def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 
     x = call("convert -delay " + str(delay) +" frames\\"+prefix_3+"_frame_* "+output_file, shell=True) 
 
 
+def exportDiffusionVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, delay=10, model='SECOND'):
+    prefix = str(np.random.randint(0, 10000))
+
+    if model == 'SECOND':
+        print('Calculating diffusion dynamics in non-Markovian temporal network')
+    else:
+        print('Calculating diffusion dynamics in Markovian temporal network')
+    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames\\' + prefix, visual_style=visual_style, steps=steps, initial_index=initial_index, model=model)
+
+    from subprocess import call
+    print('Encoding video')
+    x = call("convert -delay " + str(delay) +" frames\\"+prefix+"_frame_* "+output_file, shell=True) 
+
+
 def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_style = None, steps=100, initial_index=-1, model='SECOND'):
     """Exports an animation showing the evolution of a diffusion
            process on the first-order aggregate network, where random walk dynamics 
