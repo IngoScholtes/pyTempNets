@@ -566,14 +566,15 @@ class TemporalNetwork:
                 time[e[2]] = [e]
 
         if visual_style == None:
+            print('No visual style specified, setting to defaults')
             visual_style = {}
             visual_style["vertex_color"] = "lightblue"
             visual_style["vertex_label"] = g.vs["name"]
             visual_style["edge_curved"] = .5
             visual_style["vertex_size"] = 30
 
-        # Use layout from first-order aggregate network
-        visual_style["layout"] = g.layout_auto()                       
+            # Use layout from first-order aggregate network
+            visual_style["layout"] = g.layout_auto()                       
         i = 0
         # Generate movie frames
         if realtime == True:
