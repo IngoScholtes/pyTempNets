@@ -102,6 +102,27 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
         x = np.dot(x, T)
 
 
+def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, delay=10):
+    """Exports an mp4 file containing a side-by-side comparison of a diffusion process in a Markovian (left) and a non-Markovian temporal network"""
+    prefix_1 = str(np.random.randint(0, 10000))
+    prefix_2 = str(np.random.randint(0, 10000))
+    prefix_3 = str(np.random.randint(0, 10000))
+
+    print('Calculating diffusion dynamics in non-Markovian temporal network')
+    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames\\' + prefix_1, visual_style=visual_style, steps=steps, initial_index=initial_index, model='SECOND')
+
+    print('Calculating diffusion dynamics in Markovian temporal network')
+    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames\\' + prefix_2, visual_style=visual_style, steps=steps, initial_index=initial_index, model='NULL')
+
+    print('Stitching video frames')
+    from subprocess import call
+    for i in range(200):
+        x = call("convert frames\\" + prefix_1 + "_frame_" + str(i).zfill(3)+ ".png frames\\"+prefix_2+"_frame_" + str(i).zfill(3) + ".png +append " + "frames\\"+prefix_3+"_frame_" + str(i).zfill(3) + ".png", shell=True) 
+    
+    print('Encoding video')
+    x = call("convert -delay " + str(delay) +" frames\\"+prefix_3+"_frame_* "+output_file, shell=True) 
+
+
 def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_style = None, steps=100, initial_index=-1, model='SECOND'):
     """Exports an animation showing the evolution of a diffusion
            process on the first-order aggregate network, where random walk dynamics 
@@ -182,6 +203,6 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
 
         visual_style["vertex_color"] = [color_p(np.power((p-min(x))/(max(x)-min(x)),1/1.3)) for p in x_firstorder]
         igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(int(np.ceil(np.log10(steps)))) +".png", **visual_style)
-        if i % 10 == 0:
+        if i % 50 == 0:
             print('Step',i, ' TVD =', TVD(x,pi))
         x = np.dot(x, T)
