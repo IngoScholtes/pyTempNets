@@ -537,7 +537,19 @@ class TemporalNetwork:
         text_file.write(''.join(output))
         text_file.close()
                     
+
+
+    def exportMovie(self, output_file, visual_style = None, realtime = True, maxSteps=-1, delay=10):
+        """Exports a video of the temporal network"""
+        prefix = str(np.random.randint(0,10000))
         
+        self.exportMovieFrames('frames\\' + prefix, visual_style = visual_style, realtime = realtime, maxSteps=maxSteps)
+        
+        from subprocess import call
+
+        x = call("convert -delay " + str(delay) +" frames\\"+prefix+"_frame_* "+output_file, shell=True)
+
+
         
     def exportMovieFrames(self, fileprefix, visual_style = None, realtime = True, maxSteps=-1):
         """Exports an animation showing the temporal
