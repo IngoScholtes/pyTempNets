@@ -7,7 +7,7 @@ Created on Thu Feb 19 11:49:39 2015
 
 import igraph    
 import datetime as dt
-import time
+import time as tm
 import numpy as np
 import scipy.linalg as spl
 import os
@@ -174,6 +174,7 @@ class TemporalNetwork:
         For (u,v,3) and (v,w,7) a time-respecting path (u,v)->(v,w) will be inferred for all delta 0 < 4, 
         while no time-respecting path will be inferred for all delta >= 4.
         """
+        start = tm.clock()
         
         self.twopaths = []
         
@@ -267,7 +268,10 @@ class TemporalNetwork:
         
         # Update the count of two-paths
         self.tpcount = len(self.twopaths)
-
+        
+        end = tm.clock()
+        end = end - start
+        print("Time elapsed in extractTwoPaths(): %1.2f" % end)
 
         
     def TwoPathCount(self):
@@ -287,7 +291,9 @@ class TemporalNetwork:
            corresponding to this temporal network. This network corresponds to 
            a first-order Markov model reproducing the link statistics in the 
            weighted, time-aggregated network."""
-           
+        
+        start = tm.clock()
+        
         if self.g1 != 0:
             return self.g1
            
@@ -308,6 +314,9 @@ class TemporalNetwork:
             
         # We then collapse them, while summing their weights
         self.g1 = self.g1.simplify(combine_edges="sum")
+        
+        end = tm.clock() - start
+        print("Time spent in igraphFirstOrder(): %1.2f" % end)
         return self.g1
 
 
@@ -317,7 +326,9 @@ class TemporalNetwork:
            corresponding to this temporal network. This network corresponds to 
            a second-order Markov model reproducing both the link statistics and 
            (first-order) order correlations in the underlying temporal network."""
-           
+        
+        start = tm.clock()
+        
         if self.g2 != 0:
             return self.g2
 
@@ -350,7 +361,10 @@ class TemporalNetwork:
                 self.g2.es()[edges[n1+n2]]["weight"] += tp[3]
             except KeyError:
                 edges[n1+n2] = len(self.g2.es())
-                self.g2.add_edge(n1, n2, weight=tp[3])                
+                self.g2.add_edge(n1, n2, weight=tp[3])
+                
+        end = tm.clock() - start
+        print("Time elapsed in igraphSecondOrder(): %1.2f" % end)
         return self.g2
 
 
@@ -361,6 +375,7 @@ class TemporalNetwork:
            is a second-order representation of the weighted time-aggregated network.           
            """
 
+        start = tm.clock()
         if self.g2n != 0:
             return self.g2n
 
@@ -398,6 +413,7 @@ class TemporalNetwork:
                 b_ = e2["name"].split(';')[0]
                 c = e2["name"].split(';')[1]
 
+
                 # Check whether this pair of nodes in the second-order 
                 # network is a *possible* two-path
                 if b == b_:
@@ -416,6 +432,9 @@ class TemporalNetwork:
                     w = pi[e2.index]
                     if w>0:
                         self.g2n.add_edge(e1["name"], e2["name"], weight = w)
+        end = tm.clock()
+        end = end - start
+        print("time elapsed in igraphSecondOrderNull(): %1.2f" % end )
         return self.g2n
 
 
