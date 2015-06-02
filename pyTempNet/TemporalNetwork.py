@@ -10,6 +10,7 @@ import datetime as dt
 import time
 import numpy as np
 import scipy.linalg as spl
+import os
 
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
@@ -66,7 +67,7 @@ class TemporalNetwork:
         self.g2n = 0
         
         
-    def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s"):
+    def readFile(self, filename, sep=',', fformat="TEDGE", timestampformat="%s"):
         """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
             the file is expected to contain lines in the format 'v,w,t' each line 
             representing a directed time-stamped link from v to w at time t.
@@ -117,7 +118,7 @@ class TemporalNetwork:
         
         # Read time-stamped edges
         line = f.readline()
-        while not line is '':
+        while not line.strip() == '':
             fields = line.rstrip().split(sep)
             if fformat =="TEDGE":
                 timestamp = fields[time_ix]
@@ -530,6 +531,12 @@ class TemporalNetwork:
         output.append("""\end{tikzpicture}
 \end{center}
 \end{document}""")
+        
+        # create directory if necessary to avoid IO errors
+        directory = os.path.dirname( filename )
+        if not os.path.exists( directory ):
+          os.makedirs( directory )
+        
         text_file = open(filename, "w")
         text_file.write(''.join(output))
         text_file.close()
@@ -558,7 +565,12 @@ class TemporalNetwork:
             visual_style["vertex_size"] = 30
 
         # Use layout from first-order aggregate network
-        visual_style["layout"] = g.layout_auto()                       
+        visual_style["layout"] = g.layout_auto()
+        
+        # make sure there is a directory for the frames to avoid IO errors
+        directory = os.path.dirname(fileprefix)
+        if not os.path.exists( directory ):
+          os.makedirs( directory )
         
         # Generate movie frames
         for t in range(min(time.keys()), max(time.keys())+1):
