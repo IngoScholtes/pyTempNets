@@ -343,18 +343,20 @@ class TemporalNetwork:
         
         self.g2 = igraph.Graph(directed=True)
         self.g2.vs["name"] = []
+        self.g2.vs["src"] = []
+        self.g2.vs["dst"] = []
         for tp in self.twopaths:            
             n1 = str(tp[0])+";"+str(tp[1])
             n2 = str(tp[1])+";"+str(tp[2])
             try:
                 x = vertices[n1]
             except KeyError:                
-                self.g2.add_vertex(name=n1)
+                self.g2.add_vertex(name=n1, src=tp[0], dst=tp[1])
                 vertices[n1] = True
             try:
                 x = vertices[n2]
             except KeyError:                
-                self.g2.add_vertex(name=n2)
+                self.g2.add_vertex(name=n2, src=tp[1], dst=tp[2])
                 vertices[n2] = True
             try:
                 x = edges[n1+n2]
@@ -408,11 +410,8 @@ class TemporalNetwork:
         # TODO: Only iterate over those edge pairs, that actually are two paths!
         for e1 in g2.vs():
             for e2 in g2.vs():
-                a = e1["name"].split(';')[0]
-                b = e1["name"].split(';')[1]
-                b_ = e2["name"].split(';')[0]
-                c = e2["name"].split(';')[1]
-
+                b = e1["dst"]
+                b_ = e2["src"]
 
                 # Check whether this pair of nodes in the second-order 
                 # network is a *possible* two-path
