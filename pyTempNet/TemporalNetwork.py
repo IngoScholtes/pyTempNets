@@ -302,15 +302,16 @@ class TemporalNetwork:
         if self.tpcount == -1:
             self.extractTwoPaths()
 
-        self.g1 = igraph.Graph(directed=True)
+        self.g1 = igraph.Graph(n=len(self.nodes), directed=True)
+        self.g1.vs["name"] = self.nodes
         
-        for v in self.nodes:
-            self.g1.add_vertex(str(v))
-
+        mid = tm.clock()
         # We first keep multiple (weighted) edges
         for tp in self.twopaths:
             self.g1.add_edge(str(tp[0]), str(tp[1]), weight=tp[3])
             self.g1.add_edge(str(tp[1]), str(tp[2]), weight=tp[3])
+        edges = tm.clock()- mid
+        print("\ttime for adding edges: %1.2f" % edges)
             
         # We then collapse them, while summing their weights
         self.g1 = self.g1.simplify(combine_edges="sum")
@@ -416,21 +417,23 @@ class TemporalNetwork:
                 # Check whether this pair of nodes in the second-order 
                 # network is a *possible* two-path
                 if b == b_:
+                    e1name = e1["name"]
+                    e2name = e2["name"]
                     # The following code is faster than checking whether a node exists 
                     # in the igraph object
                     try: 
-                        x = vertices[e1["name"]]
+                        x = vertices[e1name]
                     except:
-                        self.g2n.add_vertex(name=e1["name"])
-                        vertices[e1["name"]] = True
+                        self.g2n.add_vertex(name=e1name)
+                        vertices[e1name] = True
                     try: 
-                        x = vertices[e2["name"]]
+                        x = vertices[e2name]
                     except:
-                        self.g2n.add_vertex(name=e2["name"])
-                        vertices[e2["name"]] = True
+                        self.g2n.add_vertex(name=e2name)
+                        vertices[e2name] = True
                     w = pi[e2.index]
                     if w>0:
-                        self.g2n.add_edge(e1["name"], e2["name"], weight = w)
+                        self.g2n.add_edge(e1name, e2name, weight = w)
         end = tm.clock()
         end = end - start
         print("time elapsed in igraphSecondOrderNull(): %1.2f" % end )
