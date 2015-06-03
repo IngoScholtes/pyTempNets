@@ -465,8 +465,10 @@ class TemporalNetwork:
         
         # TODO: This operation is the bottleneck for large data sets!
         # TODO: Only iterate over those edge pairs, that actually are two paths!
+        edge_dict = {}
         for e1 in g2.vs():
-            b = e1["name"].split(';')[1]
+            e1name = e1["name"]
+            b = e1name.split(';')[1]
             for e2 in g2.vs():
                 b_ = e2["name"].split(';')[0]
 
@@ -475,7 +477,11 @@ class TemporalNetwork:
                 if b == b_:
                     w = pi[e2.index]
                     if w>0:
-                        self.g2n.add_edge(e1["name"], e2["name"], weight = w)
+                        edge_dict[(e1name, e2["name"])] = w
+        
+        # add all edges to the graph in one go
+        self.g2n.add_edges( edge_dict.keys() )
+        self.g2n.es["weight"] = edge_dict.values()
         end = tm.clock()
         print "\tTime elapsed for adding edges: %1.2f" % (end - graph)
         
