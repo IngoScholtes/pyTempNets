@@ -305,16 +305,18 @@ class TemporalNetwork:
         self.g1 = igraph.Graph(n=len(self.nodes), directed=True)
         self.g1.vs["name"] = self.nodes
         
-        mid = tm.clock()
-        # We first keep multiple (weighted) edges
+        # Gather all edges and their (accumulated) weights in a directory
+        edge_list = {}
         for tp in self.twopaths:
-            self.g1.add_edge(str(tp[0]), str(tp[1]), weight=tp[3])
-            self.g1.add_edge(str(tp[1]), str(tp[2]), weight=tp[3])
-        edges = tm.clock()- mid
-        print("\ttime for adding edges: %1.2f" % edges)
-            
-        # We then collapse them, while summing their weights
-        self.g1 = self.g1.simplify(combine_edges="sum")
+            key1 = (tp[0], tp[1])
+            key2 = (tp[1], tp[2])
+            # get key{1,2} with default value 0 from edge_list directory
+            edge_list[key1] = edge_list.get(key1, 0) + tp[3]
+            edge_list[key2] = edge_list.get(key2, 0) + tp[3]
+        # adding all edges at once is much faster as igraph updates internal
+        # data structures after each vertex/edge added
+        self.g1.add_edges( edge_list.keys() )
+        self.g1.es()["weight"] = edge_list.values()
         
         end = tm.clock() - start
         print("Time spent in igraphFirstOrder(): %1.2f" % end)
