@@ -316,7 +316,7 @@ class TemporalNetwork:
         # adding all edges at once is much faster as igraph updates internal
         # data structures after each vertex/edge added
         self.g1.add_edges( edge_list.keys() )
-        self.g1.es()["weight"] = edge_list.values()
+        self.g1.es["weight"] = edge_list.values()
         
         end = tm.clock() - start
         print("Time spent in igraphFirstOrder(): %1.2f" % end)
@@ -324,11 +324,19 @@ class TemporalNetwork:
 
 
         
-    def igraphSecondOrder(self):
+    def igraphSecondOrderLegacy(self):
         """Returns the second-order time-aggregated network
            corresponding to this temporal network. This network corresponds to 
            a second-order Markov model reproducing both the link statistics and 
-           (first-order) order correlations in the underlying temporal network."""
+           (first-order) order correlations in the underlying temporal network.
+           
+           NOTE: This code is substantially slower than the version below.
+           Edgelist with corresponding weights are the same, but the measures
+           * Entropy growth rate ratio
+           * Analytical slow-down factor for diffusion
+           * Algebraic Connectivity (G2)
+           * Algebraic Connectivity (G2 null)
+           give slightly varied results. They are however equivalent up to e-11"""
         
         start = tm.clock()
         
@@ -346,20 +354,18 @@ class TemporalNetwork:
         
         self.g2 = igraph.Graph(directed=True)
         self.g2.vs["name"] = []
-        self.g2.vs["src"] = []
-        self.g2.vs["dst"] = []
         for tp in self.twopaths:            
             n1 = str(tp[0])+";"+str(tp[1])
             n2 = str(tp[1])+";"+str(tp[2])
             try:
                 x = vertices[n1]
             except KeyError:                
-                self.g2.add_vertex(name=n1, src=tp[0], dst=tp[1])
+                self.g2.add_vertex(name=n1)
                 vertices[n1] = True
             try:
                 x = vertices[n2]
             except KeyError:                
-                self.g2.add_vertex(name=n2, src=tp[1], dst=tp[2])
+                self.g2.add_vertex(name=n2)
                 vertices[n2] = True
             try:
                 x = edges[n1+n2]
@@ -367,7 +373,48 @@ class TemporalNetwork:
             except KeyError:
                 edges[n1+n2] = len(self.g2.es())
                 self.g2.add_edge(n1, n2, weight=tp[3])
-                
+            
+        end = tm.clock() - start
+        print("Time elapsed in igraphSecondOrderLegacy(): %1.2f" % end)
+        return self.g2
+      
+      
+    def igraphSecondOrder(self):
+        """Returns the second-order time-aggregated network
+           corresponding to this temporal network. This network corresponds to 
+           a second-order Markov model reproducing both the link statistics and 
+           (first-order) order correlations in the underlying temporal network."""
+        
+        start = tm.clock()
+        
+        if self.g2 != 0:
+            return self.g2
+
+        if self.tpcount == -1:
+            self.extractTwoPaths() 
+
+        # create vertex list and edge directory first
+        vertex_list = []
+        edge_dict = {}
+        for tp in self.twopaths:
+            n1 = str(tp[0])+";"+str(tp[1])
+            n2 = str(tp[1])+";"+str(tp[2])
+            vertex_list.append(n1)
+            vertex_list.append(n2)
+            key = (n1, n2)
+            edge_dict[key] = edge_dict.get(key, 0) + tp[3]
+            
+        # remove duplicate vertices by building a set
+        vertex_list = list(set(vertex_list))
+        
+        # build 2nd order graph
+        self.g2 = igraph.Graph( n=len(vertex_list), directed=True )
+        self.g2.vs["name"] = vertex_list
+        
+        # add all edges in one go
+        self.g2.add_edges( edge_dict.keys() )
+        self.g2.es["weight"] = edge_dict.values()
+
         end = tm.clock() - start
         print("Time elapsed in igraphSecondOrder(): %1.2f" % end)
         return self.g2
@@ -413,8 +460,8 @@ class TemporalNetwork:
         # TODO: Only iterate over those edge pairs, that actually are two paths!
         for e1 in g2.vs():
             for e2 in g2.vs():
-                b = e1["dst"]
-                b_ = e2["src"]
+                b = e1["name"].split(';')[1]
+                b_ = e2["name"].split(';')[0]
 
                 # Check whether this pair of nodes in the second-order 
                 # network is a *possible* two-path
