@@ -429,21 +429,28 @@ class TemporalNetwork:
             return self.g2n
 
         g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
+        n_vertices = len(g2.vs)
+        
+        g2time = tm.clock()
+        print "\tTime elapsed for construction of g2: %1.2f" % (g2time - start)
 
         # Compute stationary distribution to obtain expected edge weights in pi
         A = np.matrix(list(g2.get_adjacency(attribute='weight', default=0)))
-        D = np.diag(g2.strength(mode='out', weights=g2.es["weight"]))
+        D = g2.strength(mode='out', weights=g2.es["weight"])
 
-        T = np.zeros(shape=(len(g2.vs), len(g2.vs)))
+        T = np.zeros(shape=(n_vertices, n_vertices))
     
-        for i in range(len(g2.vs)):
-            for j in range(len(g2.vs)):       
-                T[i,j] = A[i,j]/D[i,i]
-                assert T[i,j]>=0 and T[i,j] <= 1
+        for i in range(n_vertices):
+            invDi = 1./D[i]
+            T[i,:] = A[i,:] * invDi
+            assert T[i,:].all() >= 0 and T[i,:].all() <= 1
 
         w, v = spl.eig(T, left=True, right=False)
         pi = v[:,np.argsort(-w)][:,0]
         pi = np.real(pi/sum(pi))
+        
+        before = tm.clock()
+        print "\tTime elapsed for matrix stuff: %1.2f" % (before - g2time)
 
         
         # Construct null model second-order network
@@ -452,12 +459,15 @@ class TemporalNetwork:
         # This ensures that vertices are ordered in the same way as in the empirical second-order network
         for v in self.g2.vs():
             self.g2n.add_vertex(name=v["name"])
+            
+        graph = tm.clock()
+        print "\tTime elapsed for graph and vertices: %1.2f" % (graph - before)
         
         # TODO: This operation is the bottleneck for large data sets!
         # TODO: Only iterate over those edge pairs, that actually are two paths!
         for e1 in g2.vs():
+            b = e1["name"].split(';')[1]
             for e2 in g2.vs():
-                b = e1["name"].split(';')[1]
                 b_ = e2["name"].split(';')[0]
 
                 # Check whether this pair of nodes in the second-order 
@@ -467,6 +477,8 @@ class TemporalNetwork:
                     if w>0:
                         self.g2n.add_edge(e1["name"], e2["name"], weight = w)
         end = tm.clock()
+        print "\tTime elapsed for adding edges: %1.2f" % (end - graph)
+        
         end = end - start
         print("time elapsed in igraphSecondOrderNull(): %1.2f" % end )
         return self.g2n
