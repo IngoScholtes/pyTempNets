@@ -346,33 +346,30 @@ class TemporalNetwork:
         if self.tpcount == -1:
             self.extractTwoPaths() 
 
+        for v in self.nodes:
+            self.g1.add_vertex(str(v))
+
         # Index dictionaries to speed up network construction
         # (circumventing inefficient igraph operations to check 
         # whether nodes or edges exist)
-        vertices = {}
-        edges = {}       
-        
-        self.g2 = igraph.Graph(directed=True)
-        self.g2.vs["name"] = []
-        for tp in self.twopaths:            
-            n1 = str(tp[0])+";"+str(tp[1])
-            n2 = str(tp[1])+";"+str(tp[2])
+        edges = {}  
+
+        # We first keep multiple (weighted) edges
+        for tp in self.twopaths:
+
             try:
-                x = vertices[n1]
-            except KeyError:                
-                self.g2.add_vertex(name=n1)
-                vertices[n1] = True
-            try:
-                x = vertices[n2]
-            except KeyError:                
-                self.g2.add_vertex(name=n2)
-                vertices[n2] = True
-            try:
-                x = edges[n1+n2]
-                self.g2.es()[edges[n1+n2]]["weight"] += tp[3]
+                x = edges[tp[0]+tp[1]]
+                self.g1.es()[edges[tp[0]+tp[1]]]["weight"] += float(tp[3])
             except KeyError:
-                edges[n1+n2] = len(self.g2.es())
-                self.g2.add_edge(n1, n2, weight=tp[3])
+                edges[tp[0]+tp[1]] = len(self.g1.es())
+                self.g1.add_edge(tp[0], tp[1], weight=tp[3])
+
+            try:
+                x = edges[tp[1]+tp[2]]
+                self.g1.es()[edges[tp[1]+tp[2]]]["weight"] += float(tp[3])
+            except KeyError:
+                edges[tp[1]+tp[2]] = len(self.g1.es())
+                self.g1.add_edge(tp[1], tp[2], weight=tp[3]) 
             
         end = tm.clock() - start
         print("Time elapsed in igraphSecondOrderLegacy(): %1.2f" % end)
@@ -431,7 +428,7 @@ class TemporalNetwork:
         if self.g2n != 0:
             return self.g2n
 
-        g2 = self.igraphSecondOrder().components().giant()
+        g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
 
         # Compute stationary distribution to obtain expected edge weights in pi
         A = np.matrix(list(g2.get_adjacency(attribute='weight', default=0)))
@@ -451,10 +448,10 @@ class TemporalNetwork:
         
         # Construct null model second-order network
         self.g2n = igraph.Graph(directed=True)
-        self.g2n.vs["name"] = []
 
-        # make check whether vertex was already added fast!
-        vertices = {}
+        # This ensures that vertices are ordered in the same way as in the empirical second-order network
+        for v in self.g2.vs():
+            self.g2n.add_vertex(name=v["name"])
         
         # TODO: This operation is the bottleneck for large data sets!
         # TODO: Only iterate over those edge pairs, that actually are two paths!
@@ -466,23 +463,9 @@ class TemporalNetwork:
                 # Check whether this pair of nodes in the second-order 
                 # network is a *possible* two-path
                 if b == b_:
-                    e1name = e1["name"]
-                    e2name = e2["name"]
-                    # The following code is faster than checking whether a node exists 
-                    # in the igraph object
-                    try: 
-                        x = vertices[e1name]
-                    except:
-                        self.g2n.add_vertex(name=e1name)
-                        vertices[e1name] = True
-                    try: 
-                        x = vertices[e2name]
-                    except:
-                        self.g2n.add_vertex(name=e2name)
-                        vertices[e2name] = True
                     w = pi[e2.index]
                     if w>0:
-                        self.g2n.add_edge(e1name, e2name, weight = w)
+                        self.g2n.add_edge(e1["name"], e2["name"], weight = w)
         end = tm.clock()
         end = end - start
         print("time elapsed in igraphSecondOrderNull(): %1.2f" % end )
@@ -505,6 +488,8 @@ class TemporalNetwork:
             edge = self.tedges[np.random.randint(0, len(self.tedges))]
             tedges.append((edge[0], edge[1], i))
         tn = TemporalNetwork(tedges)
+        tn.nodes = self.nodes
+            
         return tn
         
         
@@ -611,11 +596,23 @@ class TemporalNetwork:
         text_file.write(''.join(output))
         text_file.close()
                     
+
+
+    def exportMovie(self, output_file, visual_style = None, realtime = True, maxSteps=-1, delay=10):
+        """Exports a video of the temporal network"""
+        prefix = str(np.random.randint(0,10000))
         
+        self.exportMovieFrames('frames\\' + prefix, visual_style = visual_style, realtime = realtime, maxSteps=maxSteps)
         
-    def exportMovieFrames(self, fileprefix, visual_style = None):
+        from subprocess import call
+
+        x = call("convert -delay " + str(delay) +" frames\\"+prefix+"_frame_* "+output_file, shell=True)
+
+
+        
+    def exportMovieFrames(self, fileprefix, visual_style = None, realtime = True, maxSteps=-1):
         """Exports an animation showing the temporal
-           evolution of the network"""       
+           evolution of the network"""
 
         g = self.igraphFirstOrder()
 
@@ -628,22 +625,32 @@ class TemporalNetwork:
                 time[e[2]] = [e]
 
         if visual_style == None:
+            print('No visual style specified, setting to defaults')
             visual_style = {}
             visual_style["vertex_color"] = "lightblue"
             visual_style["vertex_label"] = g.vs["name"]
             visual_style["edge_curved"] = .5
             visual_style["vertex_size"] = 30
-
-        # Use layout from first-order aggregate network
-        visual_style["layout"] = g.layout_auto()
+            # Use layout from first-order aggregate network
+            visual_style["layout"] = g.layout_auto() 
         
         # make sure there is a directory for the frames to avoid IO errors
         directory = os.path.dirname(fileprefix)
         if not os.path.exists( directory ):
           os.makedirs( directory )
-        
+         
+        i = 0
         # Generate movie frames
-        for t in range(min(time.keys()), max(time.keys())+1):
+        if realtime == True:
+            t_range = range(min(time.keys()), max(time.keys())+1)
+        else:
+            t_range = list(time.keys())
+
+        if maxSteps>0:
+            t_range = t_range[:maxSteps]
+
+        for t in t_range:
+            i += 1
             slice = igraph.Graph(n=len(g.vs()), directed=True)
             slice.vs["name"] = g.vs["name"]            
             try:
@@ -652,6 +659,6 @@ class TemporalNetwork:
                 edges = []
             for e in edges:
                 slice.add_edge(e[0], e[1])
-            igraph.plot(slice, fileprefix + '_' + str(t).zfill(5) + '.png', **visual_style)
-            if t % 100 == 0:
-                print('Wrote movie frame', t, ' of', max(time.keys())+1)
+            igraph.plot(slice, fileprefix + '_frame_' + str(t).zfill(5) + '.png', **visual_style)
+            if i % 100 == 0:
+                print('Wrote movie frame', i, ' of', len(t_range))
