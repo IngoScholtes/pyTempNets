@@ -633,8 +633,8 @@ class TemporalNetwork:
             visual_style["edge_curved"] = .5
             visual_style["vertex_size"] = 30
 
-        # Use layout from first-order aggregate network
-        visual_style["layout"] = g.layout_auto()
+            # Use layout from first-order aggregate network
+            visual_style["layout"] = g.layout_auto()
         
         # make sure there is a directory for the frames to avoid IO errors
         directory = os.path.dirname(fileprefix)
