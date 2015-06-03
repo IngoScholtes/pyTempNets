@@ -437,6 +437,8 @@ class TemporalNetwork:
             edge = self.tedges[np.random.randint(0, len(self.tedges))]
             tedges.append((edge[0], edge[1], i))
         tn = TemporalNetwork(tedges)
+        tn.nodes = self.nodes
+            
         return tn
         
         
