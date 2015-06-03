@@ -437,19 +437,27 @@ class TemporalNetwork:
         # Compute stationary distribution to obtain expected edge weights in pi
         A = np.matrix(list(g2.get_adjacency(attribute='weight', default=0)))
         D = g2.strength(mode='out', weights=g2.es["weight"])
-
+        
         T = np.zeros(shape=(n_vertices, n_vertices))
-    
         for i in range(n_vertices):
             invDi = 1./D[i]
             T[i,:] = A[i,:] * invDi
             assert T[i,:].all() >= 0 and T[i,:].all() <= 1
 
+        loop = tm.clock()
+        print "\t\tTime for matrices and loop: %1.2f" % (loop - g2time)
+        
+        # TODO: Newer timng data suggests that this step is the most expensive one
+        # NOTE: overwriting the matrix does not improve performance
         w, v = spl.eig(T, left=True, right=False)
+        eigen = tm.clock()
+        print "\t\tTime for eigenvalue calculation: %1.2f" % (eigen - loop)
+        
         pi = v[:,np.argsort(-w)][:,0]
         pi = np.real(pi/sum(pi))
         
         before = tm.clock()
+        print "\t\tTime after eig() call: %1.2f" % (before - eigen)
         print "\tTime elapsed for matrix stuff: %1.2f" % (before - g2time)
 
         
@@ -465,6 +473,8 @@ class TemporalNetwork:
         
         # TODO: This operation is the bottleneck for large data sets!
         # TODO: Only iterate over those edge pairs, that actually are two paths!
+        # 
+        # NOTE: recheck this claim with the new version adding all edges at once
         edge_dict = {}
         for e1 in g2.vs():
             e1name = e1["name"]
