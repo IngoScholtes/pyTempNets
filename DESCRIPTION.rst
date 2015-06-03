@@ -1,1 +1,1 @@
-A python module for the analysis of temporal relational data
+pyTempNet is a python module for the analysis of time-stamped relational data represented as temporal networks. It particularly facilitates the analysis of temporal networks from the perspective of higher-order networks, which include causality limitations due to order correlations.
