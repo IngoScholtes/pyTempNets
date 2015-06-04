@@ -71,6 +71,8 @@ class TimeSlices:
             raise StopIteration()
 
     def ExportVideo(slices, output_file, visual_style={}, delay=10):
+        """ Exports a video showing the evolution of time-slices"""
+
         prefix = str(np.random.randint(0,10000))
         
         if visual_style == None:
