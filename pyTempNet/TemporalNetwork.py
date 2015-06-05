@@ -284,8 +284,6 @@ class TemporalNetwork:
 
         return self.tpcount
     
-    
-    
     def igraphFirstOrder(self):
         """Returns the first-order time-aggregated network
            corresponding to this temporal network. This network corresponds to 
@@ -352,9 +350,8 @@ class TemporalNetwork:
         # Index dictionaries to speed up network construction
         # (circumventing inefficient igraph operations to check 
         # whether nodes or edges exist)
-        edges = {}  
+        edges = {}
 
-        # We first keep multiple (weighted) edges
         for tp in self.twopaths:
 
             try:
