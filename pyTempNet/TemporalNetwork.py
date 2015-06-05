@@ -11,12 +11,15 @@ import time as tm
 import numpy as np
 import scipy.linalg as spl
 import os
+from collections import defaultdict
 
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
     
     def __init__(self, tedges = None, twopaths = None):
         """Constructor generating an empty temporal network"""
+        start = tm.clock()
+        
         self.tedges = []
         self.nodes = []
         if tedges is not None:
@@ -30,8 +33,8 @@ class TemporalNetwork:
             if target not in self.nodes:
                 self.nodes.append(target)
         self.twopaths = []
-        self.twopathsByNode = {}
-        self.twopathsByTime = {}
+        self.twopathsByNode = defaultdict( lambda: dict() )
+        self.twopathsByTime = defaultdict( lambda: dict() )
         self.tpcount = -1
 
         if twopaths is not None:
@@ -48,17 +51,8 @@ class TemporalNetwork:
                     self.nodes.append(v)
                 if d not in self.nodes:
                     self.nodes.append(d)
-
-                try:
-                    x = self.twopathsByNode[v]
-                except KeyError:
-                    # Generate dictionary indexed by (artificial) time stamps
-                    self.twopathsByNode[v] = {}
-                try:
-                    self.twopathsByNode[v][t].append(tp)
-                except KeyError:
-                    # Generate list taking all two paths through node v at (artificial) time t
-                    self.twopathsByNode[v][t] = [tp]
+  
+                self.twopathsByNode[v].setdefault(t, []).append(tp)
                 t +=1
             self.tpcount = len(twopaths)
 
@@ -66,6 +60,8 @@ class TemporalNetwork:
         self.g2 = 0
         self.g2n = 0
         
+        end = tm.clock()
+        print "Time spent in constructor: %1.2f" % (end - start)
         
     def readFile(self, filename, sep=',', fformat="TEDGE", timestampformat="%s"):
         """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
@@ -178,40 +174,21 @@ class TemporalNetwork:
         
         self.twopaths = []
         
-        # An index structure to quickly access tedges by time
-        time = {}
-        for e in self.tedges:
-            try:
-                time[e[2]].append(e)
-            except KeyError:
-                time[e[2]] = [e]
-
-        # Index structures to quickly access tedges by target/source
-        targets = {}
-        sources = {}
+        # An index structure to quickly access tedges by time, target and source
+        time = defaultdict( lambda: list() )
+        targets = defaultdict( lambda: dict() )
+        sources = defaultdict( lambda: dict() )
         for e in self.tedges:            
             source = e[0]
             target = e[1]
             ts = e[2]
             
-            try:
-                t = targets[ts]
-            except KeyError:
-                targets[ts] = dict()
-            try:
-                targets[ts][target].append(e)
-            except KeyError:
-                targets[ts][target] = [e]
-                
-            try:
-                s = sources[ts]
-            except KeyError:
-                sources[ts] = dict()
-            try:
-                sources[ts][source].append(e)
-            except KeyError:
-                sources[ts][source] = [e]
-                
+            time[ts].append(e)
+            targets[ts].setdefault(target, []).append(e)
+            sources[ts].setdefault(source, []).append(e)
+        
+        mid = tm.clock()
+        print "\tTime spent for creating index: %1.2f" % (mid - start)
 
         # Extract time-respecting paths of length two             
         prev_t = -1
@@ -238,38 +215,17 @@ class TemporalNetwork:
                                 # (s, v, d, weight)
                                 # representing (s,v) -> (v,d)
                                 two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
-                                self.twopaths.append(two_path)                                
+                                self.twopaths.append(two_path)
                                 
-                                # fast solution with try/except
-                                try:
-                                    x = self.twopathsByNode[v]
-                                except KeyError:
-                                    # Generate dictionary indexed by time stamps
-                                   self.twopathsByNode[v] = {}
-
-                                try:
-                                    self.twopathsByNode[v][t].append(two_path)
-                                except KeyError:
-                                    # Generate list taking all two paths through node v at time t
-                                    self.twopathsByNode[v][t] = [two_path]
-                                    
-                                try:
-                                    x = self.twopathsByTime[t]
-                                except KeyError:
-                                    # Generate dictionary indexed by time stamps
-                                   self.twopathsByTime[t] = {}
-
-                                try:
-                                    self.twopathsByTime[t][v].append(two_path)
-                                except KeyError:
-                                    # Generate list taking all two paths through node v at time t
-                                    self.twopathsByTime[t][v] = [two_path]
+                                self.twopathsByNode[v].setdefault(t, []).append(two_path) 
+                                self.twopathsByTime[t].setdefault(v, []).append(two_path)
             prev_t = t
         
         # Update the count of two-paths
         self.tpcount = len(self.twopaths)
         
         end = tm.clock()
+        print "\tTime spent extracting twopaths: %1.2f" % (end - mid)
         end = end - start
         print("Time elapsed in extractTwoPaths(): %1.2f" % end)
 
