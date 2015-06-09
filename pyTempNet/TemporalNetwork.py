@@ -299,7 +299,7 @@ class TemporalNetwork:
             self.g1.add_vertex(str(v))
 
         # Index dictionaries to speed up network construction
-        # (circumventing inefficient igraph operations to check 
+        # (circumventing igraph operations to check 
         # whether nodes or edges exist)
         edges = {}
 
