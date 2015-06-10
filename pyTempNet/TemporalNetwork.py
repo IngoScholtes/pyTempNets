@@ -178,7 +178,7 @@ class TemporalNetwork:
         time = defaultdict( lambda: list() )
         targets = defaultdict( lambda: dict() )
         sources = defaultdict( lambda: dict() )
-        for e in self.tedges:            
+        for e in self.tedges:
             source = e[0]
             target = e[1]
             ts = e[2]
@@ -511,12 +511,10 @@ class TemporalNetwork:
         """Generates a tikz file that can be compiled to obtain a time-unfolded 
             representation of the temporal network"""    
     
-        time = {}
+        # An index structure to quickly access tedges by time
+        time = defaultdict( lambda: list() )
         for e in self.tedges:
-            try:
-                time[e[2]].append(e)
-            except KeyError:
-                time[e[2]] = [e]
+            time[e[2]].append(e)
         
         output = []
             
@@ -595,13 +593,10 @@ class TemporalNetwork:
 
         g = self.igraphFirstOrder()
 
-         # An index structure to quickly access tedges by time
-        time = {}
+        # An index structure to quickly access tedges by time
+        time = defaultdict( lambda: list() )
         for e in self.tedges:
-            try:
-                time[e[2]].append(e)
-            except KeyError:
-                time[e[2]] = [e]
+            time[e[2]].append(e)
 
         if visual_style == None:
             print('No visual style specified, setting to defaults')

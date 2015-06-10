@@ -13,28 +13,26 @@ import pyTempNet as tn
 def RWTransitionMatrix(g):
     """Generates a random walk transition matrix corresponding to a (possibly) weighted
     and directed network""" 
-    if g.is_weighted() == False:
-        A = np.matrix(list(g.get_adjacency()))
-        D = np.diag(g.degree(mode='out'))        
-    else:
+    if g.is_weighted():
         A = np.matrix(list(g.get_adjacency(attribute='weight', default=0)))
-        D = np.diag(g.strength(mode='out', weights=g.es["weight"]))
-
-    T = np.zeros(shape=(len(g.vs), len(g.vs)))
+        D = g.strength(mode='out', weights=g.es["weight"])
+    else:
+        A = np.matrix(list(g.get_adjacency()))
+        D = g.degree(mode='out')
     
-    for i in range(len(g.vs)):
-        for j in range(len(g.vs)):       
-            T[i,j] = A[i,j]/D[i,i]
-            assert T[i,j]>=0 and T[i,j] <= 1
+    n_vertices = len(g.vs)
+    T = np.zeros(shape=(n_vertices, n_vertices))
+    
+    for i in range(n_vertices):
+          invDi = 1./D[i]
+          T[i,:] = A[i,:] * invDi
+          assert T[i,:].all() >= 0 and T[i,:].all() <= 1
     return T
 
 
 def TVD(p1, p2):
     """Compute total variation distance between two stochastic column vectors"""
-    tvd = 0
-    for i in range(len(p1)):
-        tvd+=abs(p1[i] - p2[i])
-    return tvd/2
+    return np.sum(np.absolute(np.subtract(p1, p2)))/2
     
     
 def RWDiffusion(g, samples = 5, epsilon=0.01):
