@@ -627,12 +627,9 @@ class TemporalNetwork:
         for t in t_range:
             i += 1
             slice = igraph.Graph(n=len(g.vs()), directed=True)
-            slice.vs["name"] = g.vs["name"]            
-            try:
-                edges = time[t]
-            except KeyError:
-                edges = []
-            for e in edges:
+            slice.vs["name"] = g.vs["name"]
+            # this should work as time is a defaultdict
+            for e in time[t]:
                 slice.add_edge(e[0], e[1])
             igraph.plot(slice, fileprefix + '_frame_' + str(t).zfill(5) + '.png', **visual_style)
             if i % 100 == 0:

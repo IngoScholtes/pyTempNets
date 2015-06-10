@@ -58,6 +58,9 @@ def __log(p):
         return 0.0
     else:
         return np.log2(p)
+      
+# makes the above function also usable for vectors as input
+__log = np.vectorize(__log, otypes=[np.float])
 
 def EntropyGrowthRate(T):
     """Computes the entropy growth rate of a transition matrix"""
@@ -69,8 +72,7 @@ def EntropyGrowthRate(T):
     
     H = 0.0
     for i in range(T.shape[0]):
-        for j in range(T.shape[1]):                 
-            H += pi[i] * T[i,j] * __log(T[i,j])
+        H += pi[i] * np.dot( T[i,range(T.shape[1])], __log(T[i, range(T.shape[1])]) )
     return -H
     
     

@@ -16,12 +16,9 @@ class TimeSlices:
         based on 
         the given start time, window size and step size delta
         """
-        self.time = {}
+        self.time = defaultdict( lambda: list() )
         for e in tempnet.tedges:
-            try:
-                self.time[e[2]].append(e)
-            except KeyError:
-                self.time[e[2]] = [e]
+            self.time[e[2]].append(e)
 
         self.t = max(start, min(self.time.keys()))
         if end == 0:
@@ -45,8 +42,11 @@ class TimeSlices:
         for v in self.tempnet.nodes:
             g.add_vertex(str(v))
         
-        # TODO: Improve efficiency by only iterating over those time stamps 
-        # that are within the actual time window [t_from, t_to)
+        # TODO: first, add edges all in one go at the end of the loop
+        # TODO: then, use a suitable data structure like defaultdict() to 
+        #       avoid try-except block, see igraphFirstOrder
+        # TODO: Then, improve efficiency by only iterating over those time 
+        #       stamps that are within the actual time window [t_from, t_to)
         for t in self.time.keys():
             if t >= t_from and t<t_to:
                 for edge in self.time[t]:                    
