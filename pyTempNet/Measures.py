@@ -256,11 +256,14 @@ def EigenvectorCentrality(t, model='SECOND'):
     print("\tmatrix took: ", (matrix - beforeMatrix))
     
     #w, v = spl.eig(A, left=True, right=False)
-    w, v = sla.eigs( A, k=2, which="LM" )
+    w, evcent_2 = sla.eigs( A, k=1, which="LM" )
     eig = tm.clock()
     print("\teig took: ", (eig - matrix))
+    print w 
+    #print v
     
-    evcent_2 = v[:,np.argsort(-w)][:,0]
+    #evcent_2 = v[:,np.argsort(-w)][:,0]
+    print evcent_2
     
     # Aggregate to obtain first-order eigenvector centrality
     for i in range(len(evcent_2)):
@@ -272,7 +275,57 @@ def EigenvectorCentrality(t, model='SECOND'):
     
     return np.real(evcent_1/sum(evcent_1))
 
+def EigenvectorCentralityLegacy(t, model='SECOND'):
+    """Computes eigenvector centralities of nodes in the second-order networks, 
+    and aggregates them to obtain the eigenvector centrality of nodes in the 
+    first-order network."""
+    
+    start = tm.clock()
 
+    assert model == 'SECOND' or model == 'NULL'
+
+    name_map = {}
+
+    g1 = t.igraphFirstOrder()
+    i = 0 
+    for v in g1.vs()["name"]:
+        name_map[v] = i
+        i += 1
+    evcent_1 = [0]*len(g1.vs())
+
+    if model == 'SECOND':
+        g2 = t.igraphSecondOrder()
+    else:
+        g2 = t.igraphSecondOrderNull()    
+
+    beforeMatrix = tm.clock()
+    print("\tbefore matrix took: ", (beforeMatrix - start))
+    
+    # Compute eigenvector centrality in second-order network
+    A = getWeightedAdjacencyMatrix( g2 )
+    #A = pyTmpNet.getSparseWeightedAdjacencyMatrix( g2 )
+    matrix = tm.clock()
+    print("\tmatrix took: ", (matrix - beforeMatrix))
+    
+    w, v = spl.eig(A, left=True, right=False)
+    #w, v = sla.eigs( A, k=2, which="LM" )
+    eig = tm.clock()
+    print("\teig took: ", (eig - matrix))
+    print max(w)
+    #print v
+    
+    evcent_2 = v[:,np.argsort(-w)][:,0]
+    print evcent_2
+    
+    # Aggregate to obtain first-order eigenvector centrality
+    for i in range(len(evcent_2)):
+        # Get name of target node
+        target = g2.vs()[i]["name"].split(';')[1]        
+        evcent_1[name_map[target]] += evcent_2[i]
+    rest = tm.clock()
+    print("\trest took: ", (rest - eig))
+    
+    return np.real(evcent_1/sum(evcent_1))
 
 def BetweennessCentrality(t, model='SECOND'):
     """Computes betweenness centralities of nodes in the second-order networks, 
