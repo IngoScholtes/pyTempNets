@@ -34,6 +34,7 @@
     <InterpreterReference Include="{df30ca53-5b01-451a-bf0e-7e66aed19dae}\3.4" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include=".gitignore" />
     <Content Include="DESCRIPTION.rst" />
     <Content Include="README.md" />
     <Content Include="README.rst" />
