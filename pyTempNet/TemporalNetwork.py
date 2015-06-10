@@ -275,7 +275,7 @@ class TemporalNetwork:
         # adding all edges at once is much faster as igraph updates internal
         # data structures after each vertex/edge added
         self.g1.add_edges( edge_list.keys() )
-        self.g1.es["weight"] = edge_list.values()
+        self.g1.es["weight"] = list(edge_list.values())
         
         end = tm.clock() - start
         print("Time spent in igraphFirstOrder(): %1.2f" % end)
@@ -316,10 +316,10 @@ class TemporalNetwork:
         
         # add all edges in one go
         self.g2.add_edges( edge_dict.keys() )
-        self.g2.es["weight"] = edge_dict.values()
+        self.g2.es["weight"] = list(edge_dict.values())
 
         end = tm.clock() - start
-        print("Time elapsed in igraphSecondOrder(): %1.2f" % end)
+        print("Time elapsed in igraphSecondOrder(): %1.2f", end)
         return self.g2
 
 
@@ -397,7 +397,7 @@ class TemporalNetwork:
         
         # add all edges to the graph in one go
         self.g2n.add_edges( edge_dict.keys() )
-        self.g2n.es["weight"] = edge_dict.values()
+        self.g2n.es["weight"] = list(edge_dict.values())
         end = tm.clock()
         print("\tTime elapsed for adding edges: %1.2f", (end - graph))
         
