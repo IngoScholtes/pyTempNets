@@ -6,6 +6,8 @@ Created on Thu Feb 19 11:49:39 2015
 """
 import numpy as np
 import scipy.linalg as spl
+import scipy.sparse as sparse
+import scipy.sparse.linalg as sla
 from pyTempNet import *
 from pyTempNet.Processes import *
 
@@ -225,6 +227,8 @@ def EigenvectorCentrality(t, model='SECOND'):
     """Computes eigenvector centralities of nodes in the second-order networks, 
     and aggregates them to obtain the eigenvector centrality of nodes in the 
     first-order network."""
+    
+    start = tm.clock()
 
     assert model == 'SECOND' or model == 'NULL'
 
@@ -242,9 +246,20 @@ def EigenvectorCentrality(t, model='SECOND'):
     else:
         g2 = t.igraphSecondOrderNull()    
 
+    beforeMatrix = tm.clock()
+    print("\tbefore matrix took: ", (beforeMatrix - start))
+    
     # Compute eigenvector centrality in second-order network
-    A = np.matrix(list(g2.get_adjacency(attribute='weight', default=0)))
-    w, v = spl.eig(A, left=True, right=False)
+    #A = getWeightedAdjacencyMatrix( g2 )
+    A = getSparseWeightedAdjacencyMatrix( g2 )
+    matrix = tm.clock()
+    print("\tmatrix took: ", (matrix - beforeMatrix))
+    
+    #w, v = spl.eig(A, left=True, right=False)
+    w, v = sla.eigs( A, k=2, which="LM" )
+    eig = tm.clock()
+    print("\teig took: ", (eig - matrix))
+    
     evcent_2 = v[:,np.argsort(-w)][:,0]
     
     # Aggregate to obtain first-order eigenvector centrality
@@ -252,6 +267,8 @@ def EigenvectorCentrality(t, model='SECOND'):
         # Get name of target node
         target = g2.vs()[i]["name"].split(';')[1]        
         evcent_1[name_map[target]] += evcent_2[i]
+    rest = tm.clock()
+    print("\trest took: ", (rest - eig))
     
     return np.real(evcent_1/sum(evcent_1))
 

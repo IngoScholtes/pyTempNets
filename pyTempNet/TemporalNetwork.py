@@ -10,9 +10,102 @@ import datetime as dt
 import time as tm
 import numpy as np
 import scipy.linalg as spl
+import scipy.sparse as sparse
 import os
 from collections import defaultdict
 import sys
+
+def getWeightedAdjacencyMatrix( graph ):
+    """ write a nice doc string here """
+    A = np.zeros(shape=(len(graph.vs), len(graph.vs)))
+    for edge in graph.es():
+        s,t = edge.tuple
+        A[s][t] = edge["weight"]
+    return A
+  
+def getSparseWeightedAdjacencyMatrix( graph ):
+    """ write some nice doc string here """
+    return sparse.csr_matrix( getWeightedAdjacencyMatrix( graph ) )
+
+def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
+    """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
+        the file is expected to contain lines in the format 'v,w,t' each line 
+        representing a directed time-stamped link from v to w at time t.
+        Semantics of columns should be given in a header file indicating either 
+        'node1,node2,time' or 'source,target,time' (in arbitrary order).
+        If fformat is TRIGRAM the file is expected to contain lines in the format
+        'u,v,w' each line representing a time-respecting path (u,v) -> (v,w) consisting 
+        of two consecutive links (u,v) and (v,w). Timestamps can be integer numbers or
+        string timestamps (in which case the timestampformat string is used for parsing)
+    """
+    
+    assert filename is not ""
+    assert fformat is "TEDGE" or "TRIGRAM"
+    
+    f = open(filename, 'r')
+    tedges = []
+    twopaths = []
+    
+    header = f.readline()
+    header = header.split(sep)
+    
+    # Support for arbitrary column ordering
+    time_ix = -1
+    source_ix = -1
+    mid_ix = -1
+    weight_ix = -1
+    target_ix = -1
+    if fformat =="TEDGE":
+        for i in range(len(header)):
+            header[i] = header[i].strip()
+            if header[i] == 'node1' or header[i] == 'source':
+                source_ix = i
+            elif header[i] == 'node2' or header[i] == 'target':
+                target_ix = i
+            elif header[i] == 'time':
+                time_ix = i
+    elif fformat =="TRIGRAM":
+        for i in range(len(header)):
+            header[i] = header[i].strip()
+            if header[i] == 'node1' or header[i] == 'source':
+                source_ix = i                
+            elif header[i] == 'node2' or header[i] == 'mid':
+                mid_ix = i
+            elif header[i] == 'node3' or header[i] == 'target':
+                target_ix = i
+            elif header[i] == 'weight':
+                weight_ix = i
+    
+    # Read time-stamped edges
+    line = f.readline()
+    n = 1 
+    while not line.strip() == '' and n <= maxlines:
+        fields = line.rstrip().split(sep)
+        if fformat =="TEDGE":
+            timestamp = fields[time_ix]
+            if (timestamp.isdigit()):
+                t = int(timestamp)
+            else:
+                x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
+                t = int(time.mktime(x.timetuple()))
+            tedge = (fields[source_ix], fields[target_ix], t)
+            tedges.append(tedge)
+
+        elif fformat =="TRIGRAM":             
+            source = fields[source_ix].strip('"')
+            mid = fields[mid_ix].strip('"')
+            target = fields[target_ix].strip('"')
+            weight = float(fields[weight_ix].strip('"'))
+            tp = (source, mid, target, weight)
+            twopaths.append(tp)
+
+        line = f.readline()
+        n += 1
+
+    if fformat == "TEDGE":
+        return TemporalNetwork(tedges = tedges)
+    elif fformat =="TRIGRAM":           
+        return TemporalNetwork(twopaths = twopaths)
 
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
@@ -64,88 +157,6 @@ class TemporalNetwork:
         end = tm.clock()
         print("Time spent in constructor: ", (end - start))
         
-    @staticmethod
-    def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
-        """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
-            the file is expected to contain lines in the format 'v,w,t' each line 
-            representing a directed time-stamped link from v to w at time t.
-            Semantics of columns should be given in a header file indicating either 
-            'node1,node2,time' or 'source,target,time' (in arbitrary order).
-            If fformat is TRIGRAM the file is expected to contain lines in the format
-            'u,v,w' each line representing a time-respecting path (u,v) -> (v,w) consisting 
-            of two consecutive links (u,v) and (v,w). Timestamps can be integer numbers or
-            string timestamps (in which case the timestampformat string is used for parsing)
-        """
-        
-        assert filename is not ""
-        assert fformat is "TEDGE" or "TRIGRAM"
-        
-        f = open(filename, 'r')
-        tedges = []
-        twopaths = []
-        
-        header = f.readline()
-        header = header.split(sep)
-        
-        # Support for arbitrary column ordering
-        time_ix = -1
-        source_ix = -1
-        mid_ix = -1
-        weight_ix = -1
-        target_ix = -1
-        if fformat =="TEDGE":
-            for i in range(len(header)):
-                header[i] = header[i].strip()
-                if header[i] == 'node1' or header[i] == 'source':
-                    source_ix = i
-                elif header[i] == 'node2' or header[i] == 'target':
-                    target_ix = i
-                elif header[i] == 'time':
-                    time_ix = i
-        elif fformat =="TRIGRAM":
-            for i in range(len(header)):
-                header[i] = header[i].strip()
-                if header[i] == 'node1' or header[i] == 'source':
-                    source_ix = i                
-                elif header[i] == 'node2' or header[i] == 'mid':
-                    mid_ix = i
-                elif header[i] == 'node3' or header[i] == 'target':
-                    target_ix = i
-                elif header[i] == 'weight':
-                    weight_ix = i
-        
-        # Read time-stamped edges
-        line = f.readline()
-        n = 1 
-        while not line.strip() == '' and n <= maxlines:
-            fields = line.rstrip().split(sep)
-            if fformat =="TEDGE":
-                timestamp = fields[time_ix]
-                if (timestamp.isdigit()):
-                    t = int(timestamp)
-                else:
-                    x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
-                    t = int(time.mktime(x.timetuple()))
-                tedge = (fields[source_ix], fields[target_ix], t)
-                tedges.append(tedge)
-
-            elif fformat =="TRIGRAM":             
-                source = fields[source_ix].strip('"')
-                mid = fields[mid_ix].strip('"')
-                target = fields[target_ix].strip('"')
-                weight = float(fields[weight_ix].strip('"'))
-                tp = (source, mid, target, weight)
-                twopaths.append(tp)
-
-            line = f.readline()
-            n += 1
-
-        if fformat == "TEDGE":
-            return TemporalNetwork(tedges = tedges)
-        elif fformat =="TRIGRAM":           
-            return TemporalNetwork(twopaths = twopaths)
-
-
 
     def addEdge(self, source, target, time):
         """Adds a (directed) time-stamped edge to the temporal network"""
@@ -341,7 +352,7 @@ class TemporalNetwork:
         print("\tTime elapsed for construction of g2: ", (g2time - start))
 
         # Compute stationary distribution to obtain expected edge weights in pi
-        A = np.matrix(list(g2.get_adjacency(attribute='weight', default=0)))
+        A = getWeightedAdjacencyMatrix( g2 )
         D = g2.strength(mode='out', weights=g2.es["weight"])
         
         T = np.zeros(shape=(n_vertices, n_vertices))
@@ -401,8 +412,7 @@ class TemporalNetwork:
         end = tm.clock()
         print("\tTime elapsed for adding edges: ", (end - graph))
         
-        end = end - start
-        print("time elapsed in igraphSecondOrderNull(): " % end )
+        print("time elapsed in igraphSecondOrderNull(): ", (end-start) )
         return self.g2n
 
 

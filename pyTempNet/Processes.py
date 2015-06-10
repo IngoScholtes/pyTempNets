@@ -14,9 +14,10 @@ def RWTransitionMatrix(g):
     """Generates a random walk transition matrix corresponding to a (possibly) weighted
     and directed network""" 
     if g.is_weighted():
-        A = np.matrix(list(g.get_adjacency(attribute='weight', default=0)))
+        A = getWeightedAdjacencyMatrix( g2 ) default=0)))
         D = g.strength(mode='out', weights=g.es["weight"])
     else:
+        #TODO: find out what igrpha does in this case
         A = np.matrix(list(g.get_adjacency()))
         D = g.degree(mode='out')
     
