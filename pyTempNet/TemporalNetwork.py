@@ -278,7 +278,7 @@ class TemporalNetwork:
         self.g1.es["weight"] = list(edge_list.values())
         
         end = tm.clock() - start
-        print("Time spent in igraphFirstOrder(): " % end)
+        print("Time spent in igraphFirstOrder(): ", end)
         return self.g1
 
 
