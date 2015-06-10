@@ -12,6 +12,7 @@ import numpy as np
 import scipy.linalg as spl
 import os
 from collections import defaultdict
+import sys
 
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
@@ -61,9 +62,10 @@ class TemporalNetwork:
         self.g2n = 0
         
         end = tm.clock()
-        print "Time spent in constructor: %1.2f" % (end - start)
+        print("Time spent in constructor: ", (end - start))
         
-    def readFile(self, filename, sep=',', fformat="TEDGE", timestampformat="%s"):
+    @staticmethod
+    def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
         """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
             the file is expected to contain lines in the format 'v,w,t' each line 
             representing a directed time-stamped link from v to w at time t.
@@ -114,7 +116,8 @@ class TemporalNetwork:
         
         # Read time-stamped edges
         line = f.readline()
-        while not line.strip() == '':
+        n = 1 
+        while not line.strip() == '' and n <= maxlines:
             fields = line.rstrip().split(sep)
             if fformat =="TEDGE":
                 timestamp = fields[time_ix]
@@ -123,9 +126,9 @@ class TemporalNetwork:
                 else:
                     x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
                     t = int(time.mktime(x.timetuple()))
-
                 tedge = (fields[source_ix], fields[target_ix], t)
                 tedges.append(tedge)
+
             elif fformat =="TRIGRAM":             
                 source = fields[source_ix].strip('"')
                 mid = fields[mid_ix].strip('"')
@@ -135,6 +138,8 @@ class TemporalNetwork:
                 twopaths.append(tp)
 
             line = f.readline()
+            n += 1
+
         if fformat == "TEDGE":
             return TemporalNetwork(tedges = tedges)
         elif fformat =="TRIGRAM":           
@@ -188,7 +193,7 @@ class TemporalNetwork:
             sources[ts].setdefault(source, []).append(e)
         
         mid = tm.clock()
-        print "\tTime spent for creating index: %1.2f" % (mid - start)
+        print("\tTime spent for creating index: ", (mid - start))
 
         # Extract time-respecting paths of length two             
         prev_t = -1
@@ -225,9 +230,9 @@ class TemporalNetwork:
         self.tpcount = len(self.twopaths)
         
         end = tm.clock()
-        print "\tTime spent extracting twopaths: %1.2f" % (end - mid)
+        print("\tTime spent extracting twopaths: ", (end - mid))
         end = end - start
-        print("Time elapsed in extractTwoPaths(): %1.2f" % end)
+        print("Time elapsed in extractTwoPaths(): ", end)
 
         
     def TwoPathCount(self):
@@ -270,65 +275,13 @@ class TemporalNetwork:
         # adding all edges at once is much faster as igraph updates internal
         # data structures after each vertex/edge added
         self.g1.add_edges( edge_list.keys() )
-        self.g1.es["weight"] = edge_list.values()
+        self.g1.es["weight"] = list(edge_list.values())
         
         end = tm.clock() - start
-        print("Time spent in igraphFirstOrder(): %1.2f" % end)
+        print("Time spent in igraphFirstOrder(): ", end)
         return self.g1
 
 
-        
-    def igraphSecondOrderLegacy(self):
-        """Returns the second-order time-aggregated network
-           corresponding to this temporal network. This network corresponds to 
-           a second-order Markov model reproducing both the link statistics and 
-           (first-order) order correlations in the underlying temporal network.
-           
-           NOTE: This code is substantially slower than the version below.
-           Edgelist with corresponding weights are the same, but the measures
-           * Entropy growth rate ratio
-           * Analytical slow-down factor for diffusion
-           * Algebraic Connectivity (G2)
-           * Algebraic Connectivity (G2 null)
-           give slightly varied results. They are however equivalent up to e-11"""
-        
-        start = tm.clock()
-        
-        if self.g2 != 0:
-            return self.g2
-
-        if self.tpcount == -1:
-            self.extractTwoPaths() 
-
-        for v in self.nodes:
-            self.g1.add_vertex(str(v))
-
-        # Index dictionaries to speed up network construction
-        # (circumventing inefficient igraph operations to check 
-        # whether nodes or edges exist)
-        edges = {}
-
-        for tp in self.twopaths:
-
-            try:
-                x = edges[tp[0]+tp[1]]
-                self.g1.es()[edges[tp[0]+tp[1]]]["weight"] += float(tp[3])
-            except KeyError:
-                edges[tp[0]+tp[1]] = len(self.g1.es())
-                self.g1.add_edge(tp[0], tp[1], weight=tp[3])
-
-            try:
-                x = edges[tp[1]+tp[2]]
-                self.g1.es()[edges[tp[1]+tp[2]]]["weight"] += float(tp[3])
-            except KeyError:
-                edges[tp[1]+tp[2]] = len(self.g1.es())
-                self.g1.add_edge(tp[1], tp[2], weight=tp[3]) 
-            
-        end = tm.clock() - start
-        print("Time elapsed in igraphSecondOrderLegacy(): %1.2f" % end)
-        return self.g2
-      
-      
     def igraphSecondOrder(self):
         """Returns the second-order time-aggregated network
            corresponding to this temporal network. This network corresponds to 
@@ -363,10 +316,10 @@ class TemporalNetwork:
         
         # add all edges in one go
         self.g2.add_edges( edge_dict.keys() )
-        self.g2.es["weight"] = edge_dict.values()
+        self.g2.es["weight"] = list(edge_dict.values())
 
         end = tm.clock() - start
-        print("Time elapsed in igraphSecondOrder(): %1.2f" % end)
+        print("Time elapsed in igraphSecondOrder(): ", end)
         return self.g2
 
 
@@ -385,7 +338,7 @@ class TemporalNetwork:
         n_vertices = len(g2.vs)
         
         g2time = tm.clock()
-        print "\tTime elapsed for construction of g2: %1.2f" % (g2time - start)
+        print("\tTime elapsed for construction of g2: ", (g2time - start))
 
         # Compute stationary distribution to obtain expected edge weights in pi
         A = np.matrix(list(g2.get_adjacency(attribute='weight', default=0)))
@@ -398,20 +351,20 @@ class TemporalNetwork:
             assert T[i,:].all() >= 0 and T[i,:].all() <= 1
 
         loop = tm.clock()
-        print "\t\tTime for matrices and loop: %1.2f" % (loop - g2time)
+        print("\t\tTime for matrices and loop: ", (loop - g2time))
         
         # TODO: Newer timng data suggests that this step is the most expensive one
         # NOTE: overwriting the matrix does not improve performance
         w, v = spl.eig(T, left=True, right=False)
         eigen = tm.clock()
-        print "\t\tTime for eigenvalue calculation: %1.2f" % (eigen - loop)
+        print("\t\tTime for eigenvalue calculation: ", (eigen - loop))
         
         pi = v[:,np.argsort(-w)][:,0]
         pi = np.real(pi/sum(pi))
         
         before = tm.clock()
-        print "\t\tTime after eig() call: %1.2f" % (before - eigen)
-        print "\tTime elapsed for matrix stuff: %1.2f" % (before - g2time)
+        print("\t\tTime after eig() call: ", (before - eigen))
+        print("\tTime elapsed for matrix stuff: ", (before - g2time))
 
         
         # Construct null model second-order network
@@ -422,7 +375,7 @@ class TemporalNetwork:
             self.g2n.add_vertex(name=v["name"])
             
         graph = tm.clock()
-        print "\tTime elapsed for graph and vertices: %1.2f" % (graph - before)
+        print("\tTime elapsed for graph and vertices: ", (graph - before))
         
         # TODO: This operation is the bottleneck for large data sets!
         # TODO: Only iterate over those edge pairs, that actually are two paths!
@@ -444,12 +397,12 @@ class TemporalNetwork:
         
         # add all edges to the graph in one go
         self.g2n.add_edges( edge_dict.keys() )
-        self.g2n.es["weight"] = edge_dict.values()
+        self.g2n.es["weight"] = list(edge_dict.values())
         end = tm.clock()
-        print "\tTime elapsed for adding edges: %1.2f" % (end - graph)
+        print("\tTime elapsed for adding edges: ", (end - graph))
         
         end = end - start
-        print("time elapsed in igraphSecondOrderNull(): %1.2f" % end )
+        print("time elapsed in igraphSecondOrderNull(): " % end )
         return self.g2n
 
 
