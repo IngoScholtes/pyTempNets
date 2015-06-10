@@ -48,11 +48,9 @@ def RWDiffusion(g, samples = 5, epsilon=0.01):
         pi = pi/sum(pi)
         x = [0] * len(g.vs)
         x[np.random.randint(len(g.vs()))] = 1
-        t = 0
         while TVD(x,pi)>epsilon:
-            t += 1
+            avg_speed += 1
             x = np.dot(x,T)
-        avg_speed += t
     return avg_speed/samples
     
 
