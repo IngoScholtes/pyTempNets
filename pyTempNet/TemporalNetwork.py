@@ -10,6 +10,7 @@ import datetime as dt
 import time
 import numpy as np
 import scipy.linalg as spl
+import sys
 
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
@@ -66,7 +67,7 @@ class TemporalNetwork:
         self.g2n = 0
         
         
-    def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s"):
+    def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
         """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
             the file is expected to contain lines in the format 'v,w,t' each line 
             representing a directed time-stamped link from v to w at time t.
@@ -117,7 +118,8 @@ class TemporalNetwork:
         
         # Read time-stamped edges
         line = f.readline()
-        while not line is '':
+        n = 1 
+        while not line is '' and n <= maxlines:
             fields = line.rstrip().split(sep)
             if fformat =="TEDGE":
                 timestamp = fields[time_ix]
@@ -126,9 +128,9 @@ class TemporalNetwork:
                 else:
                     x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
                     t = int(time.mktime(x.timetuple()))
-
                 tedge = (fields[source_ix], fields[target_ix], t)
                 tedges.append(tedge)
+
             elif fformat =="TRIGRAM":             
                 source = fields[source_ix].strip('"')
                 mid = fields[mid_ix].strip('"')
@@ -138,6 +140,8 @@ class TemporalNetwork:
                 twopaths.append(tp)
 
             line = f.readline()
+            n += 1
+
         if fformat == "TEDGE":
             return TemporalNetwork(tedges = tedges)
         elif fformat =="TRIGRAM":           
@@ -317,7 +321,7 @@ class TemporalNetwork:
                 self.g1.es()[edges[tp[1]+tp[2]]]["weight"] += float(tp[3])
             except KeyError:
                 edges[tp[1]+tp[2]] = len(self.g1.es())
-                self.g1.add_edge(tp[1], tp[2], weight=tp[3])            
+                self.g1.add_edge(tp[1], tp[2], weight=tp[3])
 
         return self.g1
 

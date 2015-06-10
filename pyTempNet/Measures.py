@@ -74,14 +74,18 @@ def EntropyGrowthRate(T):
     return -H
     
     
-def EntropyGrowthRateRatio(t):
+def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
         """Computes the ratio between the entropy growth rate ratio between
         the second-order and first-order model of a temporal network t. Ratios smaller
         than one indicate that the temporal network exhibits non-Markovian characteristics"""
         
         # Generate strongly connected component of second-order networks
         g2 = t.igraphSecondOrder().components(mode="STRONG").giant()
-        g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
+        
+        if mode == 'FIRSTORDER':
+            g2n = t.igraphFirstOrder().components(mode="STRONG").giant()
+        else:
+            g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
         
         # Calculate transition matrices
         T2 = Processes.RWTransitionMatrix(g2)
