@@ -64,7 +64,7 @@ class TemporalNetwork:
         end = tm.clock()
         print("Time spent in constructor: %1.2f", (end - start))
         
-
+    @staticmethod
     def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
         """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
             the file is expected to contain lines in the format 'v,w,t' each line 
