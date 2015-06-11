@@ -250,20 +250,19 @@ def EigenvectorCentrality(t, model='SECOND'):
     print("\tbefore matrix took: ", (beforeMatrix - start))
     
     # Compute eigenvector centrality in second-order network
-    #A = getWeightedAdjacencyMatrix( g2 )
-    A = getSparseWeightedAdjacencyMatrix( g2 )
+    A = getTransposedSparseWeightedAdjacencyMatrix( g2 )
     matrix = tm.clock()
     print("\tmatrix took: ", (matrix - beforeMatrix))
     
-    #w, v = spl.eig(A, left=True, right=False)
     w, evcent_2 = sla.eigs( A, k=1, which="LM" )
     eig = tm.clock()
     print("\teig took: ", (eig - matrix))
-    print w 
+    print("sparse la eigs EW: ", w[0])
+    print("sparse la eigs EV[0]:", evcent_2[range(10)])
     #print v
     
     #evcent_2 = v[:,np.argsort(-w)][:,0]
-    print evcent_2
+    #print evcent_2
     
     # Aggregate to obtain first-order eigenvector centrality
     for i in range(len(evcent_2)):
@@ -303,19 +302,19 @@ def EigenvectorCentralityLegacy(t, model='SECOND'):
     
     # Compute eigenvector centrality in second-order network
     A = getWeightedAdjacencyMatrix( g2 )
-    #A = pyTmpNet.getSparseWeightedAdjacencyMatrix( g2 )
     matrix = tm.clock()
     print("\tmatrix took: ", (matrix - beforeMatrix))
     
     w, v = spl.eig(A, left=True, right=False)
-    #w, v = sla.eigs( A, k=2, which="LM" )
     eig = tm.clock()
     print("\teig took: ", (eig - matrix))
-    print max(w)
+    print("legacy implementation EW: ", w[np.argsort(-w)[0]])
+    #print w[np.argsort(-w)]
     #print v
     
     evcent_2 = v[:,np.argsort(-w)][:,0]
-    print evcent_2
+    print("legacy implementation EV[0]:", evcent_2[range(10)])
+    #print evcent_2
     
     # Aggregate to obtain first-order eigenvector centrality
     for i in range(len(evcent_2)):
