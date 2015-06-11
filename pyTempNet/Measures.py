@@ -223,6 +223,7 @@ def SlowDownFactor(t):
         
     return np.log(np.abs(evals2n_sorted[1]))/np.log(np.abs(evals2_sorted[1]))
 
+# TODO: find out why there is a factor -1 sometimes
 def EigenvectorCentrality(t, model='SECOND'):
     """Computes eigenvector centralities of nodes in the second-order networks, 
     and aggregates them to obtain the eigenvector centrality of nodes in the 

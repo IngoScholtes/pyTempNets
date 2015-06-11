@@ -15,6 +15,8 @@ import os
 from collections import defaultdict
 import sys
 
+# TODO: use coo format for construction
+# TODO: then convert to csr matrix
 def getWeightedAdjacencyMatrix( graph ):
     """ write a nice doc string here """
     A = np.zeros(shape=(len(graph.vs), len(graph.vs)))
