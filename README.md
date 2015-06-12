@@ -19,7 +19,7 @@ The development of this module was generously supported by the [MTEC Foundation]
 
 ## Contributors
 
-Ingo Scholtes (project lead, development)
+Ingo Scholtes (project lead, development)  
 Roman Cattaneo (development)
 
 ## Copyright
