@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Jun 04 10:27:00 2015
-
 @author: Ingo Scholtes
+
+(c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """
 
 import igraph

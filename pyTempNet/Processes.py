@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri May  8 12:35:22 2015
+@author: Ingo Scholtes
 
-@author: Ingo
+(c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """
+
 import numpy as np
 import scipy.linalg as spl
 import igraph
