@@ -17,3 +17,12 @@ A detailed educational tutorial showcasing the features of `pyTempNet` and illus
 
 The development of this module was generously supported by the [MTEC Foundation](http://www.mtec.ethz.ch/research/support/MTECFoundation.html) in the context of the project [The Influence of Interaction Patterns on Success in Socio-Technical Systems: From Theory to Practice](https://www.sg.ethz.ch/projects/mtec-interaction-patterns/).
 
+## Contributors
+
+Ingo Scholtes (project lead, development)  
+Roman Cattaneo (development)
+
+## Copyright
+
+(c) Copyright ETH Zürich, Chair of Systems Design, 2015
+

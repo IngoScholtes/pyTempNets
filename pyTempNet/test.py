@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Feb 20 11:59:22 2015
+@author: Ingo Scholtes
 
-@author: Ingo
+(c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """
 
 import pyTempNet as tn
