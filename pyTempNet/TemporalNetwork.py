@@ -32,11 +32,15 @@ def getSparseWeightedAdjacencyMatrix( graph ):
   
 def getTransposedSparseWeightedAdjacencyMatrix( graph ):
     """ use to find left EV instead of default right with eigs()"""
-    A = np.zeros(shape=(len(graph.vs), len(graph.vs)))
+    row = []
+    col = []
+    data = []
     for edge in graph.es():
         s,t = edge.tuple
-        A[t][s] = edge["weight"]
-    return sparse.csr_matrix( A )
+        row.append(t)
+        col.append(s)
+        data.append(edge["weight"])
+    return sparse.coo_matrix((data, (row, col)) , shape=(len(graph.vs), len(graph.vs))).tocsr()
 
 def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
     """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
