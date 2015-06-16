@@ -78,7 +78,7 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
     if initial_index<0:
         initial_index = np.random.randint(0, len(g.vs()))
 
-    x = np.array([0]*len(g.vs()))
+    x = np.zeros(len(g.vs()))
     x[initial_index] = 1
 
     # compute stationary state
@@ -163,7 +163,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
     if initial_index<0:
         initial_index = np.random.randint(0, len(g2.vs()))
 
-    x = np.array([0.]*len(g2.vs()))
+    x = np.zeros(len(g2.vs()))
     x[initial_index] = 1
 
     # This index allows to quickly map node names to indices in the first-order network
@@ -201,7 +201,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
         # based on visitation probabilities in *second-order* aggregate network, 
         # we need to compute visitation probabilities of nodes in the *first-order* 
         # aggregate network
-        x_firstorder = np.array([0.]*len(g1.vs()))
+        x_firstorder = np.zeros(len(g1.vs()))
         
         # j is the index of nodes in the *second-order* network, which we need to map 
         # to nodes in the *first-order* network

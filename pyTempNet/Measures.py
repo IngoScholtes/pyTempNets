@@ -25,7 +25,7 @@ def Laplacian(temporalnet, model="SECOND"):
         network = temporalnet.igraphSecondOrderNull().components(mode="STRONG").giant()  
     
     T2 = Processes.RWTransitionMatrix(network)
-    I = np.diag([1]*len(network.vs()))
+    I = np.identity(len(network.vs()))
 
     return I-T2
 
@@ -48,7 +48,6 @@ def AlgebraicConn(temporalnet, model="SECOND"):
     second-order null (model=NULL) model for a temporal network. The Fiedler 
      vector can be used for a spectral bisectioning of the network.
     """
-
     L = Laplacian(temporalnet, model)
 
     w, v = spl.eig(L, left=True, right=False)
@@ -241,7 +240,7 @@ def EigenvectorCentrality(t, model='SECOND'):
     for v in g1.vs()["name"]:
         name_map[v] = i
         i += 1
-    evcent_1 = [0]*len(g1.vs())
+    evcent_1 = np.zeros(len(g1.vs()))
 
     if model == 'SECOND':
         g2 = t.igraphSecondOrder()
@@ -257,14 +256,16 @@ def EigenvectorCentrality(t, model='SECOND'):
     print("\tmatrix took: ", (matrix - beforeMatrix))
     
     w, evcent_2 = sla.eigs( A, k=1, which="LM" )
+    evcent_2 = evcent_2.reshape(evcent_2.size,)
     eig = tm.clock()
     print("\teig took: ", (eig - matrix))
     
     # Aggregate to obtain first-order eigenvector centrality
     for i in range(len(evcent_2)):
         # Get name of target node
-        target = g2.vs()[i]["name"].split(';')[1]        
-        evcent_1[name_map[target]] += evcent_2[i]
+        target = g2.vs()[i]["name"].split(';')[1]
+        evcent_1[name_map[target]] += np.real(evcent_2[i])
+        
     rest = tm.clock()
     print("\trest took: ", (rest - eig))
     
@@ -274,6 +275,7 @@ def EigenvectorCentralityLegacy(t, model='SECOND'):
     """Computes eigenvector centralities of nodes in the second-order networks, 
     and aggregates them to obtain the eigenvector centrality of nodes in the 
     first-order network.
+    
     NOTE: this function is deprecated and only around for validation of the 
     above EigenvectorCentrality() which is much faster on large graphs."""
     
@@ -334,7 +336,7 @@ def BetweennessCentrality(t, model='SECOND'):
     for v in g1.vs()["name"]:
         name_map[v] = i
         i += 1
-    bwcent_1 = [0]*len(g1.vs())
+    bwcent_1 = np.zeros(len(g1.vs()))
 
     if model == 'SECOND':
         g2 = t.igraphSecondOrder()
@@ -368,7 +370,7 @@ def PageRank(t, model='SECOND'):
     for v in g1.vs()["name"]:
         name_map[v] = i
         i += 1
-    pagerank_1 = [0]*len(g1.vs())
+    pagerank_1 = np.zeros(len(g1.vs()))
 
     if model == 'SECOND':
         g2 = t.igraphSecondOrder()
