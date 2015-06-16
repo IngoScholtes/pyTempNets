@@ -12,6 +12,7 @@ import time as tm
 import numpy as np
 import scipy.linalg as spl
 import scipy.sparse as sparse
+import scipy.sparse.linalg as sla
 import os
 from collections import defaultdict
 import sys
@@ -94,6 +95,32 @@ def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
           
     return sparse.coo_matrix((data, (row, col)) , shape=(len(graph.vs), len(graph.vs))).tocsr()
 
+def sparseStationaryDistribution( graph, transposed=False ):
+    """returns the T matrix in CSR format"""
+    
+    D = graph.strength(mode='out', weights=graph.es["weight"])
+    row = []
+    col = []
+    data = []
+    
+    if transposed:
+      for edge in graph.es():
+          s,t = edge.tuple
+          row.append(t)
+          col.append(s)
+          tmp = edge["weight"] / D[s]
+          assert tmp >= 0 and tmp <= 1
+          data.append( tmp )
+    else:
+      for edge in graph.es():
+          s,t = edge.tuple
+          row.append(s)
+          col.append(t)
+          tmp = edge["weight"] / D[s]
+          assert tmp >= 0 and tmp <= 1
+          data.append( tmp )
+        
+    return sparse.coo_matrix( (data, (row, col)), shape=(len(graph.vs), len(graph.vs)) ).tocsr()
 
 def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
     """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
@@ -417,31 +444,22 @@ class TemporalNetwork:
         
         g2time = tm.clock()
         print("\tTime elapsed for construction of g2: ", (g2time - start))
-
-        # Compute stationary distribution to obtain expected edge weights in pi
-        A = getAdjacencyMatrix( g2, attribute="weight" )
-        D = g2.strength(mode='out', weights=g2.es["weight"])
-        
-        T = np.zeros(shape=(n_vertices, n_vertices))
-        for i in range(n_vertices):
-            invDi = 1./D[i]
-            T[i,:] = A[i,:] * invDi
-            assert T[i,:].all() >= 0 and T[i,:].all() <= 1
+            
+        T = sparseStationaryDistribution( g2, transposed=True )
 
         loop = tm.clock()
         print("\t\tTime for matrices and loop: ", (loop - g2time))
         
         # TODO: Newer timng data suggests that this step is the most expensive one
         # NOTE: overwriting the matrix does not improve performance
-        w, v = spl.eig(T, left=True, right=False)
+        w, pi = sla.eigs( T, k=1, which="LM" )
         eigen = tm.clock()
         print("\t\tTime for eigenvalue calculation: ", (eigen - loop))
         
-        pi = v[:,np.argsort(-w)][:,0]
         pi = np.real(pi/sum(pi))
         
         before = tm.clock()
-        print("\t\tTime after eig() call: ", (before - eigen))
+        print("\t\tTime for normalization: ", (before - eigen))
         print("\tTime elapsed for matrix stuff: ", (before - g2time))
 
         
