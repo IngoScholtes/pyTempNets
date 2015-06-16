@@ -16,31 +16,84 @@ import os
 from collections import defaultdict
 import sys
 
-# TODO: use coo format for construction
-# TODO: then convert to csr matrix
-def getWeightedAdjacencyMatrix( graph ):
-    """ write a nice doc string here """
-    A = np.zeros(shape=(len(graph.vs), len(graph.vs)))
+def getAdjacencyMatrix( graph, attribute=None, default=0 ):
+    """Returns the full adjacency matrix of the given graph.
+       
+    @param attribute: if C{None}, returns the ordinary adjacency 
+      matrix. When the name of a valid edge attribute is given here,
+      the matrix returned will contain the default value at places
+      where there is no edge or the value of the given attribute where
+      there is an edge. Multiple edges are not supported.
+    @param default: default value in case of adjacency matrix with
+      attributes.
+    """
+    if attribute is None:
+      A = np.zeros(shape=(len(graph.vs), len(graph.vs)), dtype=np.int)
+      for edge in graph.es():
+        s,t = edge.tuple
+        A[s][t] = 1
+      return A
+    
+    if attribute not in graph.es.attribute_names():
+      raise ValueError( "Attribute does not exists." )
+    
+    if default == 0:
+      A = np.zeros(shape=(len(graph.vs), len(graph.vs)))
+    else:
+      A = np.full(shape=(len(graph.vs), len(graph.vs)), fill_value=default)
+    
     for edge in graph.es():
         s,t = edge.tuple
-        A[s][t] = edge["weight"]
+        A[s][t] = edge[attribute]
     return A
   
-def getSparseWeightedAdjacencyMatrix( graph ):
-    """ write some nice doc string here """
-    return sparse.csr_matrix( getWeightedAdjacencyMatrix( graph ) )
-  
-def getTransposedSparseWeightedAdjacencyMatrix( graph ):
-    """ use to find left EV instead of default right with eigs()"""
+def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
+    """Returns a sparse adjacency matrix of the given graph.
+    
+    @param attribute: if C{None}, returns the ordinary adjacency matrix.
+      When the name of a valid edge attribute is given here, the matrix
+      returned will contain the value of the given attribute where there
+      is an edge. Default value is assumed to be zero for places where 
+      there is no edge. Multiple edges are not supported.
+      
+    @param transposed: whether to transpose the matrix or not.
+    """
+    if (attribute is not None) and (attribute not in graph.es.attribute_names()):
+      raise ValueError( "Attribute does not exists." )
+    
     row = []
     col = []
     data = []
-    for edge in graph.es():
-        s,t = edge.tuple
-        row.append(t)
-        col.append(s)
-        data.append(edge["weight"])
+    
+    if attribute is None:
+      if transposed:
+        for edge in graph.es():
+          s,t = edge.tuple
+          row.append(t)
+          col.append(s)
+          data.append(1)
+      else:
+        for edge in graph.es():
+          s,t = edge.tuple
+          row.append(s)
+          col.append(t)
+          data.append(1)
+    else:
+      if transposed:
+        for edge in graph.es():
+            s,t = edge.tuple
+            row.append(t)
+            col.append(s)
+            data.append(edge[attribute])
+      else:
+        for edge in graph.es():
+            s,t = edge.tuple
+            row.append(s)
+            col.append(t)
+            data.append(edge[attribute])
+          
     return sparse.coo_matrix((data, (row, col)) , shape=(len(graph.vs), len(graph.vs))).tocsr()
+
 
 def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
     """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
@@ -349,7 +402,6 @@ class TemporalNetwork:
         return self.g2
 
 
-        
     def igraphSecondOrderNull(self):
         """Returns a second-order null Markov model 
            corresponding to the first-order aggregate network. This network
@@ -367,7 +419,7 @@ class TemporalNetwork:
         print("\tTime elapsed for construction of g2: ", (g2time - start))
 
         # Compute stationary distribution to obtain expected edge weights in pi
-        A = getWeightedAdjacencyMatrix( g2 )
+        A = getAdjacencyMatrix( g2, attribute="weight" )
         D = g2.strength(mode='out', weights=g2.es["weight"])
         
         T = np.zeros(shape=(n_vertices, n_vertices))
