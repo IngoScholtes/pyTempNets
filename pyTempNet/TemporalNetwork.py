@@ -403,7 +403,7 @@ class TemporalNetwork:
         print("\tTime elapsed for adding edges: ", (end - graph))
         
         end = end - start
-        print("time elapsed in igraphSecondOrderNull(): " % end )
+        print("time elapsed in igraphSecondOrderNull(): ", end)
         return self.g2n
 
 
