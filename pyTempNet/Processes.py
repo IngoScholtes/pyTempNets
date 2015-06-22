@@ -68,12 +68,11 @@ def RWTransitionMatrix(g, sparseLA=False, transposed=False):
       
       end = tm.clock()
       
+      # TODO: find out why data is some times of type (N, 1)
+      # TODO: and sometimes of type (N,). The latter is desired
+      # TODO: otherwise scipy.coo will raise a ValueError
       data = np.array(data)
       data = data.reshape(data.size,)
-      #print np.array(data).shape
-      #print np.array(row).shape
-      #print np.array(col).shape
-      #print("Time for RW transition matrix (sparse): ", (end - start))
       return sparse.coo_matrix((data, (row, col)), shape=(len(g.vs), len(g.vs))).tocsr()
     else:
       if g.is_weighted():
@@ -112,29 +111,18 @@ def RWDiffusion(g, samples = 5, epsilon=0.01):
     start = tm.clock()
     
     avg_speed = 0
-    #T = RWTransitionMatrix(g)
-    newT = RWTransitionMatrix(g, sparseLA=True, transposed=True)
-    #untransposedT = RWTransitionMatrix( g, sparseLA=True )
+    T = RWTransitionMatrix(g, sparseLA=True, transposed=True)
     for s in range(samples):
-        #w, v = spl.eig(T, left=True, right=False)
-        neww, newpi = sla.eigs( newT, k=1, which="LM" )
-        newpi = newpi.reshape(newpi.size,)
-        #pi = v[:,np.argsort(-w)][:,0]
-        newpi /= sum(newpi)
-        #print pi.shape
-        #print newpi.shape
+        w, pi = sla.eigs( T, k=1, which="LM" )
+        pi = pi.reshape(pi.size,)
+        pi /= sum(pi)
         x = np.zeros(len(g.vs))
         x[np.random.randint(len(g.vs()))] = 1
-        newx = x
-        while TVD(newx,newpi)>epsilon:
+        while TVD(x,pi)>epsilon:
             avg_speed += 1
-            #x = np.dot(x,T)
-            newx = newT.dot(newx.transpose()).transpose()
-            #print x
-            #print newx
-            #print T.shape
-            #assert np.amax(np.absolute(np.subtract(x, newx))) < 1e-15
-            #assert (x == newx).all()
+            # NOTE x * T = (T^T * x^T)^T
+            # NOTE T is already transposed to get the left EV
+            x = T.dot(x.transpose()).transpose()
     end = tm.clock()
     print("Time for RW diffusion: ", (end - start))
     return avg_speed/samples
