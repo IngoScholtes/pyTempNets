@@ -8,33 +8,100 @@ Created on Fri May  8 12:35:22 2015
 
 import numpy as np
 import scipy.linalg as spl
+import scipy.sparse as sparse
+import scipy.sparse.linalg as sla
 import igraph
 import pyTempNet as tn
+import time as tm
 
-
-def RWTransitionMatrix(g):
+def RWTransitionMatrix(g, sparseLA=False, transposed=False):
     """Generates a random walk transition matrix corresponding to a (possibly) weighted
-    and directed network""" 
-    if g.is_weighted():
-        A = tn.getAdjacencyMatrix( g, attribute="weight" )
+    and directed network
+    
+    @param g: the graph
+    @param sparse: (optional) whether to use sparse linalg or not. If C{True} the 
+                   transition matrix is returned as CSR. Default is C{False}
+    @param transposed: (optional) whether or not to transpose the transition matrix.
+                       Default is C{False}"""
+    start = tm.clock()
+    
+    if sparseLA:
+      row = []
+      col = []
+      data = []
+      if g.is_weighted():
         D = g.strength(mode='out', weights=g.es["weight"])
-    else:
-        A = tn.getAdjacencyMatrix( g )
+        if transposed:
+          for edge in g.es():
+              s,t = edge.tuple
+              row.append(t)
+              col.append(s)
+              tmp = edge["weight"] / D[s]
+              assert tmp >= 0 and tmp <= 1
+              data.append( tmp )
+        else:
+          for edge in g.es():
+              s,t = edge.tuple
+              row.append(s)
+              col.append(t)
+              tmp = edge["weight"] / D[s]
+              assert tmp >= 0 and tmp <= 1
+              data.append( tmp )
+      else:
         D = g.degree(mode='out')
-    
-    n_vertices = len(g.vs)
-    T = np.zeros(shape=(n_vertices, n_vertices))
-    
-    for i in range(n_vertices):
-          invDi = 1./D[i]
-          T[i,:] = A[i,:] * invDi
-          assert T[i,:].all() >= 0 and T[i,:].all() <= 1
-    return T
+        if transposed:
+          for edge in g.es():
+              s,t = edge.tuple
+              row.append(t)
+              col.append(s)
+              tmp = 1. / D[s]
+              assert tmp >= 0 and tmp <= 1
+              data.append( tmp )
+        else:
+          for edge in g.es():
+              s,t = edge.tuple
+              row.append(s)
+              col.append(t)
+              tmp = 1. / D[s]
+              assert tmp >= 0 and tmp <= 1
+              data.append( tmp )
+      
+      end = tm.clock()
+      
+      data = np.array(data)
+      data = data.reshape(data.size,)
+      #print np.array(data).shape
+      #print np.array(row).shape
+      #print np.array(col).shape
+      #print("Time for RW transition matrix (sparse): ", (end - start))
+      return sparse.coo_matrix((data, (row, col)), shape=(len(g.vs), len(g.vs))).tocsr()
+    else:
+      if g.is_weighted():
+          A = tn.getAdjacencyMatrix( g, attribute="weight" )
+          D = g.strength(mode='out', weights=g.es["weight"])
+      else:
+          A = tn.getAdjacencyMatrix( g )
+          D = g.degree(mode='out')
+      
+      n_vertices = len(g.vs)
+      T = np.zeros(shape=(n_vertices, n_vertices))
+      
+      for i in range(n_vertices):
+            invDi = 1./D[i]
+            T[i,:] = A[i,:] * invDi
+            assert T[i,:].all() >= 0 and T[i,:].all() <= 1
+      
+      end = tm.clock()
+      print("Time for RW transition matrix (dense): ", (end - start))
+      if transposed:
+        return T.transpose()
+      else:
+        return T
 
 
 def TVD(p1, p2):
     """Compute total variation distance between two stochastic column vectors"""
-    return np.sum(np.absolute(np.subtract(p1, p2)))/2
+    return 0.5 * np.sum(np.absolute(np.subtract(p1, p2)))
     
     
 def RWDiffusion(g, samples = 5, epsilon=0.01):
@@ -42,17 +109,34 @@ def RWDiffusion(g, samples = 5, epsilon=0.01):
     to fall below a total variation distance below epsilon (TVD computed between the momentary 
     visitation probabilities \pi^t and the stationary distribution \pi = \pi^{\infty}. This time can be 
     used to measure diffusion speed in a given (weighted and directed) network."""
+    start = tm.clock()
+    
     avg_speed = 0
-    T = RWTransitionMatrix(g)
+    #T = RWTransitionMatrix(g)
+    newT = RWTransitionMatrix(g, sparseLA=True, transposed=True)
+    #untransposedT = RWTransitionMatrix( g, sparseLA=True )
     for s in range(samples):
-        w, v = spl.eig(T, left=True, right=False)
-        pi = v[:,np.argsort(-w)][:,0]
-        pi = pi/sum(pi)
-        x = [0] * len(g.vs)
+        #w, v = spl.eig(T, left=True, right=False)
+        neww, newpi = sla.eigs( newT, k=1, which="LM" )
+        newpi = newpi.reshape(newpi.size,)
+        #pi = v[:,np.argsort(-w)][:,0]
+        newpi /= sum(newpi)
+        #print pi.shape
+        #print newpi.shape
+        x = np.zeros(len(g.vs))
         x[np.random.randint(len(g.vs()))] = 1
-        while TVD(x,pi)>epsilon:
+        newx = x
+        while TVD(newx,newpi)>epsilon:
             avg_speed += 1
-            x = np.dot(x,T)
+            #x = np.dot(x,T)
+            newx = newT.dot(newx.transpose()).transpose()
+            #print x
+            #print newx
+            #print T.shape
+            #assert np.amax(np.absolute(np.subtract(x, newx))) < 1e-15
+            #assert (x == newx).all()
+    end = tm.clock()
+    print("Time for RW diffusion: ", (end - start))
     return avg_speed/samples
     
 

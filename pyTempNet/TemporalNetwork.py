@@ -95,6 +95,8 @@ def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
           
     return sparse.coo_matrix((data, (row, col)) , shape=(len(graph.vs), len(graph.vs))).tocsr()
 
+#TODO: this look a lot like RWTransitionMatrix in Processes
+#TODO: merge them!
 def sparseStationaryDistribution( graph, transposed=False ):
     """returns the T matrix in CSR format"""
     
@@ -378,6 +380,7 @@ class TemporalNetwork:
             # get key{1,2} with default value 0 from edge_list directory
             edge_list[key1] = edge_list.get(key1, 0) + tp[3]
             edge_list[key2] = edge_list.get(key2, 0) + tp[3]
+            
         # adding all edges at once is much faster as igraph updates internal
         # data structures after each vertex/edge added
         self.g1.add_edges( edge_list.keys() )
@@ -395,7 +398,6 @@ class TemporalNetwork:
            (first-order) order correlations in the underlying temporal network."""
         
         start = tm.clock()
-        
         if self.g2 != 0:
             return self.g2
 
@@ -446,22 +448,15 @@ class TemporalNetwork:
         print("\tTime elapsed for construction of g2: ", (g2time - start))
             
         T = sparseStationaryDistribution( g2, transposed=True )
-
         loop = tm.clock()
-        print("\t\tTime for matrices and loop: ", (loop - g2time))
         
-        # TODO: Newer timng data suggests that this step is the most expensive one
-        # NOTE: overwriting the matrix does not improve performance
         w, pi = sla.eigs( T, k=1, which="LM" )
         eigen = tm.clock()
         print("\t\tTime for eigenvalue calculation: ", (eigen - loop))
         
-        pi = np.real(pi/sum(pi))
-        
+        pi = np.real(pi/sum(pi))        
         before = tm.clock()
-        print("\t\tTime for normalization: ", (before - eigen))
         print("\tTime elapsed for matrix stuff: ", (before - g2time))
-
         
         # Construct null model second-order network
         self.g2n = igraph.Graph(directed=True)
