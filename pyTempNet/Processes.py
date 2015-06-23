@@ -36,7 +36,8 @@ def RWTransitionMatrix(g, sparseLA=False, transposed=False):
               s,t = edge.tuple
               row.append(t)
               col.append(s)
-              tmp = edge["weight"] / D[s]
+              invD = 1./D[s]
+              tmp = edge["weight"] * invD
               assert tmp >= 0 and tmp <= 1
               data.append( tmp )
         else:
@@ -44,7 +45,8 @@ def RWTransitionMatrix(g, sparseLA=False, transposed=False):
               s,t = edge.tuple
               row.append(s)
               col.append(t)
-              tmp = edge["weight"] / D[s]
+              invD = 1./D[s]
+              tmp = edge["weight"] * invD
               assert tmp >= 0 and tmp <= 1
               data.append( tmp )
       else:
@@ -73,6 +75,8 @@ def RWTransitionMatrix(g, sparseLA=False, transposed=False):
       # TODO: otherwise scipy.coo will raise a ValueError
       data = np.array(data)
       data = data.reshape(data.size,)
+      end = tm.clock()
+      print("Time for RW transition matrix (sparse): ", (end - start))
       return sparse.coo_matrix((data, (row, col)), shape=(len(g.vs), len(g.vs))).tocsr()
     else:
       if g.is_weighted():
@@ -100,6 +104,7 @@ def RWTransitionMatrix(g, sparseLA=False, transposed=False):
 
 def TVD(p1, p2):
     """Compute total variation distance between two stochastic column vectors"""
+    assert p1.shape == p2.shape
     return 0.5 * np.sum(np.absolute(np.subtract(p1, p2)))
     
     
@@ -112,17 +117,141 @@ def RWDiffusion(g, samples = 5, epsilon=0.01):
     
     avg_speed = 0
     T = RWTransitionMatrix(g, sparseLA=True, transposed=True)
+    
+    ## save transition matrix
+    #np.savez( "transition_matrix", data = T.data, indices = T.indices, indptr = T.indptr, shape = T.shape )
+    
+    #np.savetxt( "TMdata.out", T.data )
+    #np.savetxt( "TMindices.out", T.indices, fmt="%d" )
+    #np.savetxt( "TMindptr.out", T.indptr, fmt="%d" )
+    
+    #tm.sleep(.5)
+    
+    #w, pi = sla.eigs( T, k=1, which="LM", M=np.identity(len(g.vs())) )
+    #pi = pi.reshape(pi.size,)
+    #print( "pi vor normalisierung:", pi[0:10])
+    #pi /= sum(pi)
+    
+    #print("This is pi in the beginning:", pi[0:10])
+    #oldpi = pi
+    
     for s in range(samples):
+        # NOTE: strangely the next 3 lines are crucial to be inside the for loop
+        # NOTE: if not, the while-loop below will be endless ...
+        #print("This is round #", s)
+        #reload(sla)
+        import scipy.sparse.linalg as sla
+        
         w, pi = sla.eigs( T, k=1, which="LM" )
-        pi = pi.reshape(pi.size,)
+        pi = pi.reshape(pi.size,)                             
+        
+        
+        #print( "pi vor normalisierung:", pi[0:10])
+        
+        print sum(pi)
+        
         pi /= sum(pi)
+        
+        print sum(pi)
+        
+        print("This is pi for sample", s, ":")
+        print pi[0:10]
+        
+        #I = np.identity(20)
+        #w, pi = sla.eigs( I, k=1, which="LM" )
+        #pi = pi.reshape(pi.size,) 
+        
+
+        
+        #print np.amax(np.absolute(np.subtract(pi, oldpi)))
+        
+        #x = np.zeros(len(g.vs))
+        #seed = np.random.randint(len(g.vs()))
+        #x[seed] = 1
+        #print("Seeding at ", seed, " in (0,", len(g.vs()))
+        
+        ## TODO: maybe add a counter for maximal number of iterations
+        #while TVD(x,pi)>epsilon:
+            #avg_speed += 1
+            ## NOTE x * T = (T^T * x^T)^T
+            ## NOTE T is already transposed to get the left EV
+            #x = (T.dot(x.transpose())).transpose()
+            ##print TVD(x,pi)
+            ##print x.shape
+            ##print pi.shape
+            #if avg_speed > 100000:
+              #print x[0:10]
+              #print pi[0:10]
+              #assert 1 == 2
+        #oldpi = pi
+    end = tm.clock()
+    print("Time for RW diffusion: ", (end - start))
+    return avg_speed/samples
+  
+def RWDenseDiffusion(g, samples = 5, epsilon=0.01):
+    """Computes the average number of steps requires by a random walk process
+    to fall below a total variation distance below epsilon (TVD computed between the momentary 
+    visitation probabilities \pi^t and the stationary distribution \pi = \pi^{\infty}. This time can be 
+    used to measure diffusion speed in a given (weighted and directed) network."""
+    start = tm.clock()
+    
+    avg_speed = 0
+    T = RWTransitionMatrix(g)
+    sparseT = RWTransitionMatrix(g, sparseLA=True)
+    
+    print np.amax(np.absolute(np.subtract(T, sparseT.todense())))
+    print sparse.csr_matrix(T)
+    print sparseT
+    assert np.amax(np.absolute(np.subtract(T, sparseT.todense()))) < 1e-15
+    
+    w, v = spl.eig(T, left=True, right=False)
+    pi = v[:,np.argsort(-w)][:,0]
+    #w, pi = sla.eigs( T, k=1, which="LM" )
+    pi = pi.reshape(pi.size,)
+    print( "pi vor normalisierung:", pi[0:10])
+    pi /= sum(pi)
+    
+    #print("This is pi in the beginning:", pi[0:10])
+    #oldpi = pi
+    
+    for s in range(samples):
+        # NOTE: strangely the next 3 lines are crucial to be inside the for loop
+        # NOTE: if not, the while-loop below will be endless ...
+        print("This is round #", s)
+        #w, pi = sla.eigs( T, k=1, which="LM" )
+        #pi = pi.reshape(pi.size,)
+        
+        #print( "pi vor normalisierung:", pi[0:10])
+        
+        #pi /= sum(pi)
+        
+        print("This is pi for sample", s, ":")
+        print pi[0:10]
+        
+
+        
+        #print np.amax(np.absolute(np.subtract(pi, oldpi)))
+        
         x = np.zeros(len(g.vs))
-        x[np.random.randint(len(g.vs()))] = 1
+        seed = np.random.randint(len(g.vs()))
+        x[seed] = 1
+        print("Seeding at ", seed, " in (0,", len(g.vs()))
+        
+        # TODO: maybe add a counter for maximal number of iterations
         while TVD(x,pi)>epsilon:
             avg_speed += 1
             # NOTE x * T = (T^T * x^T)^T
             # NOTE T is already transposed to get the left EV
-            x = T.dot(x.transpose()).transpose()
+            #x = T.dot(x.transpose()).transpose()
+            x = np.dot(x, T)
+            #print TVD(x,pi)
+            #print x.shape
+            #print pi.shape
+            if avg_speed > 100000:
+              print x[0:10]
+              print pi[0:10]
+              assert 1 == 2
+        #oldpi = pi
     end = tm.clock()
     print("Time for RW diffusion: ", (end - start))
     return avg_speed/samples
