@@ -64,6 +64,10 @@ def AlgebraicConn(temporalnet, model="SECOND"):
      vector can be used for a spectral bisectioning of the network.
     """
     L = Laplacian(temporalnet, model, sparseLA=True, transposed=True)
+    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: in order to be more confident to find the one with the largest
+    # NOTE: magnitude, see
+    # NOTE: https://github.com/scipy/scipy/issues/4987
     w = sla.eigs( L, which="SM", k=2, ncv=13, return_eigenvectors=False )
     evals_sorted = np.sort(np.absolute(w))
     return np.abs(evals_sorted[1])
@@ -83,13 +87,21 @@ def EntropyGrowthRate(T):
     """Computes the entropy growth rate of a transition matrix"""
     
     # Compute normalized leading eigenvector of T (stationary distribution)
-    w, v = spl.eig(T, left=True, right=False)
-    pi = v[:,np.argsort(-np.absolute(w))][:,0]
-    pi = pi/sum(pi)
+    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: in order to be more confident to find the one with the largest
+    # NOTE: magnitude, see
+    # NOTE: https://github.com/scipy/scipy/issues/4987
+    w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
+    pi = pi.reshape(pi.size,)
+    pi /= sum(pi)
     
     H = 0.0
     for i in range(T.shape[0]):
-        H += pi[i] * np.dot( T[i,range(T.shape[1])], __log(T[i, range(T.shape[1])]) )
+      H += pi[i] * np.dot( T[i, range(T.shape[1])], __log(T[i, range(T.shape[1])]) )
+      #row = 0.0
+      #for j in range(T.shape[1]):
+        #row += T[i,j] * __log(T[i,j])
+      #H += row * p[i]
     return -H
     
     
@@ -107,8 +119,8 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
             g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
         
         # Calculate transition matrices
-        T2 = Processes.RWTransitionMatrix(g2)
-        T2n = Processes.RWTransitionMatrix(g2n)
+        T2 = Processes.RWTransitionMatrix(g2, sparseLA=True, transposed=True)
+        T2n = Processes.RWTransitionMatrix(g2n, sparseLA=True, transposed=True)
 
         # Compute entropy growth rates of transition matrices        
         H2 = np.absolute(EntropyGrowthRate(T2))
