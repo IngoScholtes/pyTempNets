@@ -255,7 +255,11 @@ def EigenvectorCentrality(t, model='SECOND'):
     matrix = tm.clock()
     print("\tmatrix took: ", (matrix - beforeMatrix))
     
-    w, evcent_2 = sla.eigs( A, k=1, which="LM" )
+    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: in order to be more confident to find the one with the largest
+    # NOTE: magnitude, see
+    # NOTE: https://github.com/scipy/scipy/issues/4987
+    w, evcent_2 = sla.eigs( A, k=1, which="LM", ncv=13 )
     evcent_2 = evcent_2.reshape(evcent_2.size,)
     eig = tm.clock()
     print("\teig took: ", (eig - matrix))

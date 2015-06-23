@@ -450,7 +450,11 @@ class TemporalNetwork:
         T = sparseStationaryDistribution( g2, transposed=True )
         loop = tm.clock()
         
-        w, pi = sla.eigs( T, k=1, which="LM" )
+        # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+        # NOTE: in order to be more confident to find the one with the largest
+        # NOTE: magnitude, see
+        # NOTE: https://github.com/scipy/scipy/issues/4987
+        w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
         eigen = tm.clock()
         print("\t\tTime for eigenvalue calculation: ", (eigen - loop))
         
