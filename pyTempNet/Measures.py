@@ -85,7 +85,7 @@ __log = np.vectorize(__log, otypes=[np.float])
 
 def EntropyGrowthRate(T):
     """Computes the entropy growth rate of a transition matrix"""
-    
+    start = tm.clock()
     # Compute normalized leading eigenvector of T (stationary distribution)
     # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
     # NOTE: in order to be more confident to find the one with the largest
@@ -95,12 +95,33 @@ def EntropyGrowthRate(T):
     pi = pi.reshape(pi.size,)
     pi /= sum(pi)
     
+    mid = tm.clock()
+    print("     ev calc. ", (mid - start))
+    
+    T = T.todok()
+    conversion = tm.clock()
+    print("     conversion:", (conversion - mid))
+    
+    # TODO: The following lines are incorrect, but the general idea
+    # TODO: should be correct - so fix this and make it fast again
+    # TODO: with sparse transition matrix
+    #H = 0.0
+    #rows, cols = T.nonzero()
+    #assert rows.size == cols.size
+    #for i in range(rows.size):
+        #row = rows[i]
+        #col = cols[i]
+        #H += (pi[row] * T[col,row] * __log(T[col,row]))
+  
     H = 0.0
     for i in range(T.shape[0]):
       row = 0.0
       for j in range(T.shape[1]):
         row += T[j,i] * __log(T[j,i])
       H += (row * pi[i])
+
+    end = tm.clock()
+    print("     loop: ", (end- conversion))
     return -H
     
     
@@ -118,15 +139,22 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
         else:
             g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
         
+        graph = tm.clock()
+        print(" Time for graphs: ", (graph-start))
+        
         # Calculate transition matrices
         T2 = Processes.RWTransitionMatrix(g2, sparseLA=True, transposed=True)
         T2n = Processes.RWTransitionMatrix(g2n, sparseLA=True, transposed=True)
+        
+        matrices = tm.clock()
+        print(" Time for matrices: ", (matrices - graph))
 
         # Compute entropy growth rates of transition matrices        
         H2 = np.absolute(EntropyGrowthRate(T2))
         H2n = np.absolute(EntropyGrowthRate(T2n))
         
         end = tm.clock()
+        print(" Time for growth rates: ", (end - matrices))
         print('Time for EntropyGrowthRateRatio:', (end - start))
         # Return ratio
         return H2/H2n        
