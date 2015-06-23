@@ -183,7 +183,6 @@ class TemporalNetwork:
     
     def __init__(self, tedges = None, twopaths = None):
         """Constructor generating an empty temporal network"""
-        start = tm.clock()
         
         self.tedges = []
         self.nodes = []
@@ -224,9 +223,6 @@ class TemporalNetwork:
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
-        
-        end = tm.clock()
-        print("Time spent in constructor: ", (end - start))
         
 
     def addEdge(self, source, target, time):
@@ -273,9 +269,6 @@ class TemporalNetwork:
             time[ts].append(e)
             targets[ts].setdefault(target, []).append(e)
             sources[ts].setdefault(source, []).append(e)
-        
-        mid = tm.clock()
-        print("\tTime spent for creating index: ", (mid - start))
 
         # Extract time-respecting paths of length two             
         prev_t = -1
@@ -293,7 +286,7 @@ class TemporalNetwork:
                                 d = e_out[1]
                                 
                                 # TODO: Add support for weighted time-
-                                # stamped links
+                                # TODO: stamped links
                                 pass
                                 indeg_v = len(targets[prev_t][v])
                                 outdeg_v = len(sources[t][v])                                
@@ -310,11 +303,9 @@ class TemporalNetwork:
         
         # Update the count of two-paths
         self.tpcount = len(self.twopaths)
-        
+
         end = tm.clock()
-        print("\tTime spent extracting twopaths: ", (end - mid))
-        end = end - start
-        print("Time elapsed in extractTwoPaths(): ", end)
+        print("Time elapsed in extractTwoPaths(): ", (end - start))
 
         
     def TwoPathCount(self):
@@ -418,38 +409,23 @@ class TemporalNetwork:
         g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
         n_vertices = len(g2.vs)
         
-        g2time = tm.clock()
-        print("\tTime elapsed for construction of g2: ", (g2time - start))
-            
         T = RWTransitionMatrix( g2, transposed=True, sparseLA=True )
-        loop = tm.clock()
-        
         # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
         # NOTE: in order to be more confident to find the one with the largest
         # NOTE: magnitude, see
         # NOTE: https://github.com/scipy/scipy/issues/4987
         w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
-        eigen = tm.clock()
-        print("\t\tTime for eigenvalue calculation: ", (eigen - loop))
-        
-        pi = np.real(pi/sum(pi))        
-        before = tm.clock()
-        print("\tTime elapsed for matrix stuff: ", (before - g2time))
+        pi = np.real(pi/sum(pi))
         
         # Construct null model second-order network
         self.g2n = igraph.Graph(directed=True)
-
-        # This ensures that vertices are ordered in the same way as in the empirical second-order network
+        # NOTE: This ensures that vertices are ordered in the same way as in 
+        # NOTE: the empirical second-order network
         for v in self.g2.vs():
             self.g2n.add_vertex(name=v["name"])
-            
-        graph = tm.clock()
-        print("\tTime elapsed for graph and vertices: ", (graph - before))
         
         # TODO: This operation is the bottleneck for large data sets!
         # TODO: Only iterate over those edge pairs, that actually are two paths!
-        # 
-        # NOTE: recheck this claim with the new version adding all edges at once
         edge_dict = {}
         for e1 in g2.vs():
             e1name = e1["name"]
@@ -468,9 +444,8 @@ class TemporalNetwork:
         self.g2n.add_edges( edge_dict.keys() )
         self.g2n.es["weight"] = list(edge_dict.values())
         end = tm.clock()
-        print("\tTime elapsed for adding edges: ", (end - graph))
         
-        print("time elapsed in igraphSecondOrderNull(): ", (end-start) )
+        print("Time elapsed in igraphSecondOrderNull(): ", (end-start) )
         return self.g2n
 
 

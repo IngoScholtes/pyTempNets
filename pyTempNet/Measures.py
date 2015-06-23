@@ -245,85 +245,25 @@ def EigenvectorCentrality(t, model='SECOND'):
     if model == 'SECOND':
         g2 = t.igraphSecondOrder()
     else:
-        g2 = t.igraphSecondOrderNull()    
-
-    beforeMatrix = tm.clock()
-    print("\tbefore matrix took: ", (beforeMatrix - start))
+        g2 = t.igraphSecondOrderNull()
     
     # Compute eigenvector centrality in second-order network
     A = getSparseAdjacencyMatrix( g2, attribute="weight", transposed=True )
-    matrix = tm.clock()
-    print("\tmatrix took: ", (matrix - beforeMatrix))
-    
     # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
     # NOTE: in order to be more confident to find the one with the largest
     # NOTE: magnitude, see
     # NOTE: https://github.com/scipy/scipy/issues/4987
     w, evcent_2 = sla.eigs( A, k=1, which="LM", ncv=13 )
     evcent_2 = evcent_2.reshape(evcent_2.size,)
-    eig = tm.clock()
-    print("\teig took: ", (eig - matrix))
     
     # Aggregate to obtain first-order eigenvector centrality
     for i in range(len(evcent_2)):
         # Get name of target node
         target = g2.vs()[i]["name"].split(';')[1]
         evcent_1[name_map[target]] += np.real(evcent_2[i])
-        
-    rest = tm.clock()
-    print("\trest took: ", (rest - eig))
     
-    return np.real(evcent_1/sum(evcent_1))
-
-def EigenvectorCentralityLegacy(t, model='SECOND'):
-    """Computes eigenvector centralities of nodes in the second-order networks, 
-    and aggregates them to obtain the eigenvector centrality of nodes in the 
-    first-order network.
-    
-    NOTE: this function is deprecated and only around for validation of the 
-    above EigenvectorCentrality() which is much faster on large graphs."""
-    
-    start = tm.clock()
-
-    assert model == 'SECOND' or model == 'NULL'
-
-    name_map = {}
-
-    g1 = t.igraphFirstOrder()
-    i = 0 
-    for v in g1.vs()["name"]:
-        name_map[v] = i
-        i += 1
-    evcent_1 = [0]*len(g1.vs())
-
-    if model == 'SECOND':
-        g2 = t.igraphSecondOrder()
-    else:
-        g2 = t.igraphSecondOrderNull()    
-
-    beforeMatrix = tm.clock()
-    print("\tbefore matrix took: ", (beforeMatrix - start))
-    
-    # Compute eigenvector centrality in second-order network
-    A = getAdjacencyMatrix( g2, attribute="weight" )
-
-    matrix = tm.clock()
-    print("\tmatrix took: ", (matrix - beforeMatrix))
-    
-    w, v = spl.eig(A, left=True, right=False)
-    eig = tm.clock()
-    print("\teig took: ", (eig - matrix))
-    
-    evcent_2 = v[:,np.argsort(-w)][:,0]
-    
-    # Aggregate to obtain first-order eigenvector centrality
-    for i in range(len(evcent_2)):
-        # Get name of target node
-        target = g2.vs()[i]["name"].split(';')[1]        
-        evcent_1[name_map[target]] += evcent_2[i]
-    rest = tm.clock()
-    print("\trest took: ", (rest - eig))
-    
+    end = tm.clock()
+    print("Time for EigenvectorCentrality: ", (end - start))
     return np.real(evcent_1/sum(evcent_1))
 
 def BetweennessCentrality(t, model='SECOND'):

@@ -295,11 +295,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
         # to nodes in the *first-order* network
         for j in range(len(x)):
             if x[j] > 0:
-                # print('x_firstorder[', map_2_to_1[j], '] +=', x[j])
                 x_firstorder[map_2_to_1[j]] = x_firstorder[map_2_to_1[j]] + x[j]
-
-        # print('x =', x)
-        # print('x_firstorder =', x_firstorder)
 
         visual_style["vertex_color"] = [color_p(np.power((p-min(x))/(max(x)-min(x)),1/1.3)) for p in x_firstorder]
         igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(int(np.ceil(np.log10(steps)))) +".png", **visual_style)
