@@ -43,14 +43,16 @@ def FiedlerVector(temporalnet, model="SECOND"):
     second-order null (model=NULL) model for a temporal network. The Fiedler 
      vector can be used for a spectral bisectioning of the network.
     """
-    start = tm.clock()
     assert model is "SECOND" or "NULL"
     
+    # NOTE: The transposed matrix is needed to get the "left" eigen vectors
     L = Laplacian(temporalnet, model, sparseLA=True, transposed=True)
+    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: in order to be more confident to find the one with the largest
+    # NOTE: magnitude, see
+    # NOTE: https://github.com/scipy/scipy/issues/4987
     w, v = sla.eigs( L, k=2, which="SM", ncv=13 )
     
-    end = tm.clock()
-    print('Fielder vector took: ', (end - start))
     # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
     # TODO: finds the EV scaled factor (-1)
     return v[:,np.argsort(np.absolute(w))][:,1]
@@ -61,9 +63,8 @@ def AlgebraicConn(temporalnet, model="SECOND"):
     second-order null (model=NULL) model for a temporal network. The Fiedler 
      vector can be used for a spectral bisectioning of the network.
     """
-    L = Laplacian(temporalnet, model)
-
-    w, v = spl.eig(L, left=True, right=False)
+    L = Laplacian(temporalnet, model, sparseLA=True, transposed=True)
+    w = sla.eigs( L, which="SM", k=2, ncv=13, return_eigenvectors=False )
     evals_sorted = np.sort(np.absolute(w))
     return np.abs(evals_sorted[1])
 
