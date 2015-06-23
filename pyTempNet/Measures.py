@@ -10,23 +10,31 @@ import numpy as np
 import scipy.linalg as spl
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
+import time as tm
 from pyTempNet import *
 from pyTempNet.Processes import *
 
-def Laplacian(temporalnet, model="SECOND"):
+def Laplacian(temporalnet, model="SECOND", sparseLA=False, transposed=False):
     """Returns the Laplacian matrix corresponding to the the second-order (model=SECOND) or 
     the second-order null (model=NULL) model for a temporal network.
     """
     assert model is "SECOND" or "NULL"
+    start = tm.clock()
     
     if model == "SECOND":
         network = temporalnet.igraphSecondOrder().components(mode="STRONG").giant()
     elif model == "NULL": 
         network = temporalnet.igraphSecondOrderNull().components(mode="STRONG").giant()  
     
-    T2 = Processes.RWTransitionMatrix(network)
-    I = np.identity(len(network.vs()))
+    if sparseLA:
+      T2 = Processes.RWTransitionMatrix( network, sparseLA=True, transposed=transposed )
+      I  = sparse.identity( len(network.vs()) )
+    else:
+      T2 = Processes.RWTransitionMatrix(network)
+      I = np.identity(len(network.vs()))
 
+    end = tm.clock()
+    print("Calculating Laplacian took: ", (end - start))
     return I-T2
 
 
@@ -35,11 +43,16 @@ def FiedlerVector(temporalnet, model="SECOND"):
     second-order null (model=NULL) model for a temporal network. The Fiedler 
      vector can be used for a spectral bisectioning of the network.
     """
+    start = tm.clock()
     assert model is "SECOND" or "NULL"
     
-    L = Laplacian(temporalnet, model)
-            
-    w, v = spl.eig(L, left=True, right=False)
+    L = Laplacian(temporalnet, model, sparseLA=True, transposed=True)
+    w, v = sla.eigs( L, k=2, which="SM", ncv=13 )
+    
+    end = tm.clock()
+    print('Fielder vector took: ', (end - start))
+    # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
+    # TODO: finds the EV scaled factor (-1)
     return v[:,np.argsort(np.absolute(w))][:,1]
 
 
