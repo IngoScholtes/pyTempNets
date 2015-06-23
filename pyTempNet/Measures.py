@@ -97,11 +97,10 @@ def EntropyGrowthRate(T):
     
     H = 0.0
     for i in range(T.shape[0]):
-      H += pi[i] * np.dot( T[i, range(T.shape[1])], __log(T[i, range(T.shape[1])]) )
-      #row = 0.0
-      #for j in range(T.shape[1]):
-        #row += T[i,j] * __log(T[i,j])
-      #H += row * p[i]
+      row = 0.0
+      for j in range(T.shape[1]):
+        row += T[j,i] * __log(T[j,i])
+      H += (row * pi[i])
     return -H
     
     
@@ -111,6 +110,7 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
         than one indicate that the temporal network exhibits non-Markovian characteristics"""
         
         # Generate strongly connected component of second-order networks
+        start = tm.clock()
         g2 = t.igraphSecondOrder().components(mode="STRONG").giant()
         
         if mode == 'FIRSTORDER':
@@ -126,6 +126,8 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
         H2 = np.absolute(EntropyGrowthRate(T2))
         H2n = np.absolute(EntropyGrowthRate(T2n))
         
+        end = tm.clock()
+        print('Time for EntropyGrowthRateRatio:', (end - start))
         # Return ratio
         return H2/H2n        
         
