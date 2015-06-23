@@ -17,6 +17,8 @@ import os
 from collections import defaultdict
 import sys
 
+from pyTempNet.Processes import RWTransitionMatrix
+
 def getAdjacencyMatrix( graph, attribute=None, default=0 ):
     """Returns the full adjacency matrix of the given graph.
        
@@ -94,35 +96,7 @@ def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
             data.append(edge[attribute])
           
     return sparse.coo_matrix((data, (row, col)) , shape=(len(graph.vs), len(graph.vs))).tocsr()
-
-#TODO: this look a lot like RWTransitionMatrix in Processes
-#TODO: merge them!
-def sparseStationaryDistribution( graph, transposed=False ):
-    """returns the T matrix in CSR format"""
-    
-    D = graph.strength(mode='out', weights=graph.es["weight"])
-    row = []
-    col = []
-    data = []
-    
-    if transposed:
-      for edge in graph.es():
-          s,t = edge.tuple
-          row.append(t)
-          col.append(s)
-          tmp = edge["weight"] / D[s]
-          assert tmp >= 0 and tmp <= 1
-          data.append( tmp )
-    else:
-      for edge in graph.es():
-          s,t = edge.tuple
-          row.append(s)
-          col.append(t)
-          tmp = edge["weight"] / D[s]
-          assert tmp >= 0 and tmp <= 1
-          data.append( tmp )
-        
-    return sparse.coo_matrix( (data, (row, col)), shape=(len(graph.vs), len(graph.vs)) ).tocsr()
+  
 
 def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
     """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
@@ -447,7 +421,7 @@ class TemporalNetwork:
         g2time = tm.clock()
         print("\tTime elapsed for construction of g2: ", (g2time - start))
             
-        T = sparseStationaryDistribution( g2, transposed=True )
+        T = RWTransitionMatrix( g2, transposed=True, sparseLA=True )
         loop = tm.clock()
         
         # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed

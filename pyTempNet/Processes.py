@@ -36,8 +36,7 @@ def RWTransitionMatrix(g, sparseLA=False, transposed=False):
               s,t = edge.tuple
               row.append(t)
               col.append(s)
-              invD = 1./D[s]
-              tmp = edge["weight"] * invD
+              tmp = edge["weight"] / D[s]
               assert tmp >= 0 and tmp <= 1
               data.append( tmp )
         else:
@@ -45,8 +44,7 @@ def RWTransitionMatrix(g, sparseLA=False, transposed=False):
               s,t = edge.tuple
               row.append(s)
               col.append(t)
-              invD = 1./D[s]
-              tmp = edge["weight"] * invD
+              tmp = edge["weight"] / D[s]
               assert tmp >= 0 and tmp <= 1
               data.append( tmp )
       else:
