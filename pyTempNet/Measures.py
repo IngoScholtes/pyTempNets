@@ -7,7 +7,6 @@ Created on Thu Feb 19 11:49:39 2015
 """
 
 import numpy as np
-import scipy.linalg as spl
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 import time as tm

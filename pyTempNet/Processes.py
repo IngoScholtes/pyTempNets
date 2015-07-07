@@ -7,7 +7,6 @@ Created on Fri May  8 12:35:22 2015
 """
 
 import numpy as np
-import scipy.linalg as spl
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 import igraph
@@ -134,11 +133,9 @@ def RWDiffusion(g, samples = 5, epsilon=0.01, max_iterations=100000):
             # NOTE T is already transposed to get the left EV
             x = (T.dot(x.transpose())).transpose()
             if avg_speed > max_iterations:
-              print("Failed to converge!")
               print("  x[0:10] = ", x[0:10])
               print(" pi[0:10] = ", pi[0:10])
-              # TODO: raise an appropriate error here
-              assert 1 == 2
+              raise RuntimeError("Failed to converge within maximal number of iterations. Start of current x and pi are printed above")
     end = tm.clock()
     print("Time for RW diffusion: ", (end - start))
     return avg_speed/samples
@@ -148,7 +145,7 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
     """Exports an animation showing the evolution of a diffusion
            process on the network"""
 
-    T = RWTransitionMatrix(g)
+    T = RWTransitionMatrix(g, sparseLA=True, transposed=True)
 
     if visual_style == None:
             visual_style = {}
@@ -170,9 +167,13 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
     x[initial_index] = 1
 
     # compute stationary state
-    w, v = spl.eig(T, left=True, right=False)
-    pi = v[:,np.argsort(-w)][:,0]
-    pi = pi/sum(pi)
+    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: in order to be more confident to find the one with the largest
+    # NOTE: magnitude, see
+    # NOTE: https://github.com/scipy/scipy/issues/4987
+    w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
+    pi = pi.reshape(pi.size,)
+    pi /= sum(pi)
 
     scale = np.mean(np.abs(x-pi))
 
@@ -185,7 +186,9 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
         igraph.plot(g, file_prefix + "_frame_" + str(i).zfill(3) +".png", **visual_style)
         if i % 10 == 0:
             print('Step',i, ' TVD =', TVD(x,pi))
-        x = np.dot(x, T)
+        # NOTE x * T = (T^T * x^T)^T
+        # NOTE T is already transposed to get the left EV
+        x = (T.dot(x.transpose())).transpose()
 
 
 def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, delay=10):
@@ -237,7 +240,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
     elif model == 'NULL':
         g2 = t.igraphSecondOrderNull()
 
-    T = RWTransitionMatrix(g2)
+    T = RWTransitionMatrix(g2, sparseLA=True, transposed=True)
 
     # visual style is for *first-order* aggregate network
     if visual_style == None:
@@ -270,9 +273,13 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
         map_2_to_1[j] = map_name_to_id[node]
 
     # compute stationary state of random walk process
-    w, v = spl.eig(T, left=True, right=False)
-    pi = v[:,np.argsort(-w)][:,0]
-    pi = pi/sum(pi)
+    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: in order to be more confident to find the one with the largest
+    # NOTE: magnitude, see
+    # NOTE: https://github.com/scipy/scipy/issues/4987
+    w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
+    pi = pi.reshape(pi.size,)
+    pi /= sum(pi)
 
     scale = np.mean(np.abs(x-pi))
 
@@ -301,4 +308,6 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
         igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(int(np.ceil(np.log10(steps)))) +".png", **visual_style)
         if i % 50 == 0:
             print('Step',i, ' TVD =', TVD(x,pi))
-        x = np.dot(x, T)
+        # NOTE x * T = (T^T * x^T)^T
+        # NOTE T is already transposed to get the left EV
+        x = (T.dot(x.transpose())).transpose()
