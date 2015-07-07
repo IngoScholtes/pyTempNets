@@ -73,16 +73,6 @@ def AlgebraicConn(temporalnet, model="SECOND"):
     return np.abs(evals_sorted[1])
 
 
-def __log(p):
-    """Logarithm (base two) which defines log2(0)=0"""
-    if p == 0: 
-        return 0.0
-    else:
-        return np.log2(p)
-      
-# makes the above function also usable for vectors as input
-__log = np.vectorize(__log, otypes=[np.float])
-
 def EntropyGrowthRate(T):
     """Computes the entropy growth rate of a transition matrix"""
     start = tm.clock()
@@ -98,30 +88,16 @@ def EntropyGrowthRate(T):
     mid = tm.clock()
     print("     ev calc. ", (mid - start))
     
-    T = T.todok()
-    conversion = tm.clock()
-    print("     conversion:", (conversion - mid))
+    # TODO: This double the amout of RAM need which might not be a good idea
+    # TODO: for large matrices
+    logData = np.log2(T.data)
+    logT = sparse.csr_matrix((logData, T.nonzero()), shape=T.shape)
+    T = T.multiply(logT)
+    x = T * pi
+    H = np.sum(x)
     
-    # TODO: The following lines are incorrect, but the general idea
-    # TODO: should be correct - so fix this and make it fast again
-    # TODO: with sparse transition matrix
-    #H = 0.0
-    #rows, cols = T.nonzero()
-    #assert rows.size == cols.size
-    #for i in range(rows.size):
-        #row = rows[i]
-        #col = cols[i]
-        #H += (pi[row] * T[col,row] * __log(T[col,row]))
-  
-    H = 0.0
-    for i in range(T.shape[0]):
-      row = 0.0
-      for j in range(T.shape[1]):
-        row += T[j,i] * __log(T[j,i])
-      H += (row * pi[i])
-
     end = tm.clock()
-    print("     loop: ", (end- conversion))
+    print("     loop: ", (end- mid))
     return -H
     
     
