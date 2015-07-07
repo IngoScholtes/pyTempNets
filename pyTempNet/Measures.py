@@ -280,6 +280,10 @@ def SlowDownFactor(t):
     T2n = Processes.RWTransitionMatrix(g2n, sparseLA=True, transposed=True)
     
     # Compute eigenvector sequences
+    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: in order to be more confident to find the one with the largest
+    # NOTE: magnitude, see
+    # NOTE: https://github.com/scipy/scipy/issues/4987
     w2, v2 = sla.eigs(T2, which="LM", k=2, ncv=13)
     evals2_sorted = np.sort(-np.absolute(w2))
 
