@@ -268,6 +268,7 @@ def SlowDownFactor(t):
     
     @param t: The temporalnetwork instance to work on
     """
+    start = tm.clock()
     g2 = t.igraphSecondOrder().components(mode="STRONG").giant()
     g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
     
@@ -280,7 +281,10 @@ def SlowDownFactor(t):
     evals2_sorted = np.sort(-np.absolute(w2))
     w2n, v2n = spl.eig(T2n, left=True, right=False)
     evals2n_sorted = np.sort(-np.absolute(w2n))
-        
+    
+    end = tm.clock()
+    print('Time for SlowDownFactor: ', (end - start))
+    
     return np.log(np.abs(evals2n_sorted[1]))/np.log(np.abs(evals2_sorted[1]))
 
 def EigenvectorCentrality(t, model='SECOND'):
