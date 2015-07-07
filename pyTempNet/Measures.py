@@ -272,13 +272,16 @@ def SlowDownFactor(t):
     g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
     
     # Build transition matrices
-    T2 = Processes.RWTransitionMatrix(g2)
-    T2n = Processes.RWTransitionMatrix(g2n)    
+    T2 = Processes.RWTransitionMatrix(g2, sparseLA=True, transpose=True)
+    T2n = Processes.RWTransitionMatrix(g2n, sparseLA=True, transpose=True)
     
     # Compute eigenvector sequences
-    w2, v2 = spl.eig(T2, left=True, right=False)
+    #w2, v2 = spl.eig(T2, left=True, right=False)
+    w2, v2 = sla.eigs(T2, which="LM", k=2, ncv=13)
     evals2_sorted = np.sort(-np.absolute(w2))
-    w2n, v2n = spl.eig(T2n, left=True, right=False)
+
+    #w2n, v2n = spl.eig(T2n, left=True, right=False)
+    w2n, v2n = sla.eigs(T2n, which="LM", k=2, ncv=13)
     evals2n_sorted = np.sort(-np.absolute(w2n))
         
     return np.log(np.abs(evals2n_sorted[1]))/np.log(np.abs(evals2_sorted[1]))
