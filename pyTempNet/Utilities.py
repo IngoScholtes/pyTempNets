@@ -173,7 +173,7 @@ def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
           
     return sparse.coo_matrix((data, (row, col)) , shape=(len(graph.vs), len(graph.vs))).tocsr()
 
-def RWTransitionMatrix(g, sparseLA=False, transposed=False):
+def RWTransitionMatrix(g):
     """Generates a random walk transition matrix corresponding to a (possibly) weighted
     and directed network
     
@@ -184,81 +184,38 @@ def RWTransitionMatrix(g, sparseLA=False, transposed=False):
                        Default is C{False}"""
     start = tm.clock()
     
-    if sparseLA:
-      row = []
-      col = []
-      data = []
-      if g.is_weighted():
-        D = g.strength(mode='out', weights=g.es["weight"])
-        if transposed:
-          for edge in g.es():
-              s,t = edge.tuple
-              row.append(t)
-              col.append(s)
-              tmp = edge["weight"] / D[s]
-              assert tmp >= 0 and tmp <= 1
-              data.append( tmp )
-        else:
-          for edge in g.es():
-              s,t = edge.tuple
-              row.append(s)
-              col.append(t)
-              tmp = edge["weight"] / D[s]
-              assert tmp >= 0 and tmp <= 1
-              data.append( tmp )
-      else:
-        D = g.degree(mode='out')
-        if transposed:
-          for edge in g.es():
-              s,t = edge.tuple
-              row.append(t)
-              col.append(s)
-              tmp = 1. / D[s]
-              assert tmp >= 0 and tmp <= 1
-              data.append( tmp )
-        else:
-          for edge in g.es():
-              s,t = edge.tuple
-              row.append(s)
-              col.append(t)
-              tmp = 1. / D[s]
-              assert tmp >= 0 and tmp <= 1
-              data.append( tmp )
-      
-      end = tm.clock()
-      
-      # TODO: find out why data is some times of type (N, 1)
-      # TODO: and sometimes of type (N,). The latter is desired
-      # TODO: otherwise scipy.coo will raise a ValueError
-      data = np.array(data)
-      data = data.reshape(data.size,)
-      end = tm.clock()
-      print("Time for RW transition matrix (sparse): ", (end - start))
-      return sparse.coo_matrix((data, (row, col)), shape=(len(g.vs), len(g.vs))).tocsr()
+    row = []
+    col = []
+    data = []
+    if g.is_weighted():
+      D = g.strength(mode='out', weights=g.es["weight"])
+      for edge in g.es():
+          s,t = edge.tuple
+          row.append(t)
+          col.append(s)
+          tmp = edge["weight"] / D[s]
+          assert tmp >= 0 and tmp <= 1
+          data.append( tmp )
     else:
-      if g.is_weighted():
-          A = tn.getAdjacencyMatrix( g, attribute="weight" )
-          D = g.strength(mode='out', weights=g.es["weight"])
-      else:
-          A = tn.getAdjacencyMatrix( g )
-          D = g.degree(mode='out')
-      
-      n_vertices = len(g.vs)
-      T = np.zeros(shape=(n_vertices, n_vertices))
-      
-      for i in range(n_vertices):
-            invDi = 1./D[i]
-            T[i,:] = A[i,:] * invDi
-            assert T[i,:].all() >= 0 and T[i,:].all() <= 1
-      
-      end = tm.clock()
-      print("Time for RW transition matrix (dense): ", (end - start))
-      if transposed:
-        return T.transpose()
-      else:
-        return T
-  
-  
+      D = g.degree(mode='out')
+      for edge in g.es():
+          s,t = edge.tuple
+          row.append(t)
+          col.append(s)
+          tmp = 1. / D[s]
+          assert tmp >= 0 and tmp <= 1
+          data.append( tmp )
+    
+    # TODO: find out why data is some times of type (N, 1)
+    # TODO: and sometimes of type (N,). The latter is desired
+    # TODO: otherwise scipy.coo will raise a ValueError
+    data = np.array(data)
+    data = data.reshape(data.size,)
+    end = tm.clock()
+    print("Time for RW transition matrix (sparse): ", (end - start))
+    return sparse.coo_matrix((data, (row, col)), shape=(len(g.vs), len(g.vs))).tocsr()
+
+
 def EntropyGrowthRate(T):
     """Computes the entropy growth rate of a transition matrix
     

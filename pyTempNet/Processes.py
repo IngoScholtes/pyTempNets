@@ -22,7 +22,7 @@ def RWDiffusion(g, samples = 5, epsilon=0.01, max_iterations=100000):
     start = tm.clock()
     avg_speed = 0
     
-    T = Utilities.RWTransitionMatrix(g, sparseLA=True, transposed=True)
+    T = Utilities.RWTransitionMatrix(g)
     
     # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
     # NOTE: in order to be more confident to find the one with the largest
@@ -54,7 +54,7 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
     """Exports an animation showing the evolution of a diffusion
            process on the network"""
 
-    T = Utilities.RWTransitionMatrix(g, sparseLA=True, transposed=True)
+    T = Utilities.RWTransitionMatrix(g)
 
     if visual_style == None:
             visual_style = {}
@@ -149,7 +149,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
     elif model == 'NULL':
         g2 = t.igraphSecondOrderNull()
 
-    T = Utilities.RWTransitionMatrix(g2, sparseLA=True, transposed=True)
+    T = Utilities.RWTransitionMatrix(g2)
 
     # visual style is for *first-order* aggregate network
     if visual_style == None:

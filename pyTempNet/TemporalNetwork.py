@@ -246,7 +246,7 @@ class TemporalNetwork:
         g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
         n_vertices = len(g2.vs)
         
-        T = RWTransitionMatrix( g2, transposed=True, sparseLA=True )
+        T = RWTransitionMatrix( g2 )
         # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
         # NOTE: in order to be more confident to find the one with the largest
         # NOTE: magnitude, see

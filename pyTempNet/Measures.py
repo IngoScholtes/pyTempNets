@@ -33,7 +33,7 @@ def Laplacian(temporalnet, model="SECOND"):
     elif model == "NULL": 
         network = temporalnet.igraphSecondOrderNull().components(mode="STRONG").giant()  
     
-    T2 = Utilities.RWTransitionMatrix( network, sparseLA=True, transposed=True )
+    T2 = Utilities.RWTransitionMatrix( network )
     I  = sparse.identity( len(network.vs()) )
 
     end = tm.clock()
@@ -108,8 +108,8 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
         g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
     
     # Calculate transition matrices
-    T2 = Utilities.RWTransitionMatrix(g2, sparseLA=True, transposed=True)
-    T2n = Utilities.RWTransitionMatrix(g2n, sparseLA=True, transposed=True)
+    T2 = Utilities.RWTransitionMatrix(g2)
+    T2n = Utilities.RWTransitionMatrix(g2n)
 
     # Compute entropy growth rates of transition matrices        
     H2 = np.absolute(Utilities.EntropyGrowthRate(T2))
@@ -207,8 +207,8 @@ def SlowDownFactor(t):
     g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
     
     # Build transition matrices
-    T2 = Utilities.RWTransitionMatrix(g2, sparseLA=True, transposed=True)
-    T2n = Utilities.RWTransitionMatrix(g2n, sparseLA=True, transposed=True)
+    T2 = Utilities.RWTransitionMatrix(g2)
+    T2n = Utilities.RWTransitionMatrix(g2n)
     
     # Compute eigenvector sequences
     # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
