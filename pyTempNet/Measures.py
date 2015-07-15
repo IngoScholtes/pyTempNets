@@ -13,7 +13,7 @@ import time as tm
 
 from pyTempNet import Utilities
 
-def Laplacian(temporalnet, model="SECOND", sparseLA=False, transposed=False):
+def Laplacian(temporalnet, model="SECOND"):
     """Returns the Laplacian matrix corresponding to the the second-order (model=SECOND) or 
     the second-order null (model=NULL) model for a temporal network.
     
@@ -33,12 +33,8 @@ def Laplacian(temporalnet, model="SECOND", sparseLA=False, transposed=False):
     elif model == "NULL": 
         network = temporalnet.igraphSecondOrderNull().components(mode="STRONG").giant()  
     
-    if sparseLA:
-      T2 = Utilities.RWTransitionMatrix( network, sparseLA=True, transposed=transposed )
-      I  = sparse.identity( len(network.vs()) )
-    else:
-      T2 = Utilities.RWTransitionMatrix(network)
-      I = np.identity(len(network.vs()))
+    T2 = Utilities.RWTransitionMatrix( network, sparseLA=True, transposed=True )
+    I  = sparse.identity( len(network.vs()) )
 
     end = tm.clock()
     print("Calculating Laplacian took: ", (end - start))
@@ -58,7 +54,7 @@ def FiedlerVector(temporalnet, model="SECOND"):
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
     
     # NOTE: The transposed matrix is needed to get the "left" eigen vectors
-    L = Laplacian(temporalnet, model, sparseLA=True, transposed=True)
+    L = Laplacian(temporalnet, model)
     # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
     # NOTE: in order to be more confident to find the one with the largest
     # NOTE: magnitude, see
@@ -83,7 +79,7 @@ def AlgebraicConn(temporalnet, model="SECOND"):
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
     
-    L = Laplacian(temporalnet, model, sparseLA=True, transposed=True)
+    L = Laplacian(temporalnet, model)
     # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
     # NOTE: in order to be more confident to find the one with the largest
     # NOTE: magnitude, see
