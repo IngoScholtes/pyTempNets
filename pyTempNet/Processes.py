@@ -7,8 +7,6 @@ Created on Fri May  8 12:35:22 2015
 """
 
 import numpy as np
-import scipy.sparse as sparse
-import scipy.sparse.linalg as sla
 import igraph
 import time as tm
 

@@ -9,7 +9,6 @@ Created on Thu Feb 19 11:49:39 2015
 import igraph    
 import time as tm
 import numpy as np
-import scipy.sparse.linalg as sla
 import os
 from collections import defaultdict
 

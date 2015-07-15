@@ -20,9 +20,6 @@ def Laplacian(temporalnet, model="SECOND"):
     @param temporalnet: The temporalnetwork instance to work on
     @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
       the default value.
-    @param sparseLA: whether or not (default) to use sparse linear algebra for 
-      calculations.
-    @param transposed: wheter or not (default) to transpose the matrix
     """
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")

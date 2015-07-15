@@ -95,38 +95,6 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
         return tn.TemporalNetwork(twopaths = twopaths)
 
 
-def getAdjacencyMatrix( graph, attribute=None, default=0 ):
-    """Returns the full adjacency matrix of the given graph.
-       
-    @param attribute: if C{None}, returns the ordinary adjacency 
-      matrix. When the name of a valid edge attribute is given here,
-      the matrix returned will contain the default value at places
-      where there is no edge or the value of the given attribute where
-      there is an edge. Multiple edges are not supported.
-    @param default: default value in case of adjacency matrix with
-      attributes.
-    """
-    if attribute is None:
-      A = np.zeros(shape=(len(graph.vs), len(graph.vs)), dtype=np.int)
-      for edge in graph.es():
-        s,t = edge.tuple
-        A[s][t] = 1
-      return A
-    
-    if attribute not in graph.es.attribute_names():
-      raise ValueError( "Attribute does not exists." )
-    
-    if default == 0:
-      A = np.zeros(shape=(len(graph.vs), len(graph.vs)))
-    else:
-      A = np.full(shape=(len(graph.vs), len(graph.vs)), fill_value=default)
-    
-    for edge in graph.es():
-        s,t = edge.tuple
-        A[s][t] = edge[attribute]
-    return A
-
-
 def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
     """Returns a sparse adjacency matrix of the given graph.
     
@@ -179,11 +147,7 @@ def RWTransitionMatrix(g):
     """Generates a random walk transition matrix corresponding to a (possibly) weighted
     and directed network
     
-    @param g: the graph
-    @param sparse: (optional) whether to use sparse linalg or not. If C{True} the 
-                   transition matrix is returned as CSR. Default is C{False}
-    @param transposed: (optional) whether or not to transpose the transition matrix.
-                       Default is C{False}"""
+    @param g: the graph"""
     start = tm.clock()
     
     row = []
@@ -288,6 +252,7 @@ def StationaryDistribution( T, normalize=True ):
     """Compute normalized leading eigenvector of T (stationary distribution)
 
     @param T: (Transition) matrix in any sparse format
+    @param normalize: wheter or not to normalize. Default is C{True}
     """
     if sparse.issparse(T) == False:
         raise TypeError("T must be a sparse matrix")
