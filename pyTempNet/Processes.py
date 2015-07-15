@@ -23,14 +23,7 @@ def RWDiffusion(g, samples = 5, epsilon=0.01, max_iterations=100000):
     avg_speed = 0
     
     T = Utilities.RWTransitionMatrix(g)
-    
-    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
-    # NOTE: in order to be more confident to find the one with the largest
-    # NOTE: magnitude, see
-    # NOTE: https://github.com/scipy/scipy/issues/4987
-    w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
-    pi = pi.reshape(pi.size,)
-    pi /= sum(pi)
+    pi = Utilities.StationaryDistribution(T)
     
     for s in range(samples):
         x = np.zeros(len(g.vs))
@@ -76,13 +69,7 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
     x[initial_index] = 1
 
     # compute stationary state
-    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
-    # NOTE: in order to be more confident to find the one with the largest
-    # NOTE: magnitude, see
-    # NOTE: https://github.com/scipy/scipy/issues/4987
-    w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
-    pi = pi.reshape(pi.size,)
-    pi /= sum(pi)
+    pi = Utilities.StationaryDistribution(T)
 
     scale = np.mean(np.abs(x-pi))
 
@@ -182,13 +169,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
         map_2_to_1[j] = map_name_to_id[node]
 
     # compute stationary state of random walk process
-    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
-    # NOTE: in order to be more confident to find the one with the largest
-    # NOTE: magnitude, see
-    # NOTE: https://github.com/scipy/scipy/issues/4987
-    w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
-    pi = pi.reshape(pi.size,)
-    pi /= sum(pi)
+    pi = Utilities.StationaryDistribution(T)
 
     scale = np.mean(np.abs(x-pi))
 

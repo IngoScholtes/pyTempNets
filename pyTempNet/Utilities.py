@@ -125,7 +125,8 @@ def getAdjacencyMatrix( graph, attribute=None, default=0 ):
         s,t = edge.tuple
         A[s][t] = edge[attribute]
     return A
-  
+
+
 def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
     """Returns a sparse adjacency matrix of the given graph.
     
@@ -172,6 +173,7 @@ def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
             data.append(edge[attribute])
           
     return sparse.coo_matrix((data, (row, col)) , shape=(len(graph.vs), len(graph.vs))).tocsr()
+
 
 def RWTransitionMatrix(g):
     """Generates a random walk transition matrix corresponding to a (possibly) weighted
@@ -220,17 +222,7 @@ def EntropyGrowthRate(T):
     """Computes the entropy growth rate of a transition matrix
     
     @param T: Transition matrix in sparse format."""
-
-    if sparse.issparse(T) == False:
-        raise TypeError("T must be a sparse matrix")
-    # Compute normalized leading eigenvector of T (stationary distribution)
-    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
-    # NOTE: in order to be more confident to find the one with the largest
-    # NOTE: magnitude, see
-    # NOTE: https://github.com/scipy/scipy/issues/4987
-    w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
-    pi = pi.reshape(pi.size,)
-    pi /= sum(pi)
+    pi = StationaryDistribution(T)
     
     # directly work on the data object of the sparse matrix
     # NOTE: np.log2(T.data) has no problem with elements being zeros
@@ -242,12 +234,14 @@ def EntropyGrowthRate(T):
     # NOTE: transposed. This is needed for sla.eigs(T) to return the correct
     # NOTE: eigenvector anyway
     return -np.sum( T * pi )
-  
+
+
 def Entropy(prob):
     H = 0
     for p in prob:
         H = H+np.log2(p)*p
     return -H
+
 
 def BWPrefMatrix(t, v):
     """Computes a betweenness preference matrix for a node v in a temporal network t
@@ -288,3 +282,21 @@ def TVD(p1, p2):
     """Compute total variation distance between two stochastic column vectors"""
     assert p1.shape == p2.shape
     return 0.5 * np.sum(np.absolute(np.subtract(p1, p2)))
+
+
+def StationaryDistribution( T, normalize=True ):
+    """Compute normalized leading eigenvector of T (stationary distribution)
+
+    @param T: (Transition) matrix in any sparse format
+    """
+    if sparse.issparse(T) == False:
+        raise TypeError("T must be a sparse matrix")
+    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: in order to be more confident to find the one with the largest
+    # NOTE: magnitude, see
+    # NOTE: https://github.com/scipy/scipy/issues/4987
+    w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
+    pi = pi.reshape(pi.size,)
+    if normalize:
+        pi /= sum(pi)
+    return pi

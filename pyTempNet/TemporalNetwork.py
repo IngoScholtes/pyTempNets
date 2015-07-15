@@ -14,6 +14,7 @@ import os
 from collections import defaultdict
 
 from pyTempNet.Utilities import RWTransitionMatrix
+from pyTempNet.Utilities import StationaryDistribution
 
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
@@ -247,12 +248,7 @@ class TemporalNetwork:
         n_vertices = len(g2.vs)
         
         T = RWTransitionMatrix( g2 )
-        # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
-        # NOTE: in order to be more confident to find the one with the largest
-        # NOTE: magnitude, see
-        # NOTE: https://github.com/scipy/scipy/issues/4987
-        w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
-        pi = np.real(pi/sum(pi))
+        pi = StationaryDistribution(T)
         
         # Construct null model second-order network
         self.g2n = igraph.Graph(directed=True)

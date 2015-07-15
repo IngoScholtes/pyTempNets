@@ -215,10 +215,10 @@ def SlowDownFactor(t):
     # NOTE: in order to be more confident to find the one with the largest
     # NOTE: magnitude, see
     # NOTE: https://github.com/scipy/scipy/issues/4987
-    w2, v2 = sla.eigs(T2, which="LM", k=2, ncv=13)
+    w2 = sla.eigs(T2, which="LM", k=2, ncv=13, return_eigenvectors=False)
     evals2_sorted = np.sort(-np.absolute(w2))
 
-    w2n, v2n = sla.eigs(T2n, which="LM", k=2, ncv=13)
+    w2n = sla.eigs(T2n, which="LM", k=2, ncv=13, return_eigenvectors=False)
     evals2n_sorted = np.sort(-np.absolute(w2n))
     
     end = tm.clock()
@@ -256,12 +256,7 @@ def EigenvectorCentrality(t, model='SECOND'):
     
     # Compute eigenvector centrality in second-order network
     A = getSparseAdjacencyMatrix( g2, attribute="weight", transposed=True )
-    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
-    # NOTE: in order to be more confident to find the one with the largest
-    # NOTE: magnitude, see
-    # NOTE: https://github.com/scipy/scipy/issues/4987
-    w, evcent_2 = sla.eigs( A, k=1, which="LM", ncv=13 )
-    evcent_2 = evcent_2.reshape(evcent_2.size,)
+    evcent_2 = Utilities.StationaryDistribution( A, False )
     
     # Aggregate to obtain first-order eigenvector centrality
     for i in range(len(evcent_2)):
