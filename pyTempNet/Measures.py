@@ -223,6 +223,7 @@ def SlowDownFactor(t):
     
     return np.log(np.abs(evals2n_sorted[1]))/np.log(np.abs(evals2_sorted[1]))
 
+
 def EigenvectorCentrality(t, model='SECOND'):
     """Computes eigenvector centralities of nodes in the second-order networks, 
     and aggregates them to obtain the eigenvector centrality of nodes in the 
@@ -237,14 +238,7 @@ def EigenvectorCentrality(t, model='SECOND'):
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
 
-    name_map = {}
-
-    g1 = t.igraphFirstOrder()
-    i = 0 
-    for v in g1.vs()["name"]:
-        name_map[v] = i
-        i += 1
-    evcent_1 = np.zeros(len(g1.vs()))
+    name_map = Utilities.firstOrderNameMap(t)
 
     if model == 'SECOND':
         g2 = t.igraphSecondOrder()
@@ -256,6 +250,7 @@ def EigenvectorCentrality(t, model='SECOND'):
     evcent_2 = Utilities.StationaryDistribution( A, False )
     
     # Aggregate to obtain first-order eigenvector centrality
+    evcent_1 = np.zeros(len(name_map))
     for i in range(len(evcent_2)):
         # Get name of target node
         target = g2.vs()[i]["name"].split(';')[1]
@@ -264,6 +259,7 @@ def EigenvectorCentrality(t, model='SECOND'):
     end = tm.clock()
     print("Time for EigenvectorCentrality: ", (end - start))
     return np.real(evcent_1/sum(evcent_1))
+
 
 def BetweennessCentrality(t, model='SECOND'):
     """Computes betweenness centralities of nodes in the second-order networks, 
@@ -278,14 +274,7 @@ def BetweennessCentrality(t, model='SECOND'):
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
 
-    name_map = {}
-
-    g1 = t.igraphFirstOrder()
-    i = 0 
-    for v in g1.vs()["name"]:
-        name_map[v] = i
-        i += 1
-    bwcent_1 = np.zeros(len(g1.vs()))
+    name_map = Utilities.firstOrderNameMap( t )
 
     if model == 'SECOND':
         g2 = t.igraphSecondOrder()
@@ -296,13 +285,13 @@ def BetweennessCentrality(t, model='SECOND'):
     bwcent_2 = np.array(g2.betweenness(weights=g2.es()['weight'], directed=True))
     
     # Aggregate to obtain first-order eigenvector centrality
+    bwcent_1 = np.zeros(len(name_map))
     for i in range(len(bwcent_2)):
         # Get name of target node
         target = g2.vs()[i]["name"].split(';')[1]
         bwcent_1[name_map[target]] += bwcent_2[i]
     
     return bwcent_1/sum(bwcent_1)
-
 
 
 def PageRank(t, model='SECOND'):
@@ -318,14 +307,7 @@ def PageRank(t, model='SECOND'):
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
 
-    name_map = {}
-
-    g1 = t.igraphFirstOrder()
-    i = 0 
-    for v in g1.vs()["name"]:
-        name_map[v] = i
-        i += 1
-    pagerank_1 = np.zeros(len(g1.vs()))
+    name_map = Utilities.firstOrderNameMap( t )
 
     if model == 'SECOND':
         g2 = t.igraphSecondOrder()
@@ -336,6 +318,7 @@ def PageRank(t, model='SECOND'):
     pagerank_2 = np.array(g2.pagerank(weights=g2.es()['weight'], directed=True))
     
     # Aggregate to obtain first-order eigenvector centrality
+    pagerank_1 = np.zeros(len(name_map))
     for i in range(len(pagerank_2)):
         # Get name of target node
         target = g2.vs()[i]["name"].split(';')[1]

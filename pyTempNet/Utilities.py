@@ -265,3 +265,14 @@ def StationaryDistribution( T, normalize=True ):
     if normalize:
         pi /= sum(pi)
     return pi
+
+def firstOrderNameMap( t ):
+    """returns a name map of the first order network of a given temporal network t"""
+
+    g1 = t.igraphFirstOrder()
+    name_map = {}
+    i = 0
+    for v in g1.vs()["name"]:
+        name_map[v] = i
+        i += 1
+    return name_map
