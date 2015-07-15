@@ -10,8 +10,8 @@ import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 import time as tm
-from pyTempNet import *
-from pyTempNet.Processes import *
+
+from pyTempNet import Utilities
 
 def Laplacian(temporalnet, model="SECOND", sparseLA=False, transposed=False):
     """Returns the Laplacian matrix corresponding to the the second-order (model=SECOND) or 
@@ -34,10 +34,10 @@ def Laplacian(temporalnet, model="SECOND", sparseLA=False, transposed=False):
         network = temporalnet.igraphSecondOrderNull().components(mode="STRONG").giant()  
     
     if sparseLA:
-      T2 = Processes.RWTransitionMatrix( network, sparseLA=True, transposed=transposed )
+      T2 = Utilities.RWTransitionMatrix( network, sparseLA=True, transposed=transposed )
       I  = sparse.identity( len(network.vs()) )
     else:
-      T2 = Processes.RWTransitionMatrix(network)
+      T2 = Utilities.RWTransitionMatrix(network)
       I = np.identity(len(network.vs()))
 
     end = tm.clock()
@@ -91,34 +91,6 @@ def AlgebraicConn(temporalnet, model="SECOND"):
     w = sla.eigs( L, which="SM", k=2, ncv=13, return_eigenvectors=False )
     evals_sorted = np.sort(np.absolute(w))
     return np.abs(evals_sorted[1])
-
-
-def EntropyGrowthRate(T):
-    """Computes the entropy growth rate of a transition matrix
-    
-    @param T: Transition matrix in sparse format."""
-
-    if sparse.issparse(T) == False:
-        raise TypeError("T must be a sparse matrix")
-    # Compute normalized leading eigenvector of T (stationary distribution)
-    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
-    # NOTE: in order to be more confident to find the one with the largest
-    # NOTE: magnitude, see
-    # NOTE: https://github.com/scipy/scipy/issues/4987
-    w, pi = sla.eigs( T, k=1, which="LM", ncv=13 )
-    pi = pi.reshape(pi.size,)
-    pi /= sum(pi)
-    
-    # directly work on the data object of the sparse matrix
-    # NOTE: np.log2(T.data) has no problem with elements being zeros
-    # NOTE: as we work with a sparse matrix here, where the zero elements
-    # NOTE: are not stored
-    T.data *=  np.log2(T.data)
-    
-    # NOTE: the matrix vector product only works because T is assumed to be
-    # NOTE: transposed. This is needed for sla.eigs(T) to return the correct
-    # NOTE: eigenvector anyway
-    return -np.sum( T * pi )
     
     
 def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
@@ -140,58 +112,18 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
         g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
     
     # Calculate transition matrices
-    T2 = Processes.RWTransitionMatrix(g2, sparseLA=True, transposed=True)
-    T2n = Processes.RWTransitionMatrix(g2n, sparseLA=True, transposed=True)
+    T2 = Utilities.RWTransitionMatrix(g2, sparseLA=True, transposed=True)
+    T2n = Utilities.RWTransitionMatrix(g2n, sparseLA=True, transposed=True)
 
     # Compute entropy growth rates of transition matrices        
-    H2 = np.absolute(EntropyGrowthRate(T2))
-    H2n = np.absolute(EntropyGrowthRate(T2n))
+    H2 = np.absolute(Utilities.EntropyGrowthRate(T2))
+    H2n = np.absolute(Utilities.EntropyGrowthRate(T2n))
     
     end = tm.clock()
     print('Time for EntropyGrowthRateRatio:', (end - start))
     # Return ratio
-    return H2/H2n        
-        
+    return H2/H2n
 
-def __Entropy(prob):
-    H = 0
-    for p in prob:
-        H = H+np.log2(p)*p
-    return -H
-
-def __BWPrefMatrix(t, v):
-    """Computes a betweenness preference matrix for a node v in a temporal network t
-    
-    @param t: The temporalnetwork instance to work on
-    @param v: Name of the node to compute its BetweennessPreference
-    """
-    g = t.igraphFirstOrder()
-    v_vertex = g.vs.find(name=v)
-    indeg = v_vertex.degree(mode="IN")        
-    outdeg = v_vertex.degree(mode="OUT")
-    index_succ = {}
-    index_pred = {}
-    
-    B_v = np.matrix(np.zeros(shape=(indeg, outdeg)))
-        
-    # Create an index-to-node mapping for predecessors and successors
-    i = 0
-    for u in v_vertex.predecessors():
-        index_pred[u["name"]] = i
-        i = i+1
-    
-    
-    i = 0
-    for w in v_vertex.successors():
-        index_succ[w["name"]] = i
-        i = i+1
-
-    # Calculate entries of betweenness preference matrix
-    for time in t.twopathsByNode[v]:
-        for tp in t.twopathsByNode[v][time]:
-            B_v[index_pred[tp[0]], index_succ[tp[2]]] += (1. / float(len(t.twopathsByNode[v][time])))
-    
-    return B_v
 
 def BetweennessPreference(t, v, normalized = False):
     """Computes the betweenness preference of a node v in a temporal network t
@@ -213,7 +145,7 @@ def BetweennessPreference(t, v, normalized = False):
     outdeg = v_vertex.degree(mode="OUT")
 
     # First create the betweenness preference matrix (equation (2) of the paper)
-    B_v = __BWPrefMatrix(t, v)
+    B_v = Utilities.BWPrefMatrix(t, v)
     
     # Normalize matrix (equation (3) of the paper)
     P_v = np.matrix(np.zeros(shape=(indeg, outdeg)))
@@ -245,8 +177,8 @@ def BetweennessPreference(t, v, normalized = False):
             P_s += P_v[s, d_prime]
         marginal_s.append(P_s)
     
-    H_s = __Entropy(marginal_s)
-    H_d = __Entropy(marginal_d)
+    H_s = Utilities.Entropy(marginal_s)
+    H_d = Utilities.Entropy(marginal_d)
     
     I = 0.0
     # Here we just compute equation (4) of the paper ... 
@@ -279,8 +211,8 @@ def SlowDownFactor(t):
     g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
     
     # Build transition matrices
-    T2 = Processes.RWTransitionMatrix(g2, sparseLA=True, transposed=True)
-    T2n = Processes.RWTransitionMatrix(g2n, sparseLA=True, transposed=True)
+    T2 = Utilities.RWTransitionMatrix(g2, sparseLA=True, transposed=True)
+    T2n = Utilities.RWTransitionMatrix(g2n, sparseLA=True, transposed=True)
     
     # Compute eigenvector sequences
     # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed

@@ -10,100 +10,9 @@ import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 import igraph
-import pyTempNet as tn
 import time as tm
 
-def RWTransitionMatrix(g, sparseLA=False, transposed=False):
-    """Generates a random walk transition matrix corresponding to a (possibly) weighted
-    and directed network
-    
-    @param g: the graph
-    @param sparse: (optional) whether to use sparse linalg or not. If C{True} the 
-                   transition matrix is returned as CSR. Default is C{False}
-    @param transposed: (optional) whether or not to transpose the transition matrix.
-                       Default is C{False}"""
-    start = tm.clock()
-    
-    if sparseLA:
-      row = []
-      col = []
-      data = []
-      if g.is_weighted():
-        D = g.strength(mode='out', weights=g.es["weight"])
-        if transposed:
-          for edge in g.es():
-              s,t = edge.tuple
-              row.append(t)
-              col.append(s)
-              tmp = edge["weight"] / D[s]
-              assert tmp >= 0 and tmp <= 1
-              data.append( tmp )
-        else:
-          for edge in g.es():
-              s,t = edge.tuple
-              row.append(s)
-              col.append(t)
-              tmp = edge["weight"] / D[s]
-              assert tmp >= 0 and tmp <= 1
-              data.append( tmp )
-      else:
-        D = g.degree(mode='out')
-        if transposed:
-          for edge in g.es():
-              s,t = edge.tuple
-              row.append(t)
-              col.append(s)
-              tmp = 1. / D[s]
-              assert tmp >= 0 and tmp <= 1
-              data.append( tmp )
-        else:
-          for edge in g.es():
-              s,t = edge.tuple
-              row.append(s)
-              col.append(t)
-              tmp = 1. / D[s]
-              assert tmp >= 0 and tmp <= 1
-              data.append( tmp )
-      
-      end = tm.clock()
-      
-      # TODO: find out why data is some times of type (N, 1)
-      # TODO: and sometimes of type (N,). The latter is desired
-      # TODO: otherwise scipy.coo will raise a ValueError
-      data = np.array(data)
-      data = data.reshape(data.size,)
-      end = tm.clock()
-      print("Time for RW transition matrix (sparse): ", (end - start))
-      return sparse.coo_matrix((data, (row, col)), shape=(len(g.vs), len(g.vs))).tocsr()
-    else:
-      if g.is_weighted():
-          A = tn.getAdjacencyMatrix( g, attribute="weight" )
-          D = g.strength(mode='out', weights=g.es["weight"])
-      else:
-          A = tn.getAdjacencyMatrix( g )
-          D = g.degree(mode='out')
-      
-      n_vertices = len(g.vs)
-      T = np.zeros(shape=(n_vertices, n_vertices))
-      
-      for i in range(n_vertices):
-            invDi = 1./D[i]
-            T[i,:] = A[i,:] * invDi
-            assert T[i,:].all() >= 0 and T[i,:].all() <= 1
-      
-      end = tm.clock()
-      print("Time for RW transition matrix (dense): ", (end - start))
-      if transposed:
-        return T.transpose()
-      else:
-        return T
-
-
-def TVD(p1, p2):
-    """Compute total variation distance between two stochastic column vectors"""
-    assert p1.shape == p2.shape
-    return 0.5 * np.sum(np.absolute(np.subtract(p1, p2)))
-    
+from pyTempNet import Utilities
     
 def RWDiffusion(g, samples = 5, epsilon=0.01, max_iterations=100000):
     """Computes the average number of steps requires by a random walk process
@@ -113,7 +22,7 @@ def RWDiffusion(g, samples = 5, epsilon=0.01, max_iterations=100000):
     start = tm.clock()
     avg_speed = 0
     
-    T = RWTransitionMatrix(g, sparseLA=True, transposed=True)
+    T = Utilities.RWTransitionMatrix(g, sparseLA=True, transposed=True)
     
     # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
     # NOTE: in order to be more confident to find the one with the largest
@@ -127,7 +36,7 @@ def RWDiffusion(g, samples = 5, epsilon=0.01, max_iterations=100000):
         x = np.zeros(len(g.vs))
         seed = np.random.randint(len(g.vs()))
         x[seed] = 1
-        while TVD(x,pi)>epsilon:
+        while Utilities.TVD(x,pi)>epsilon:
             avg_speed += 1
             # NOTE x * T = (T^T * x^T)^T
             # NOTE T is already transposed to get the left EV
@@ -145,7 +54,7 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
     """Exports an animation showing the evolution of a diffusion
            process on the network"""
 
-    T = RWTransitionMatrix(g, sparseLA=True, transposed=True)
+    T = Utilities.RWTransitionMatrix(g, sparseLA=True, transposed=True)
 
     if visual_style == None:
             visual_style = {}
@@ -240,7 +149,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
     elif model == 'NULL':
         g2 = t.igraphSecondOrderNull()
 
-    T = RWTransitionMatrix(g2, sparseLA=True, transposed=True)
+    T = Utilities.RWTransitionMatrix(g2, sparseLA=True, transposed=True)
 
     # visual style is for *first-order* aggregate network
     if visual_style == None:
