@@ -256,21 +256,31 @@ class TemporalNetwork:
         for v in self.g2.vs():
             self.g2n.add_vertex(name=v["name"])
         
-        # TODO: This operation is the bottleneck for large data sets!
-        # TODO: Only iterate over those edge pairs, that actually are two paths!
+        ## TODO: This operation is the bottleneck for large data sets!
+        ## TODO: Only iterate over those edge pairs, that actually are two paths!
         edge_dict = {}
-        for e1 in g2.vs():
+        vertices = g2.vs()
+        vcount = len(g2.vs())
+        for i in np.arange(vcount):
+            e1 = vertices[i]
             e1name = e1["name"]
-            b = e1name.split(';')[1]
-            for e2 in g2.vs():
-                b_ = e2["name"].split(';')[0]
-
+            a,b = e1name.split(';')
+            for j in np.arange(i+1, vcount):
+                e2 = vertices[j]
+                e2name = e2["name"]
+                a_,b_ = e2name.split(';')
+                
                 # Check whether this pair of nodes in the second-order 
-                # network is a *possible* two-path
-                if b == b_:
+                # network is a *possible* forward two-path
+                if b == a_:
                     w = pi[e2.index]
                     if w>0:
-                        edge_dict[(e1name, e2["name"])] = w
+                        edge_dict[(e1name, e2name)] = w
+                        
+                if b_ == a:
+                    w = pi[e1.index]
+                    if w>0:
+                        edge_dict[(e2name, e1name)] = w
         
         # add all edges to the graph in one go
         self.g2n.add_edges( edge_dict.keys() )
