@@ -199,12 +199,12 @@ def EntropyGrowthRate(T):
     # NOTE: eigenvector anyway
     return -np.sum( T * pi )
 
-
-def Entropy(prob):
-    H = 0
-    for p in prob:
-        H = H+np.log2(p)*p
-    return -H
+# TODO: log2(prob) is sometimes not defined!
+# TODO: ask what to do about it
+#       probably log2(0) * 0 = 0 ??
+#       if so, solve it with a mask
+def Entropy( prob ):
+    return -np.inner( np.log2(prob), prob )
 
 
 def BWPrefMatrix(t, v):
@@ -214,20 +214,20 @@ def BWPrefMatrix(t, v):
     @param v: Name of the node to compute its BetweennessPreference
     """
     g = t.igraphFirstOrder()
+    # NOTE: this might raise a ValueError if vertex v is not found
     v_vertex = g.vs.find(name=v)
     indeg = v_vertex.degree(mode="IN")        
     outdeg = v_vertex.degree(mode="OUT")
     index_succ = {}
     index_pred = {}
     
-    B_v = np.matrix(np.zeros(shape=(indeg, outdeg)))
+    B_v = np.zeros(shape=(indeg, outdeg))
         
     # Create an index-to-node mapping for predecessors and successors
     i = 0
     for u in v_vertex.predecessors():
         index_pred[u["name"]] = i
         i = i+1
-    
     
     i = 0
     for w in v_vertex.successors():
