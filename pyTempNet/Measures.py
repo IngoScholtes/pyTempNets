@@ -115,6 +115,9 @@ def EntropyGrowthRate(T):
     # NOTE: are not stored
     T.data *=  np.log2(T.data)
     
+    # NOTE: the matrix vector product only works because T is assumed to be
+    # NOTE: transposed. This is needed for sla.eigs(T) to return the correct
+    # NOTE: eigenvector anyway
     return -np.sum( T * pi )
     
     
