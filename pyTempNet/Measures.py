@@ -220,7 +220,7 @@ def EigenvectorCentrality(t, model='SECOND'):
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
 
     name_map = Utilities.firstOrderNameMap(t)
-
+    
     if model == 'SECOND':
         g2 = t.igraphSecondOrder()
     else:

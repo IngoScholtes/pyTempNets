@@ -119,26 +119,24 @@ def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
           s,t = edge.tuple
           row.append(t)
           col.append(s)
-          data.append(1)
       else:
         for edge in graph.es():
           s,t = edge.tuple
           row.append(s)
           col.append(t)
-          data.append(1)
+      data = np.ones(len(graph.es()))
     else:
       if transposed:
         for edge in graph.es():
             s,t = edge.tuple
             row.append(t)
             col.append(s)
-            data.append(edge[attribute])
       else:
         for edge in graph.es():
             s,t = edge.tuple
             row.append(s)
             col.append(t)
-            data.append(edge[attribute])
+      data = np.array(graph.es()[attribute])
           
     return sparse.coo_matrix((data, (row, col)) , shape=(len(graph.vs), len(graph.vs))).tocsr()
 
@@ -199,12 +197,9 @@ def EntropyGrowthRate(T):
     # NOTE: eigenvector anyway
     return -np.sum( T * pi )
 
-# TODO: log2(prob) is sometimes not defined!
-# TODO: ask what to do about it
-#       probably log2(0) * 0 = 0 ??
-#       if so, solve it with a mask
 def Entropy( prob ):
-    return -np.inner( np.log2(prob), prob )
+    idx = np.nonzero(prob)
+    return -np.inner( np.log2(prob[idx]), prob[idx] )
 
 
 def BWPrefMatrix(t, v):
@@ -271,8 +266,6 @@ def firstOrderNameMap( t ):
 
     g1 = t.igraphFirstOrder()
     name_map = {}
-    i = 0
-    for v in g1.vs()["name"]:
-        name_map[v] = i
-        i += 1
+    for idx,v in enumerate(g1.vs()["name"]):
+        name_map[v] = idx
     return name_map
