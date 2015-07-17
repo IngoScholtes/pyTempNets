@@ -64,10 +64,9 @@ def FiedlerVector(temporalnet, model="SECOND"):
 
 
 def AlgebraicConn(temporalnet, model="SECOND"):
-    """Returns the Fiedler vector of the second-order (model=SECOND) or the
-    second-order null (model=NULL) model for a temporal network. The Fiedler 
-     vector can be used for a spectral bisectioning of the network.
-     
+    """Returns the algebraic connectivity of the second-order (model=SECOND) or the
+    second-order null (model=NULL) model for a temporal network.
+    
      @param temporalnet: The temporalnetwork to work on
      @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
       the default value.
