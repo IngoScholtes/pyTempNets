@@ -21,6 +21,7 @@ class TemporalNetwork:
     def __init__(self, tedges = None, twopaths = None):
         """Constructor generating an empty temporal network"""
         
+        start = tm.clock()
         self.tedges = []
         self.nodes = []
         if tedges is not None:
@@ -60,6 +61,7 @@ class TemporalNetwork:
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
+        print('time spent in constructor:', (tm.clock() - start))
         
 
     def addEdge(self, source, target, time):

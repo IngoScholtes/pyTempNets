@@ -228,7 +228,7 @@ def EigenvectorCentrality(t, model='SECOND'):
         g2 = t.igraphSecondOrderNull()
     
     # Compute eigenvector centrality in second-order network
-    A = getSparseAdjacencyMatrix( g2, attribute="weight", transposed=True )
+    A = Utilities.getSparseAdjacencyMatrix( g2, attribute="weight", transposed=True )
     evcent_2 = Utilities.StationaryDistribution( A, False )
     
     # Aggregate to obtain first-order eigenvector centrality
