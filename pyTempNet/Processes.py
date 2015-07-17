@@ -23,9 +23,10 @@ def RWDiffusion(g, samples = 5, epsilon=0.01, max_iterations=100000):
     T = Utilities.RWTransitionMatrix(g)
     pi = Utilities.StationaryDistribution(T)
     
+    n = len(g.vs())
     for s in range(samples):
-        x = np.zeros(len(g.vs))
-        seed = np.random.randint(len(g.vs()))
+        x = np.zeros(n)
+        seed = np.random.randint(n)
         x[seed] = 1
         while Utilities.TVD(x,pi)>epsilon:
             avg_speed += 1
