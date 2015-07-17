@@ -6,22 +6,21 @@ Created on Thu Feb 19 11:49:39 2015
 (c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """
 
-import igraph    
-import datetime as dt
-import time as tm
+import igraph
 import numpy as np
-import scipy.linalg as spl
 import os
 from collections import defaultdict
-import sys
+
+from pyTempNet.Utilities import RWTransitionMatrix
+from pyTempNet.Utilities import StationaryDistribution
 
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
     
-    def __init__(self, tedges = None, twopaths = None):
+    def __init__(self,  sep=',', tedges = None, twopaths = None):
         """Constructor generating an empty temporal network"""
-        start = tm.clock()
         
+        self.separator = sep
         self.tedges = []
         self.nodes = []
         if tedges is not None:
@@ -62,91 +61,6 @@ class TemporalNetwork:
         self.g2 = 0
         self.g2n = 0
         
-        end = tm.clock()
-        print("Time spent in constructor: ", (end - start))
-        
-    @staticmethod
-    def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
-        """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
-            the file is expected to contain lines in the format 'v,w,t' each line 
-            representing a directed time-stamped link from v to w at time t.
-            Semantics of columns should be given in a header file indicating either 
-            'node1,node2,time' or 'source,target,time' (in arbitrary order).
-            If fformat is TRIGRAM the file is expected to contain lines in the format
-            'u,v,w' each line representing a time-respecting path (u,v) -> (v,w) consisting 
-            of two consecutive links (u,v) and (v,w). Timestamps can be integer numbers or
-            string timestamps (in which case the timestampformat string is used for parsing)
-        """
-        
-        assert filename is not ""
-        assert fformat is "TEDGE" or "TRIGRAM"
-        
-        f = open(filename, 'r')
-        tedges = []
-        twopaths = []
-        
-        header = f.readline()
-        header = header.split(sep)
-        
-        # Support for arbitrary column ordering
-        time_ix = -1
-        source_ix = -1
-        mid_ix = -1
-        weight_ix = -1
-        target_ix = -1
-        if fformat =="TEDGE":
-            for i in range(len(header)):
-                header[i] = header[i].strip()
-                if header[i] == 'node1' or header[i] == 'source':
-                    source_ix = i
-                elif header[i] == 'node2' or header[i] == 'target':
-                    target_ix = i
-                elif header[i] == 'time':
-                    time_ix = i
-        elif fformat =="TRIGRAM":
-            for i in range(len(header)):
-                header[i] = header[i].strip()
-                if header[i] == 'node1' or header[i] == 'source':
-                    source_ix = i                
-                elif header[i] == 'node2' or header[i] == 'mid':
-                    mid_ix = i
-                elif header[i] == 'node3' or header[i] == 'target':
-                    target_ix = i
-                elif header[i] == 'weight':
-                    weight_ix = i
-        
-        # Read time-stamped edges
-        line = f.readline()
-        n = 1 
-        while not line.strip() == '' and n <= maxlines:
-            fields = line.rstrip().split(sep)
-            if fformat =="TEDGE":
-                timestamp = fields[time_ix]
-                if (timestamp.isdigit()):
-                    t = int(timestamp)
-                else:
-                    x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
-                    t = int(time.mktime(x.timetuple()))
-                tedge = (fields[source_ix], fields[target_ix], t)
-                tedges.append(tedge)
-
-            elif fformat =="TRIGRAM":             
-                source = fields[source_ix].strip('"')
-                mid = fields[mid_ix].strip('"')
-                target = fields[target_ix].strip('"')
-                weight = float(fields[weight_ix].strip('"'))
-                tp = (source, mid, target, weight)
-                twopaths.append(tp)
-
-            line = f.readline()
-            n += 1
-
-        if fformat == "TEDGE":
-            return TemporalNetwork(tedges = tedges)
-        elif fformat =="TRIGRAM":           
-            return TemporalNetwork(twopaths = twopaths)
-
-
 
     def addEdge(self, source, target, time):
         """Adds a (directed) time-stamped edge to the temporal network"""
@@ -176,8 +90,6 @@ class TemporalNetwork:
         For (u,v,3) and (v,w,7) a time-respecting path (u,v)->(v,w) will be inferred for all delta 0 < 4, 
         while no time-respecting path will be inferred for all delta >= 4.
         """
-        start = tm.clock()
-        
         self.twopaths = []
         
         # An index structure to quickly access tedges by time, target and source
@@ -192,9 +104,6 @@ class TemporalNetwork:
             time[ts].append(e)
             targets[ts].setdefault(target, []).append(e)
             sources[ts].setdefault(source, []).append(e)
-        
-        mid = tm.clock()
-        print("\tTime spent for creating index: ", (mid - start))
 
         # Extract time-respecting paths of length two             
         prev_t = -1
@@ -212,7 +121,7 @@ class TemporalNetwork:
                                 d = e_out[1]
                                 
                                 # TODO: Add support for weighted time-
-                                # stamped links
+                                # TODO: stamped links
                                 pass
                                 indeg_v = len(targets[prev_t][v])
                                 outdeg_v = len(sources[t][v])                                
@@ -229,11 +138,6 @@ class TemporalNetwork:
         
         # Update the count of two-paths
         self.tpcount = len(self.twopaths)
-        
-        end = tm.clock()
-        print("\tTime spent extracting twopaths: ", (end - mid))
-        end = end - start
-        print("Time elapsed in extractTwoPaths(): ", end)
 
         
     def TwoPathCount(self):
@@ -251,8 +155,6 @@ class TemporalNetwork:
            corresponding to this temporal network. This network corresponds to 
            a first-order Markov model reproducing the link statistics in the 
            weighted, time-aggregated network."""
-        
-        start = tm.clock()
         
         if self.g1 != 0:
             return self.g1
@@ -273,13 +175,12 @@ class TemporalNetwork:
             # get key{1,2} with default value 0 from edge_list directory
             edge_list[key1] = edge_list.get(key1, 0) + tp[3]
             edge_list[key2] = edge_list.get(key2, 0) + tp[3]
+            
         # adding all edges at once is much faster as igraph updates internal
         # data structures after each vertex/edge added
         self.g1.add_edges( edge_list.keys() )
         self.g1.es["weight"] = list(edge_list.values())
         
-        end = tm.clock() - start
-        print("Time spent in igraphFirstOrder(): ", end)
         return self.g1
 
 
@@ -288,9 +189,7 @@ class TemporalNetwork:
            corresponding to this temporal network. This network corresponds to 
            a second-order Markov model reproducing both the link statistics and 
            (first-order) order correlations in the underlying temporal network."""
-        
-        start = tm.clock()
-        
+
         if self.g2 != 0:
             return self.g2
 
@@ -301,8 +200,8 @@ class TemporalNetwork:
         vertex_list = []
         edge_dict = {}
         for tp in self.twopaths:
-            n1 = str(tp[0])+";"+str(tp[1])
-            n2 = str(tp[1])+";"+str(tp[2])
+            n1 = str(tp[0])+self.separator+str(tp[1])
+            n2 = str(tp[1])+self.separator+str(tp[2])
             vertex_list.append(n1)
             vertex_list.append(n2)
             key = (n1, n2)
@@ -319,91 +218,59 @@ class TemporalNetwork:
         self.g2.add_edges( edge_dict.keys() )
         self.g2.es["weight"] = list(edge_dict.values())
 
-        end = tm.clock() - start
-        print("Time elapsed in igraphSecondOrder(): ", end)
         return self.g2
 
 
-        
     def igraphSecondOrderNull(self):
         """Returns a second-order null Markov model 
            corresponding to the first-order aggregate network. This network
            is a second-order representation of the weighted time-aggregated network.           
            """
-
-        start = tm.clock()
         if self.g2n != 0:
             return self.g2n
 
         g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
         n_vertices = len(g2.vs)
         
-        g2time = tm.clock()
-        print("\tTime elapsed for construction of g2: ", (g2time - start))
-
-        # Compute stationary distribution to obtain expected edge weights in pi
-        A = np.matrix(list(g2.get_adjacency(attribute='weight', default=0)))
-        D = g2.strength(mode='out', weights=g2.es["weight"])
-        
-        T = np.zeros(shape=(n_vertices, n_vertices))
-        for i in range(n_vertices):
-            invDi = 1./D[i]
-            T[i,:] = A[i,:] * invDi
-            assert T[i,:].all() >= 0 and T[i,:].all() <= 1
-
-        loop = tm.clock()
-        print("\t\tTime for matrices and loop: ", (loop - g2time))
-        
-        # TODO: Newer timng data suggests that this step is the most expensive one
-        # NOTE: overwriting the matrix does not improve performance
-        w, v = spl.eig(T, left=True, right=False)
-        eigen = tm.clock()
-        print("\t\tTime for eigenvalue calculation: ", (eigen - loop))
-        
-        pi = v[:,np.argsort(-w)][:,0]
-        pi = np.real(pi/sum(pi))
-        
-        before = tm.clock()
-        print("\t\tTime after eig() call: ", (before - eigen))
-        print("\tTime elapsed for matrix stuff: ", (before - g2time))
-
+        T = RWTransitionMatrix( g2 )
+        pi = StationaryDistribution(T)
         
         # Construct null model second-order network
         self.g2n = igraph.Graph(directed=True)
-
-        # This ensures that vertices are ordered in the same way as in the empirical second-order network
+        # NOTE: This ensures that vertices are ordered in the same way as in 
+        # NOTE: the empirical second-order network
         for v in self.g2.vs():
             self.g2n.add_vertex(name=v["name"])
-            
-        graph = tm.clock()
-        print("\tTime elapsed for graph and vertices: ", (graph - before))
         
-        # TODO: This operation is the bottleneck for large data sets!
-        # TODO: Only iterate over those edge pairs, that actually are two paths!
-        # 
-        # NOTE: recheck this claim with the new version adding all edges at once
+        ## TODO: This operation is the bottleneck for large data sets!
+        ## TODO: Only iterate over those edge pairs, that actually are two paths!
         edge_dict = {}
-        for e1 in g2.vs():
+        vertices = g2.vs()
+        for i in range(n_vertices):
+            e1 = vertices[i]
             e1name = e1["name"]
-            b = e1name.split(';')[1]
-            for e2 in g2.vs():
-                b_ = e2["name"].split(';')[0]
-
+            a,b = e1name.split(self.separator)
+            for j in range(i+1, n_vertices):
+                e2 = vertices[j]
+                e2name = e2["name"]
+                a_,b_ = e2name.split(self.separator)
+                
                 # Check whether this pair of nodes in the second-order 
-                # network is a *possible* two-path
-                if b == b_:
+                # network is a *possible* forward two-path
+                if b == a_:
                     w = pi[e2.index]
                     if w>0:
-                        edge_dict[(e1name, e2["name"])] = w
+                        edge_dict[(e1name, e2name)] = w
+                        
+                if b_ == a:
+                    w = pi[e1.index]
+                    if w>0:
+                        edge_dict[(e2name, e1name)] = w
         
         # add all edges to the graph in one go
         self.g2n.add_edges( edge_dict.keys() )
         self.g2n.es["weight"] = list(edge_dict.values())
-        end = tm.clock()
-        print("\tTime elapsed for adding edges: ", (end - graph))
         
-        end = end - start
-        print("time elapsed in igraphSecondOrderNull(): ", end)
         return self.g2n
 
 

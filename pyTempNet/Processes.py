@@ -7,52 +7,35 @@ Created on Fri May  8 12:35:22 2015
 """
 
 import numpy as np
-import scipy.linalg as spl
 import igraph
-import pyTempNet as tn
 
-
-def RWTransitionMatrix(g):
-    """Generates a random walk transition matrix corresponding to a (possibly) weighted
-    and directed network""" 
-    if g.is_weighted():
-        A = np.matrix(list(g.get_adjacency(attribute='weight', default=0)))
-        D = g.strength(mode='out', weights=g.es["weight"])
-    else:
-        A = np.matrix(list(g.get_adjacency()))
-        D = g.degree(mode='out')
+from pyTempNet import Utilities
     
-    n_vertices = len(g.vs)
-    T = np.zeros(shape=(n_vertices, n_vertices))
-    
-    for i in range(n_vertices):
-          invDi = 1./D[i]
-          T[i,:] = A[i,:] * invDi
-          assert T[i,:].all() >= 0 and T[i,:].all() <= 1
-    return T
-
-
-def TVD(p1, p2):
-    """Compute total variation distance between two stochastic column vectors"""
-    return np.sum(np.absolute(np.subtract(p1, p2)))/2
-    
-    
-def RWDiffusion(g, samples = 5, epsilon=0.01):
+def RWDiffusion(g, samples = 5, epsilon=0.01, max_iterations=100000):
     """Computes the average number of steps requires by a random walk process
     to fall below a total variation distance below epsilon (TVD computed between the momentary 
     visitation probabilities \pi^t and the stationary distribution \pi = \pi^{\infty}. This time can be 
     used to measure diffusion speed in a given (weighted and directed) network."""
     avg_speed = 0
-    T = RWTransitionMatrix(g)
+    
+    T = Utilities.RWTransitionMatrix(g)
+    pi = Utilities.StationaryDistribution(T)
+    
+    n = len(g.vs())
     for s in range(samples):
-        w, v = spl.eig(T, left=True, right=False)
-        pi = v[:,np.argsort(-w)][:,0]
-        pi = pi/sum(pi)
-        x = [0] * len(g.vs)
-        x[np.random.randint(len(g.vs()))] = 1
-        while TVD(x,pi)>epsilon:
+        x = np.zeros(n)
+        seed = np.random.randint(n)
+        x[seed] = 1
+        while Utilities.TVD(x,pi)>epsilon:
             avg_speed += 1
-            x = np.dot(x,T)
+            # NOTE x * T = (T^T * x^T)^T
+            # NOTE T is already transposed to get the left EV
+            x = (T.dot(x.transpose())).transpose()
+            if avg_speed > max_iterations:
+              print("  x[0:10] = ", x[0:10])
+              print(" pi[0:10] = ", pi[0:10])
+              raise RuntimeError("Failed to converge within maximal number of iterations. Start of current x and pi are printed above")
+
     return avg_speed/samples
     
 
@@ -60,7 +43,7 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
     """Exports an animation showing the evolution of a diffusion
            process on the network"""
 
-    T = RWTransitionMatrix(g)
+    T = Utilities.RWTransitionMatrix(g)
 
     if visual_style == None:
             visual_style = {}
@@ -78,13 +61,11 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
     if initial_index<0:
         initial_index = np.random.randint(0, len(g.vs()))
 
-    x = np.array([0]*len(g.vs()))
+    x = np.zeros(len(g.vs()))
     x[initial_index] = 1
 
     # compute stationary state
-    w, v = spl.eig(T, left=True, right=False)
-    pi = v[:,np.argsort(-w)][:,0]
-    pi = pi/sum(pi)
+    pi = Utilities.StationaryDistribution(T)
 
     scale = np.mean(np.abs(x-pi))
 
@@ -97,7 +78,9 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
         igraph.plot(g, file_prefix + "_frame_" + str(i).zfill(3) +".png", **visual_style)
         if i % 10 == 0:
             print('Step',i, ' TVD =', TVD(x,pi))
-        x = np.dot(x, T)
+        # NOTE x * T = (T^T * x^T)^T
+        # NOTE T is already transposed to get the left EV
+        x = (T.dot(x.transpose())).transpose()
 
 
 def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, delay=10):
@@ -149,7 +132,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
     elif model == 'NULL':
         g2 = t.igraphSecondOrderNull()
 
-    T = RWTransitionMatrix(g2)
+    T = Utilities.RWTransitionMatrix(g2)
 
     # visual style is for *first-order* aggregate network
     if visual_style == None:
@@ -163,7 +146,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
     if initial_index<0:
         initial_index = np.random.randint(0, len(g2.vs()))
 
-    x = np.array([0.]*len(g2.vs()))
+    x = np.zeros(len(g2.vs()))
     x[initial_index] = 1
 
     # This index allows to quickly map node names to indices in the first-order network
@@ -176,15 +159,13 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
     for j in range(len(g2.vs())):
         # j is index of node in *second-order* network
         # we first get the name of the *target* of the underlying edge
-        node = g2.vs()["name"][j].split(';')[1]
+        node = g2.vs()["name"][j].split(t.separator)[1]
 
         # we map the target of second-order node j to the index of the *first-order* node
         map_2_to_1[j] = map_name_to_id[node]
 
     # compute stationary state of random walk process
-    w, v = spl.eig(T, left=True, right=False)
-    pi = v[:,np.argsort(-w)][:,0]
-    pi = pi/sum(pi)
+    pi = Utilities.StationaryDistribution(T)
 
     scale = np.mean(np.abs(x-pi))
 
@@ -201,20 +182,18 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
         # based on visitation probabilities in *second-order* aggregate network, 
         # we need to compute visitation probabilities of nodes in the *first-order* 
         # aggregate network
-        x_firstorder = np.array([0.]*len(g1.vs()))
+        x_firstorder = np.zeros(len(g1.vs()))
         
         # j is the index of nodes in the *second-order* network, which we need to map 
         # to nodes in the *first-order* network
         for j in range(len(x)):
             if x[j] > 0:
-                # print('x_firstorder[', map_2_to_1[j], '] +=', x[j])
                 x_firstorder[map_2_to_1[j]] = x_firstorder[map_2_to_1[j]] + x[j]
-
-        # print('x =', x)
-        # print('x_firstorder =', x_firstorder)
 
         visual_style["vertex_color"] = [color_p(np.power((p-min(x))/(max(x)-min(x)),1/1.3)) for p in x_firstorder]
         igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(int(np.ceil(np.log10(steps)))) +".png", **visual_style)
         if i % 50 == 0:
             print('Step',i, ' TVD =', TVD(x,pi))
-        x = np.dot(x, T)
+        # NOTE x * T = (T^T * x^T)^T
+        # NOTE T is already transposed to get the left EV
+        x = (T.dot(x.transpose())).transpose()
