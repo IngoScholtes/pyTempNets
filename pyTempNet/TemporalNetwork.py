@@ -263,11 +263,11 @@ class TemporalNetwork:
         edge_dict = {}
         vertices = g2.vs()
         vcount = len(g2.vs())
-        for i in np.arange(vcount):
+        for i in range(vcount):
             e1 = vertices[i]
             e1name = e1["name"]
             a,b = e1name.split(';')
-            for j in np.arange(i+1, vcount):
+            for j in range(i+1, vcount):
                 e2 = vertices[j]
                 e2name = e2["name"]
                 a_,b_ = e2name.split(';')
