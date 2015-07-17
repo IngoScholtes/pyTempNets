@@ -161,7 +161,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
     for j in range(len(g2.vs())):
         # j is index of node in *second-order* network
         # we first get the name of the *target* of the underlying edge
-        node = g2.vs()["name"][j].split(';')[1]
+        node = g2.vs()["name"][j].split(t.separator)[1]
 
         # we map the target of second-order node j to the index of the *first-order* node
         map_2_to_1[j] = map_name_to_id[node]

@@ -78,7 +78,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
             tedge = (fields[source_ix], fields[target_ix], t)
             tedges.append(tedge)
 
-        elif fformat =="TRIGRAM":             
+        elif fformat =="TRIGRAM":
             source = fields[source_ix].strip('"')
             mid = fields[mid_ix].strip('"')
             target = fields[target_ix].strip('"')

@@ -234,7 +234,7 @@ def EigenvectorCentrality(t, model='SECOND'):
     evcent_1 = np.zeros(len(name_map))
     for i in range(len(evcent_2)):
         # Get name of target node
-        target = g2.vs()[i]["name"].split(';')[1]
+        target = g2.vs()[i]["name"].split(t.separator)[1]
         evcent_1[name_map[target]] += np.real(evcent_2[i])
     
     end = tm.clock()
@@ -269,7 +269,7 @@ def BetweennessCentrality(t, model='SECOND'):
     bwcent_1 = np.zeros(len(name_map))
     for i in range(len(bwcent_2)):
         # Get name of target node
-        target = g2.vs()[i]["name"].split(';')[1]
+        target = g2.vs()[i]["name"].split(t.separator)[1]
         bwcent_1[name_map[target]] += bwcent_2[i]
     
     return bwcent_1/sum(bwcent_1)
@@ -302,7 +302,7 @@ def PageRank(t, model='SECOND'):
     pagerank_1 = np.zeros(len(name_map))
     for i in range(len(pagerank_2)):
         # Get name of target node
-        target = g2.vs()[i]["name"].split(';')[1]
+        target = g2.vs()[i]["name"].split(t.separator)[1]
         pagerank_1[name_map[target]] += pagerank_2[i]
     
     return pagerank_1/sum(pagerank_1)

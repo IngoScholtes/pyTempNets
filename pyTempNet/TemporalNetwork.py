@@ -18,10 +18,11 @@ from pyTempNet.Utilities import StationaryDistribution
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
     
-    def __init__(self, tedges = None, twopaths = None):
+    def __init__(self,  sep=',', tedges = None, twopaths = None):
         """Constructor generating an empty temporal network"""
         
         start = tm.clock()
+        self.separator = sep
         self.tedges = []
         self.nodes = []
         if tedges is not None:
@@ -212,8 +213,8 @@ class TemporalNetwork:
         vertex_list = []
         edge_dict = {}
         for tp in self.twopaths:
-            n1 = str(tp[0])+";"+str(tp[1])
-            n2 = str(tp[1])+";"+str(tp[2])
+            n1 = str(tp[0])+self.separator+str(tp[1])
+            n2 = str(tp[1])+self.separator+str(tp[2])
             vertex_list.append(n1)
             vertex_list.append(n2)
             key = (n1, n2)
@@ -265,11 +266,11 @@ class TemporalNetwork:
         for i in range(n_vertices):
             e1 = vertices[i]
             e1name = e1["name"]
-            a,b = e1name.split(';')
+            a,b = e1name.split(self.separator)
             for j in range(i+1, n_vertices):
                 e2 = vertices[j]
                 e2name = e2["name"]
-                a_,b_ = e2name.split(';')
+                a_,b_ = e2name.split(self.separator)
                 
                 # Check whether this pair of nodes in the second-order 
                 # network is a *possible* forward two-path
