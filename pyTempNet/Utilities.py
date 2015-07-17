@@ -90,9 +90,9 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
         n += 1
 
     if fformat == "TEDGE":
-        return tn.TemporalNetwork(tedges = tedges)
+        return tn.TemporalNetwork(tedges = tedges, sep=sep)
     elif fformat =="TRIGRAM":           
-        return tn.TemporalNetwork(twopaths = twopaths)
+        return tn.TemporalNetwork(twopaths = twopaths, sep=sep)
 
 
 def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
