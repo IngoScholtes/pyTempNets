@@ -7,7 +7,6 @@ Created on Wed Jul 15 10:48:48 2015
 """
 
 import sys
-import time as tm
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
@@ -148,7 +147,6 @@ def RWTransitionMatrix(g):
     and directed network
     
     @param g: the graph"""
-    start = tm.clock()
     
     row = []
     col = []
@@ -177,8 +175,7 @@ def RWTransitionMatrix(g):
     # TODO: otherwise scipy.coo will raise a ValueError
     data = np.array(data)
     data = data.reshape(data.size,)
-    end = tm.clock()
-    print("Time for RW transition matrix (sparse): ", (end - start))
+
     return sparse.coo_matrix((data, (row, col)), shape=(len(g.vs), len(g.vs))).tocsr()
 
 

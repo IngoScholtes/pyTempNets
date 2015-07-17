@@ -9,7 +9,6 @@ Created on Thu Feb 19 11:49:39 2015
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
-import time as tm
 
 from pyTempNet import Utilities
 
@@ -23,7 +22,6 @@ def Laplacian(temporalnet, model="SECOND"):
     """
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
-    start = tm.clock()
     
     if model == "SECOND":
         network = temporalnet.igraphSecondOrder().components(mode="STRONG").giant()
@@ -33,8 +31,6 @@ def Laplacian(temporalnet, model="SECOND"):
     T2 = Utilities.RWTransitionMatrix( network )
     I  = sparse.identity( len(network.vs()) )
 
-    end = tm.clock()
-    print("Calculating Laplacian took: ", (end - start))
     return I-T2
 
 
@@ -95,7 +91,6 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
     # NOTE            two graphs below (either 2nd-order or 2nd-order null)
     
     # Generate strongly connected component of second-order networks
-    start = tm.clock()
     g2 = t.igraphSecondOrder().components(mode="STRONG").giant()
     
     if mode == 'FIRSTORDER':
@@ -110,9 +105,7 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
     # Compute entropy growth rates of transition matrices        
     H2 = np.absolute(Utilities.EntropyGrowthRate(T2))
     H2n = np.absolute(Utilities.EntropyGrowthRate(T2n))
-    
-    end = tm.clock()
-    print('Time for EntropyGrowthRateRatio:', (end - start))
+
     # Return ratio
     return H2/H2n
 
@@ -124,8 +117,6 @@ def BetweennessPreference(t, v, normalized = False):
     @param v: Name of the node to compute its BetweennessPreference
     @param normalized: whether or not (default) to normalize
     """
-    
-    start = tm.clock()
     g = t.igraphFirstOrder()
     
     # If the network is empty, just return zero
@@ -163,9 +154,7 @@ def BetweennessPreference(t, v, normalized = False):
     
     if normalized:
         I =  I/np.min([H_s,H_d])
-        
-    end = tm.clock()
-    print("betweenness preference: ", (end - start))
+
     return I
 
 def SlowDownFactor(t):    
@@ -179,7 +168,6 @@ def SlowDownFactor(t):
     
     #NOTE to myself: most of the time goes for construction of the 2nd order
     #NOTE            null graph, then for the 2nd order null transition matrix
-    start = tm.clock()
     
     g2 = t.igraphSecondOrder().components(mode="STRONG").giant()
     g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
@@ -199,9 +187,6 @@ def SlowDownFactor(t):
     w2n = sla.eigs(T2n, which="LM", k=2, ncv=13, return_eigenvectors=False)
     evals2n_sorted = np.sort(-np.absolute(w2n))
     
-    end = tm.clock()
-    print('Time for SlowDownFactor: ', (end - start))
-    
     return np.log(np.abs(evals2n_sorted[1]))/np.log(np.abs(evals2_sorted[1]))
 
 
@@ -213,8 +198,6 @@ def EigenvectorCentrality(t, model='SECOND'):
     @param t: The temporalnetwork instance to work on
     @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
       the default value."""
-    
-    start = tm.clock()
 
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
@@ -237,8 +220,6 @@ def EigenvectorCentrality(t, model='SECOND'):
         target = g2.vs()[i]["name"].split(t.separator)[1]
         evcent_1[name_map[target]] += np.real(evcent_2[i])
     
-    end = tm.clock()
-    print("Time for EigenvectorCentrality: ", (end - start))
     return np.real(evcent_1/sum(evcent_1))
 
 

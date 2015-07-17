@@ -6,8 +6,7 @@ Created on Thu Feb 19 11:49:39 2015
 (c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """
 
-import igraph    
-import time as tm
+import igraph
 import numpy as np
 import os
 from collections import defaultdict
@@ -21,7 +20,6 @@ class TemporalNetwork:
     def __init__(self,  sep=',', tedges = None, twopaths = None):
         """Constructor generating an empty temporal network"""
         
-        start = tm.clock()
         self.separator = sep
         self.tedges = []
         self.nodes = []
@@ -62,7 +60,6 @@ class TemporalNetwork:
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
-        print('time spent in constructor:', (tm.clock() - start))
         
 
     def addEdge(self, source, target, time):
@@ -93,8 +90,6 @@ class TemporalNetwork:
         For (u,v,3) and (v,w,7) a time-respecting path (u,v)->(v,w) will be inferred for all delta 0 < 4, 
         while no time-respecting path will be inferred for all delta >= 4.
         """
-        start = tm.clock()
-        
         self.twopaths = []
         
         # An index structure to quickly access tedges by time, target and source
@@ -144,9 +139,6 @@ class TemporalNetwork:
         # Update the count of two-paths
         self.tpcount = len(self.twopaths)
 
-        end = tm.clock()
-        print("Time elapsed in extractTwoPaths(): ", (end - start))
-
         
     def TwoPathCount(self):
         """Returns the total number of time-respecting paths of length two which have
@@ -163,8 +155,6 @@ class TemporalNetwork:
            corresponding to this temporal network. This network corresponds to 
            a first-order Markov model reproducing the link statistics in the 
            weighted, time-aggregated network."""
-        
-        start = tm.clock()
         
         if self.g1 != 0:
             return self.g1
@@ -191,8 +181,6 @@ class TemporalNetwork:
         self.g1.add_edges( edge_list.keys() )
         self.g1.es["weight"] = list(edge_list.values())
         
-        end = tm.clock() - start
-        print("Time spent in igraphFirstOrder(): ", end)
         return self.g1
 
 
@@ -201,8 +189,7 @@ class TemporalNetwork:
            corresponding to this temporal network. This network corresponds to 
            a second-order Markov model reproducing both the link statistics and 
            (first-order) order correlations in the underlying temporal network."""
-        
-        start = tm.clock()
+
         if self.g2 != 0:
             return self.g2
 
@@ -231,8 +218,6 @@ class TemporalNetwork:
         self.g2.add_edges( edge_dict.keys() )
         self.g2.es["weight"] = list(edge_dict.values())
 
-        end = tm.clock() - start
-        print("Time elapsed in igraphSecondOrder(): ", end)
         return self.g2
 
 
@@ -241,8 +226,6 @@ class TemporalNetwork:
            corresponding to the first-order aggregate network. This network
            is a second-order representation of the weighted time-aggregated network.           
            """
-
-        start = tm.clock()
         if self.g2n != 0:
             return self.g2n
 
@@ -287,9 +270,7 @@ class TemporalNetwork:
         # add all edges to the graph in one go
         self.g2n.add_edges( edge_dict.keys() )
         self.g2n.es["weight"] = list(edge_dict.values())
-        end = tm.clock()
         
-        print("Time elapsed in igraphSecondOrderNull(): ", (end-start) )
         return self.g2n
 
 

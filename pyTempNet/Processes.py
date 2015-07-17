@@ -8,7 +8,6 @@ Created on Fri May  8 12:35:22 2015
 
 import numpy as np
 import igraph
-import time as tm
 
 from pyTempNet import Utilities
     
@@ -17,7 +16,6 @@ def RWDiffusion(g, samples = 5, epsilon=0.01, max_iterations=100000):
     to fall below a total variation distance below epsilon (TVD computed between the momentary 
     visitation probabilities \pi^t and the stationary distribution \pi = \pi^{\infty}. This time can be 
     used to measure diffusion speed in a given (weighted and directed) network."""
-    start = tm.clock()
     avg_speed = 0
     
     T = Utilities.RWTransitionMatrix(g)
@@ -37,8 +35,7 @@ def RWDiffusion(g, samples = 5, epsilon=0.01, max_iterations=100000):
               print("  x[0:10] = ", x[0:10])
               print(" pi[0:10] = ", pi[0:10])
               raise RuntimeError("Failed to converge within maximal number of iterations. Start of current x and pi are printed above")
-    end = tm.clock()
-    print("Time for RW diffusion: ", (end - start))
+
     return avg_speed/samples
     
 
