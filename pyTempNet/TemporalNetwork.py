@@ -262,12 +262,11 @@ class TemporalNetwork:
         ## TODO: Only iterate over those edge pairs, that actually are two paths!
         edge_dict = {}
         vertices = g2.vs()
-        vcount = len(g2.vs())
-        for i in range(vcount):
+        for i in range(n_vertices):
             e1 = vertices[i]
             e1name = e1["name"]
             a,b = e1name.split(';')
-            for j in range(i+1, vcount):
+            for j in range(i+1, n_vertices):
                 e2 = vertices[j]
                 e2name = e2["name"]
                 a_,b_ = e2name.split(';')
