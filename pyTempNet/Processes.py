@@ -80,7 +80,7 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
         visual_style["vertex_color"] = [color_p(p**0.1) for p in x]
         igraph.plot(g, file_prefix + "_frame_" + str(i).zfill(3) +".png", **visual_style)
         if i % 10 == 0:
-            print('Step',i, ' TVD =', TVD(x,pi))
+            print('Step',i, ' TVD =', Utilities.TVD(x,pi))
         # NOTE x * T = (T^T * x^T)^T
         # NOTE T is already transposed to get the left EV
         x = (T.dot(x.transpose())).transpose()
@@ -196,7 +196,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
         visual_style["vertex_color"] = [color_p(np.power((p-min(x))/(max(x)-min(x)),1/1.3)) for p in x_firstorder]
         igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(int(np.ceil(np.log10(steps)))) +".png", **visual_style)
         if i % 50 == 0:
-            print('Step',i, ' TVD =', TVD(x,pi))
+            print('Step',i, ' TVD =', Utilities.TVD(x,pi))
         # NOTE x * T = (T^T * x^T)^T
         # NOTE T is already transposed to get the left EV
         x = (T.dot(x.transpose())).transpose()
