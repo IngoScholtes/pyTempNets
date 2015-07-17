@@ -64,10 +64,9 @@ def FiedlerVector(temporalnet, model="SECOND"):
 
 
 def AlgebraicConn(temporalnet, model="SECOND"):
-    """Returns the Fiedler vector of the second-order (model=SECOND) or the
-    second-order null (model=NULL) model for a temporal network. The Fiedler 
-     vector can be used for a spectral bisectioning of the network.
-     
+    """Returns the algebraic connectivity of the second-order (model=SECOND) or the
+    second-order null (model=NULL) model for a temporal network.
+    
      @param temporalnet: The temporalnetwork to work on
      @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
       the default value.
@@ -246,7 +245,7 @@ def EigenvectorCentrality(t, model='SECOND'):
         g2 = t.igraphSecondOrderNull()
     
     # Compute eigenvector centrality in second-order network
-    A = getSparseAdjacencyMatrix( g2, attribute="weight", transposed=True )
+    A = Utilities.getSparseAdjacencyMatrix( g2, attribute="weight", transposed=True )
     evcent_2 = Utilities.StationaryDistribution( A, False )
     
     # Aggregate to obtain first-order eigenvector centrality
