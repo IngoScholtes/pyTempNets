@@ -126,66 +126,48 @@ def BetweennessPreference(t, v, normalized = False):
     @param normalized: whether or not (default) to normalize
     """
     
+    start = tm.clock()
     g = t.igraphFirstOrder()
     
     # If the network is empty, just return zero
     if len(g.vs) == 0:
-        return 0.0        
-    
-    # NOTE: this might raise a ValueError if vertex v is not found
-    v_vertex = g.vs.find(name=v)    
-    indeg = v_vertex.degree(mode="IN")        
-    outdeg = v_vertex.degree(mode="OUT")
+        return 0.0
 
     # First create the betweenness preference matrix (equation (2) of the paper)
     B_v = Utilities.BWPrefMatrix(t, v)
     
     # Normalize matrix (equation (3) of the paper)
-    P_v = np.matrix(np.zeros(shape=(indeg, outdeg)))
-    S = 0.0
-    for s in range(indeg):
-        for d in range(outdeg):
-            S += B_v[s,d]
+    # NOTE: P_v has the same shape as B_v
+    P_v = np.zeros(shape=B_v.shape)
+    S = np.sum(B_v)
     
     if S>0:
-        for s in range(indeg):
-            for d in range(outdeg):
-                P_v[s,d] = B_v[s,d]/S                    
-    
-    # Compute marginal probabilities
-    marginal_s = []
-    marginal_d = []
-    
-    # Marginal probabilities P^v_d = \sum_s'{P_{s'd}}
-    for d in range(outdeg):
-        P_d = 0.0
-        for s_prime in range(indeg):
-            P_d += P_v[s_prime, d]
-        marginal_d.append(P_d)
-    
-    # Marginal probabilities P^v_s = \sum_d'{P_{sd'}}
-    for s in range(indeg):
-        P_s = 0.0
-        for d_prime in range(outdeg):
-            P_s += P_v[s, d_prime]
-        marginal_s.append(P_s)
+        P_v = B_v / S
+
+    ## Compute marginal probabilities
+    ## Marginal probabilities P^v_d = \sum_s'{P_{s'd}}
+    marginal_d = np.sum(P_v, axis=0)
+
+    ## Marginal probabilities P^v_s = \sum_d'{P_{sd'}}
+    marginal_s = np.sum(P_v, axis=1)
     
     H_s = Utilities.Entropy(marginal_s)
     H_d = Utilities.Entropy(marginal_d)
     
-    I = 0.0
-    # Here we just compute equation (4) of the paper ... 
-    for s in range(indeg):
-        for d in range(outdeg):
-            if B_v[s, d] != 0: # 0 * Log(0)  = 0
-                # Compute Mutual information
-                I += P_v[s, d] * np.log2(P_v[s, d] / (marginal_s[s] * marginal_d[d]))
+    # build mask for non-zero elements
+    row, col = np.nonzero(P_v)
+    pv = P_v[(row,col)]
+    marginal = np.outer(marginal_s, marginal_d)
+    log_argument = np.divide( pv, marginal[(row,col)] )
+    
+    I = np.dot( pv, np.log2(log_argument) )
     
     if normalized:
-        return I/np.min([H_s,H_d])
-    else:
-        return I
-
+        I =  I/np.min([H_s,H_d])
+        
+    end = tm.clock()
+    print("betweenness preference: ", (end - start))
+    return I
 
 def SlowDownFactor(t):    
     """Returns a factor S that indicates how much slower (S>1) or faster (S<1)
