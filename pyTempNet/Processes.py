@@ -8,6 +8,9 @@ Created on Fri May  8 12:35:22 2015
 
 import numpy as np
 import igraph
+from collections import defaultdict
+from collections import Counter
+import os
 
 from pyTempNet import Utilities
     
@@ -197,3 +200,106 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
         # NOTE x * T = (T^T * x^T)^T
         # NOTE T is already transposed to get the left EV
         x = (T.dot(x.transpose())).transpose()
+
+
+def exportSIComparisonVideo(t, output_file, visual_style = None, steps = 700, initial_index=0, delay=0):
+    """Exports an mp4 file containing a side-by-side comparison of an SI process in a Markovian (left) and a non-Markovian temporal network"""
+    
+    r = np.random.randint(0, 10000)
+    prefix_1 = str(r)
+    prefix_2 = str(r + 1)
+    prefix_3 = str(r + 2)
+
+    print('Simulating SI dynamics in Markovian temporal network')
+    exportSIMovieFrames(t, file_prefix='frames\\' + prefix_2, visual_style=visual_style, steps=steps, initial_index=initial_index, model='NULL')
+
+    print('Simulating SI dynamics in non-Markovian temporal network')
+    exportSIMovieFrames(t, file_prefix='frames\\' + prefix_1, visual_style=visual_style, steps=steps, initial_index=initial_index, model='SECOND')
+
+    print('Stitching video frames')
+    from subprocess import call
+    for i in range(steps):
+        x = call("convert frames\\" + prefix_1 + "_frame_" + str(i).zfill(5)+ ".png frames\\"+prefix_2+"_frame_" + str(i).zfill(5) + ".png +append " + "frames\\"+prefix_3+"_frame_" + str(i).zfill(5) + ".png", shell=True) 
+    
+    print('Encoding video')
+    x = call("ffmpeg.exe -framerate 30 -i " + " frames\\" + prefix_3 + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True) 
+    # Alternatively, we could have used the convert frontend of imagemagick, but this is known to generate a "delegate" error on Windows machines when the number of frames is too large
+    # x = call("convert -delay " + str(delay) +" frames\\"+prefix_3+"_frame_* "+output_file, shell=True) 
+
+
+
+def exportSIMovieFrames(t, file_prefix='SI', visual_style = None, steps=100, initial_index=-1, model='SECOND'):
+    """Exports an animation showing the evolution of an SI epidemic
+           process on the first-order aggregate network, where the underlying link dynamics 
+           either follows a first-order (mode='NULL') or second-order (model='SECOND') Markov 
+           model"""
+    assert model == 'SECOND' or model =='NULL'
+
+    g1 = t.igraphFirstOrder()
+
+    print('Shuffling edges in temporal network ...')
+
+    if model == 'SECOND':
+        t_shuffled = t.ShuffleTwoPaths(l=steps)
+    elif model == 'NULL':
+        t_shuffled = t.ShuffleEdges(l=steps)
+
+    print('Generated shuffled temporal network with ', len(t_shuffled.tedges), ' time-stamped links')
+
+    time = defaultdict( lambda: list() )
+    for e in t_shuffled.tedges:
+        time[e[2]].append(e)
+
+    map_name_to_id = {}
+    for i in range(len(g1.vs())):
+        map_name_to_id[g1.vs()['name'][i]] = i
+
+    # default visual style for *first-order* aggregate network
+    if visual_style == None:
+            visual_style = {}
+            visual_style["vertex_color"] = "lightblue"
+            # visual_style["vertex_label"] = g1.vs["name"]
+            visual_style["layout"] = g1.layout_auto()
+            visual_style["edge_curved"] = .5
+            visual_style["vertex_size"] = 30
+    
+
+    # Plot first-order aggregate network (particularly useful as poster frame of video)
+    igraph.plot(g1, file_prefix + "_network.pdf", **visual_style)
+
+    # Initially infected node
+    if initial_index<0:
+        initial_index = np.random.randint(0, len(g1.vs()))
+
+    # zero entries: not infected, one entries: infected
+    infected = np.zeros(len(g1.vs()))
+    infected[initial_index] = 1
+
+    # lambda expression for the coloring of nodes according to infection status
+    # x = 1 ==> color red 
+    # x = 0 ==> color white
+    color_infected = lambda x: "rgb(255,"+str(int((1-x)*255))+","+str(int((1-x)*255))+")"
+
+    t_range = range(min(time.keys()), max(time.keys())+1)   
+
+    # Create video frames
+    i = 0
+    for t in t_range:        
+        i += 1
+        slice = igraph.Graph(n=len(g1.vs()), directed=False)
+        slice.vs["name"] = g1.vs["name"]
+        # this should work as time is a defaultdict
+        for e in time[t]:
+            slice.add_edge(e[0], e[1])
+            if infected[map_name_to_id[e[0]]] == 1:
+                infected[map_name_to_id[e[1]]] = 1
+            if infected[map_name_to_id[e[1]]] == 1:
+                infected[map_name_to_id[e[0]]] = 1
+        visual_style["vertex_color"] = [color_infected(x) for x in infected]
+        igraph.plot(slice, file_prefix + '_frame_' + str(t).zfill(5) + '.png', **visual_style)
+        
+        c = Counter(infected)
+
+
+        if i % 100 == 0:
+            print('Step',i, ' infected =', c[1])
