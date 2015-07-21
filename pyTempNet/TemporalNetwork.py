@@ -75,6 +75,9 @@ class TemporalNetwork:
             self.nodes.append(target)
             
         self.tpcount = -1
+        self.g1 = 0
+        self.g2 = 0
+        self.g2n = 0
 
         
     def vcount(self):
