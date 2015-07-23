@@ -267,12 +267,12 @@ class TemporalNetwork:
                 # Check whether this pair of nodes in the second-order 
                 # network is a *possible* forward two-path
                 if b == a_:
-                    w = pi[e2.index]
+                    w = np.abs(pi[e2.index])
                     if w>0:
                         edge_dict[(e1name, e2name)] = w
                         
                 if b_ == a:
-                    w = pi[e1.index]
+                    w = np.abs(pi[e1.index])
                     if w>0:
                         edge_dict[(e2name, e1name)] = w
         
