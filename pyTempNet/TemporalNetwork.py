@@ -27,7 +27,7 @@ class TemporalNetwork:
         self.nodes = []
         if tedges is not None:
             for e in tedges:
-                self.tedges.append(e)            
+                self.tedges.append(e)
         for e in self.tedges:
             source = e[0]
             target = e[1]
