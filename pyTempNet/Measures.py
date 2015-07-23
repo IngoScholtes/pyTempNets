@@ -10,6 +10,8 @@ import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
+import time as tm
+
 from pyTempNet import Utilities
 
 def Laplacian(temporalnet, model="SECOND"):
@@ -43,6 +45,7 @@ def FiedlerVector(temporalnet, model="SECOND"):
     @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
       the default value.
     """
+    start = tm.clock()
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
     
@@ -52,18 +55,37 @@ def FiedlerVector(temporalnet, model="SECOND"):
     # NOTE: in order to be more confident to find the one with the largest
     # NOTE: magnitude, see
     # NOTE: https://github.com/scipy/scipy/issues/4987
-    w, v = sla.eigs( L, k=2, which="SM", ncv=13 )
+    #w, v = sla.eigs( L, k=2, which="SM", ncv=13 )
     #w, v = sla.eigs( L, k=2, sigma=0, ncv=13, which="LM", maxiter=20*L.get_shape()[0])
-    #w = sla.eigs( L, k=2, which="SM", ncv=13, return_eigenvectors=False )
-    #print np.sort(np.absolute(w))
+    w = sla.eigs( L, k=2, which="SM", ncv=13, return_eigenvectors=False )
+    print np.sort(np.absolute(w))
     
-    #v = np.empty(L.get_shape()[0])
-    #v[0] = 1
-    #v[1:len(v)] = 
+    ew = tm.clock()
+    print("     time for laplacian and eigs()", (ew - start))
+    
+    # compute sparse LU decomposition of the laplacian
+    n = L.get_shape()[0]
+    b = np.ones(n)
+    evalue = np.sort(np.abs(w))[1]
+    A = (L[1:n,:].tocsc()[:,1:n] - sparse.identity(n-1).multiply(evalue))
+    b[1:n] = A[0,:].toarray()
+    
+    ab = tm.clock()
+    print("     getting A and b ready", (ab - ew))
+    
+    #print b.shape
+    #print A.shape
+    lu = sla.splu(A)
+    #print lu.solve(b[1:n]).shape
+    b[1:n] = lu.solve(b[1:n])
+    v = b/sum(b)
+    print("     solving the system", (tm.clock() - ab))
+    print("Time spent in FiedlerVector():", (tm.clock() - start))
+    return v
     
     # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
     # TODO: finds the EV scaled factor (-1)
-    return v[:,np.argsort(np.absolute(w))][:,1]
+    #return v[:,np.argsort(np.absolute(w))][:,1]
 
 
 def AlgebraicConn(temporalnet, model="SECOND"):

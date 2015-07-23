@@ -137,7 +137,7 @@ def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
             row.append(s)
             col.append(t)
       data = np.array(graph.es()[attribute])
-          
+
     return sparse.coo_matrix((data, (row, col)) , shape=(len(graph.vs), len(graph.vs))).tocsr()
 
 
@@ -146,7 +146,6 @@ def RWTransitionMatrix(g):
     and directed network
     
     @param g: the graph"""
-    
     row = []
     col = []
     data = []
