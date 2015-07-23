@@ -79,12 +79,12 @@ def FiedlerVector(temporalnet, model="SECOND"):
     lu = sla.splu(A)
     #print lu.solve(b[1:n]).shape
     b[1:n] = lu.solve(b[1:n])
-    v = b/sum(b)
+    #v = b/sum(np.inner(b,b))
     #print(sum(b))
     print("     solving the system", (tm.clock() - ab))
     print("Time spent in FiedlerVector():", (tm.clock() - start))
-    print(v[0:5], sum(v))
-    return v
+    #print(v[0:5], sum(v))
+    return b
     
     # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
     # TODO: finds the EV scaled factor (-1)
@@ -145,7 +145,7 @@ def DenseFiedlerVector(temporalnet, model="SECOND"):
     
     # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
     # TODO: finds the EV scaled factor (-1)
-    print(v[:,np.argsort(np.absolute(w))][0:5,1], sum(v[:,np.argsort(np.absolute(w))][:,1]))
+    #print(v[:,np.argsort(np.absolute(w))][0:5,1], sum(v[:,np.argsort(np.absolute(w))][:,1]))
     return v[:,np.argsort(np.absolute(w))][:,1]
 
 def AlgebraicConn(temporalnet, model="SECOND"):
