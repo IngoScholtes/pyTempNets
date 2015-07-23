@@ -217,9 +217,10 @@ class TemporalNetwork:
         # create vertex list and edge directory first
         vertex_list = []
         edge_dict = {}
+        sep = self.separator
         for tp in self.twopaths:
-            n1 = str(tp[0])+self.separator+str(tp[1])
-            n2 = str(tp[1])+self.separator+str(tp[2])
+            n1 = str(tp[0])+sep+str(tp[1])
+            n2 = str(tp[1])+sep+str(tp[2])
             vertex_list.append(n1)
             vertex_list.append(n2)
             key = (n1, n2)
