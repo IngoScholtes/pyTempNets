@@ -72,6 +72,9 @@ class TemporalNetwork:
             self.nodes.append(target)
             
         self.tpcount = -1
+        self.g1 = 0
+        self.g2 = 0
+        self.g2n = 0
 
         
     def vcount(self):
@@ -289,10 +292,10 @@ class TemporalNetwork:
             # We simply shuffle the order of all edges
             edge = self.tedges[np.random.randint(0, len(self.tedges))]
             tedges.append((edge[0], edge[1], i))
-        tn = TemporalNetwork(tedges)
-        tn.nodes = self.nodes
+        t = TemporalNetwork(sep=',', tedges=tedges)
+        t.nodes = self.nodes
             
-        return tn
+        return t
         
         
     def ShuffleTwoPaths(self, l=0):
@@ -322,10 +325,12 @@ class TemporalNetwork:
             tp = paths[np.random.randint(0, len(paths))]
             
             tedges.append((tp[0], tp[1], t))
-            tedges.append((tp[1], tp[2], t+1))
+            t += 1
+            tedges.append((tp[1], tp[2], t))
+            t += 1
             
-        tn = TemporalNetwork(tedges)
-        return tn
+        tempnet = TemporalNetwork(sep=',', tedges=tedges)
+        return tempnet
 
 
     def exportTikzUnfolded(self, filename):
