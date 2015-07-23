@@ -9,6 +9,7 @@ Created on Thu Feb 19 11:49:39 2015
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
+import scipy.linalg as la
 
 import time as tm
 
@@ -58,7 +59,7 @@ def FiedlerVector(temporalnet, model="SECOND"):
     #w, v = sla.eigs( L, k=2, which="SM", ncv=13 )
     #w, v = sla.eigs( L, k=2, sigma=0, ncv=13, which="LM", maxiter=20*L.get_shape()[0])
     w = sla.eigs( L, k=2, which="SM", ncv=13, return_eigenvectors=False )
-    print np.sort(np.absolute(w))
+    print(      "w=", np.sort(np.absolute(w)))
     
     ew = tm.clock()
     print("     time for laplacian and eigs()", (ew - start))
@@ -79,14 +80,73 @@ def FiedlerVector(temporalnet, model="SECOND"):
     #print lu.solve(b[1:n]).shape
     b[1:n] = lu.solve(b[1:n])
     v = b/sum(b)
+    #print(sum(b))
     print("     solving the system", (tm.clock() - ab))
     print("Time spent in FiedlerVector():", (tm.clock() - start))
+    print(v[0:5], sum(v))
     return v
     
     # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
     # TODO: finds the EV scaled factor (-1)
     #return v[:,np.argsort(np.absolute(w))][:,1]
 
+
+def DenseFiedlerVector(temporalnet, model="SECOND"):
+    """Returns the Fiedler vector of the second-order (model=SECOND) or the
+    second-order null (model=NULL) model for a temporal network. The Fiedler 
+     vector can be used for a spectral bisectioning of the network.
+     
+    @param temporalnet: The temporalnetwork instance to work on
+    @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
+      the default value.
+    """
+    start = tm.clock()
+    if (model is "SECOND" or "NULL") == False:
+        raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
+    
+    # NOTE: The transposed matrix is needed to get the "left" eigen vectors
+    L = Laplacian(temporalnet, model)
+    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: in order to be more confident to find the one with the largest
+    # NOTE: magnitude, see
+    # NOTE: https://github.com/scipy/scipy/issues/4987
+    #w, v = sla.eigs( L, k=2, which="SM", ncv=13 )
+    #w, v = sla.eigs( L, k=2, sigma=0, ncv=13, which="LM", maxiter=20*L.get_shape()[0])
+    w, v = la.eig(L.todense().transpose(), right=False, left=True)
+    print("     w=", np.sort(np.absolute(w))[0:2])
+    #w = sla.eigs( L, k=2, which="SM", ncv=13, return_eigenvectors=False )
+    #print np.sort(np.absolute(w))
+    
+    ew = tm.clock()
+    print("     time for laplacian and eigs()", (ew - start))
+    
+    ## compute sparse LU decomposition of the laplacian
+    #n = L.get_shape()[0]
+    #b = np.ones(n)
+    #evalue = np.sort(np.abs(w))[1]
+    #A = (L[1:n,:].tocsc()[:,1:n] - sparse.identity(n-1).multiply(evalue))
+    #b[1:n] = A[0,:].toarray()
+    
+    #ab = tm.clock()
+    #print("     getting A and b ready", (ab - ew))
+    
+    ##print b.shape
+    ##print A.shape
+    #lu = sla.splu(A)
+    ##print lu.solve(b[1:n]).shape
+    #b[1:n] = lu.solve(b[1:n])
+    #v = b/sum(b)
+    #print("     solving the system", (tm.clock() - ab))
+    #ret = v[:,np.argsort(np.absolute(w))][:,1]
+    #print(sum(ret))
+    #ret = ret/sum(ret)
+    print("Time spent in DenseFiedlerVector():", (tm.clock() - start))
+    #return v
+    
+    # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
+    # TODO: finds the EV scaled factor (-1)
+    print(v[:,np.argsort(np.absolute(w))][0:5,1], sum(v[:,np.argsort(np.absolute(w))][:,1]))
+    return v[:,np.argsort(np.absolute(w))][:,1]
 
 def AlgebraicConn(temporalnet, model="SECOND"):
     """Returns the algebraic connectivity of the second-order (model=SECOND) or the
