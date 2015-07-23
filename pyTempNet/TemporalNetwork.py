@@ -139,6 +139,8 @@ class TemporalNetwork:
                                 self.twopathsByTime[t].setdefault(v, []).append(two_path)
             prev_t = t
         
+        g2 = 0
+        g2n = 0
         # Update the count of two-paths
         self.tpcount = len(self.twopaths)
 
@@ -227,13 +229,17 @@ class TemporalNetwork:
     def igraphSecondOrderNull(self):
         """Returns a second-order null Markov model 
            corresponding to the first-order aggregate network. This network
-           is a second-order representation of the weighted time-aggregated network.           
+           is a second-order representation of the weighted time-aggregated network. In order to 
+           compute the null model, the strongly connected component of the second-order network 
+           needs to have at least two nodes.          
            """
         if self.g2n != 0:
             return self.g2n
 
         g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
         n_vertices = len(g2.vs)
+
+        assert(n_vertices>1)
         
         T = RWTransitionMatrix( g2 )
         pi = StationaryDistribution(T)
