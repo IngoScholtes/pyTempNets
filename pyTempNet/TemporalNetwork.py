@@ -63,7 +63,13 @@ class TemporalNetwork:
         
 
     def addEdge(self, source, target, time):
-        """Adds a (directed) time-stamped edge to the temporal network"""
+        """Adds a directed time-stamped edge (source,target;time) to the temporal network. To add an undirected 
+            time-stamped link (u,v;t) at time t, please call addEdge(u,v;t) and addEdge(v,u;t).
+        
+        @param source: naem of the source node of a directed, time-stamped link
+        @param target: name of the target node of a directed, time-stamped link
+        @param time: (integer) time-stamp of the time-stamped link
+        """
         
         self.tedges.append((source, target, time))
         if source not in self.nodes:
@@ -78,19 +84,25 @@ class TemporalNetwork:
 
         
     def vcount(self):
-        """Returns the number of vertices in the static network"""
+        """Returns the total number of different vertices active across the whole evolution of the temporal network. 
+        This number corresponds to the number of nodes in the (first-order) time-aggregated network."""
         return len(self.nodes)
 
         
     def ecount(self):
-        """Returns the number of time-stamped edges"""
+        """Returns the number of time-stamped edges (u,v;t) in this temporal network"""
         return len(self.tedges)
 
 
     def extractTwoPaths(self, delta=1):
-        """Extracts all time-respecting paths of length two. The delta parameter indicates the maximum
-        temporal distance below which two consecutive links will be considered as a time-respecting path.
-        For (u,v,3) and (v,w,7) a time-respecting path (u,v)->(v,w) will be inferred for all delta 0 < 4, 
+        """Extracts all time-respecting paths of length two in this temporal network. The two-paths 
+        extracted by this method will be used in the construction of second-order time-aggregated 
+        networks, as well as in the analysis of causal structures of this temporal network. If an explicit 
+        call to this method is omitted, it will be run with default parameter \delta=1 whenever two-paths 
+        are needed for the first time. 
+        
+        @param delta: Indicates the maximum temporal distance below which two consecutive links will be considered as a time-respecting path.
+        For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) will be inferred for all delta 0 < 4, 
         while no time-respecting path will be inferred for all delta >= 4.
         """
         self.twopaths = []
@@ -131,7 +143,7 @@ class TemporalNetwork:
                                 
                                 # Create a weighted two-path tuple
                                 # (s, v, d, weight)
-                                # representing (s,v) -> (v,d)
+                                # representing two path (s,v) -> (v,d)
                                 two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
                                 self.twopaths.append(two_path)
                                 
@@ -288,7 +300,12 @@ class TemporalNetwork:
     def ShuffleEdges(self, l=0):        
         """Generates a shuffled version of the temporal network in which edge statistics (i.e.
         the frequencies of time-stamped edges) are preserved, while all order correlations are 
-        destroyed"""
+        destroyed.
+        
+        @param l: the length of the sequence to be generated (in terms of the number of time-stamped links.
+            For the default value l=0, the length of the generated shuffled temporal network will be equal to that of 
+            the original temporal network. 
+        """
         tedges = []
         
         if self.tpcount == -1:
@@ -308,7 +325,12 @@ class TemporalNetwork:
         
     def ShuffleTwoPaths(self, l=0):
         """Generates a shuffled version of the temporal network in which two-path statistics (i.e.
-        first-order correlations in the order of time-stamped edges) are preserved"""
+        first-order correlations in the order of time-stamped edges) are preserved
+        
+        @param l: the length of the sequence to be generated (in terms of the number of time-stamped links.
+            For the default value l=0, the length of the generated shuffled temporal network will be equal to that of 
+            the original temporal network. 
+        """
         
         tedges = []
         
@@ -343,7 +365,9 @@ class TemporalNetwork:
 
     def exportTikzUnfolded(self, filename):
         """Generates a tikz file that can be compiled to obtain a time-unfolded 
-            representation of the temporal network"""    
+            representation of the temporal network.
+            
+        @param filename: the name of the tex file to be generated."""
     
         # An index structure to quickly access tedges by time
         time = defaultdict( lambda: list() )
@@ -412,18 +436,42 @@ class TemporalNetwork:
 
 
     def exportMovie(self, output_file, visual_style = None, realtime = True, maxSteps=-1, delay=10):
-        """Exports a video of the temporal network"""
+        """Exports a video showing the evolution of the temporal network.
+        
+        @param output_file: the filename of the mp4 video to be generated
+        @param visual_style: the igraph visual style to be used for the individual frames of the video.
+            If the parameter value is None, a standard visual style will be used.
+        @param realtime: Whether to generate a frame for every time step between the minimum and maximum timestamps, or only for those 
+            where at least one node is active. For realtime=true, phases with no activity are retained in the video and there is a direct relation
+            between the real time and the frame number. 
+        @param maxSteps: The maximum number of time steps to export. For the default value -1 all steps in the evolution of the temporal network
+            will be exported.
+        @param delay: The delay in ms after each frame in the video. For the default value of 10, the framerate of the generated video will be 100 fps. 
+        """
         prefix = str(np.random.randint(0,10000))
         
         self.exportMovieFrames('frames\\' + prefix, visual_style = visual_style, realtime = realtime, maxSteps=maxSteps)
         
         from subprocess import call
 
+        # TODO: Replace by direct call to fmpeg
         x = call("convert -delay " + str(delay) +" frames\\"+prefix+"_frame_* "+output_file, shell=True)
 
+
+
     def exportMovieFrames(self, fileprefix, visual_style = None, realtime = True, maxSteps=-1):
-        """Exports an animation showing the temporal
-           evolution of the network"""
+        """Exports a sequence of numbered images showing the evolution of the temporal network. The resulting frames can be encoded into 
+        custm video formats, for instance using ffmpeg. 
+        
+        @param output_file: the prefix of the file names to be used for the individual images
+        @param visual_style: the igraph visual style to be used for the individual frames of the video.
+            If the parameter value is None, a standard visual style will be used.
+        @param realtime: Whether to generate a frame for every time step between the minimum and maximum timestamps, or only for those 
+            where at least one node is active. For realtime=true, phases with no activity are retained in the video and there is a direct relation
+            between the real time and the frame number. 
+        @param maxSteps: The maximum number of time steps to export. For the default value -1 all steps in the evolution of the temporal network
+            will be exported.
+        """
 
         g = self.igraphFirstOrder()
 
@@ -462,7 +510,7 @@ class TemporalNetwork:
             i += 1
             slice = igraph.Graph(n=len(g.vs()), directed=True)
             slice.vs["name"] = g.vs["name"]
-            # this should work as time is a defaultdict
+
             for e in time[t]:
                 slice.add_edge(e[0], e[1])
             igraph.plot(slice, fileprefix + '_frame_' + str(t).zfill(5) + '.png', **visual_style)
