@@ -53,6 +53,13 @@ def FiedlerVector(temporalnet, model="SECOND"):
     # NOTE: magnitude, see
     # NOTE: https://github.com/scipy/scipy/issues/4987
     w, v = sla.eigs( L, k=2, which="SM", ncv=13 )
+    #w, v = sla.eigs( L, k=2, sigma=0, ncv=13, which="LM", maxiter=20*L.get_shape()[0])
+    #w = sla.eigs( L, k=2, which="SM", ncv=13, return_eigenvectors=False )
+    #print np.sort(np.absolute(w))
+    
+    #v = np.empty(L.get_shape()[0])
+    #v[0] = 1
+    #v[1:len(v)] = 
     
     # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
     # TODO: finds the EV scaled factor (-1)
