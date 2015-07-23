@@ -25,7 +25,7 @@ class TemporalNetwork:
         self.nodes = []
         if tedges is not None:
             for e in tedges:
-                self.tedges.append(e)            
+                self.tedges.append(e)
         for e in self.tedges:
             source = e[0]
             target = e[1]
@@ -204,9 +204,10 @@ class TemporalNetwork:
         # create vertex list and edge directory first
         vertex_list = []
         edge_dict = {}
+        sep = self.separator
         for tp in self.twopaths:
-            n1 = str(tp[0])+self.separator+str(tp[1])
-            n2 = str(tp[1])+self.separator+str(tp[2])
+            n1 = str(tp[0])+sep+str(tp[1])
+            n2 = str(tp[1])+sep+str(tp[2])
             vertex_list.append(n1)
             vertex_list.append(n2)
             key = (n1, n2)
@@ -255,14 +256,15 @@ class TemporalNetwork:
         ## TODO: Only iterate over those edge pairs, that actually are two paths!
         edge_dict = {}
         vertices = g2.vs()
+        sep = self.separator
         for i in range(n_vertices):
             e1 = vertices[i]
             e1name = e1["name"]
-            a,b = e1name.split(self.separator)
+            a,b = e1name.split(sep)
             for j in range(i+1, n_vertices):
                 e2 = vertices[j]
                 e2name = e2["name"]
-                a_,b_ = e2name.split(self.separator)
+                a_,b_ = e2name.split(sep)
                 
                 # Check whether this pair of nodes in the second-order 
                 # network is a *possible* forward two-path
