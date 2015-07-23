@@ -61,14 +61,14 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
                 target_ix = i
             elif header[i] == 'weight':
                 weight_ix = i
-    
+    assert(source_ix >= 0 and target_ix >= 0 and time_ix >=0)
     # Read time-stamped edges
     line = f.readline()
     n = 1 
     while not line.strip() == '' and n <= maxlines:
         fields = line.rstrip().split(sep)
         if fformat =="TEDGE":
-            timestamp = fields[time_ix]
+            timestamp = fields[time_ix]            
             if (timestamp.isdigit()):
                 t = int(timestamp)
             else:
