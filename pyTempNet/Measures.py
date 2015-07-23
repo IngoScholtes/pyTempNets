@@ -215,9 +215,10 @@ def EigenvectorCentrality(t, model='SECOND'):
     
     # Aggregate to obtain first-order eigenvector centrality
     evcent_1 = np.zeros(len(name_map))
+    sep = t.separator
     for i in range(len(evcent_2)):
         # Get name of target node
-        target = g2.vs()[i]["name"].split(t.separator)[1]
+        target = g2.vs()[i]["name"].split(sep)[1]
         evcent_1[name_map[target]] += np.real(evcent_2[i])
     
     return np.real(evcent_1/sum(evcent_1))
@@ -248,9 +249,10 @@ def BetweennessCentrality(t, model='SECOND'):
     
     # Aggregate to obtain first-order eigenvector centrality
     bwcent_1 = np.zeros(len(name_map))
+    sep = t.separator
     for i in range(len(bwcent_2)):
         # Get name of target node
-        target = g2.vs()[i]["name"].split(t.separator)[1]
+        target = g2.vs()[i]["name"].split(sep)[1]
         bwcent_1[name_map[target]] += bwcent_2[i]
     
     return bwcent_1/sum(bwcent_1)
@@ -281,9 +283,10 @@ def PageRank(t, model='SECOND'):
     
     # Aggregate to obtain first-order eigenvector centrality
     pagerank_1 = np.zeros(len(name_map))
+    sep = t.separator
     for i in range(len(pagerank_2)):
         # Get name of target node
-        target = g2.vs()[i]["name"].split(t.separator)[1]
+        target = g2.vs()[i]["name"].split(sep)[1]
         pagerank_1[name_map[target]] += pagerank_2[i]
     
     return pagerank_1/sum(pagerank_1)
