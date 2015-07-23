@@ -34,7 +34,7 @@ def Laplacian(temporalnet, model="SECOND"):
     return I-T2
 
 
-def FiedlerVector(temporalnet, model="SECOND"):
+def FiedlerVector(temporalnet, model="SECOND", lanczosVecs=15, maxiter=10):
     """Returns the Fiedler vector of the second-order (model=SECOND) or the
     second-order null (model=NULL) model for a temporal network. The Fiedler 
      vector can be used for a spectral bisectioning of the network.
@@ -42,6 +42,13 @@ def FiedlerVector(temporalnet, model="SECOND"):
     @param temporalnet: The temporalnetwork instance to work on
     @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
       the default value.
+    @param lanczosVecs: number of Lanczos vectors to be used in the approximate
+        calculation of eigenvectors and eigenvalues. This maps to the ncv parameter 
+        of scipy's underlying function eigs. 
+    @param maxiter: scaling factor for the number of iterations to be used in the 
+        approximate calculation of eigenvectors and eigenvalues. The number of iterations 
+        passed to scipy's underlying eigs function will be n*maxiter where n is the 
+        number of rows/columns of the Laplacian matrix.
     """
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
@@ -52,8 +59,8 @@ def FiedlerVector(temporalnet, model="SECOND"):
     # NOTE: in order to be more confident to find the one with the largest
     # NOTE: magnitude, see
     # NOTE: https://github.com/scipy/scipy/issues/4987
-    w, v = sla.eigs( L, k=2, which="SM", ncv=13 )
-    
+    maxiter = 10*L.get_shape()[0]
+    w, v = sla.eigs(L, k=2, which="SM", ncv=lanczosVecs, maxiter=maxiter)
     # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
     # TODO: finds the EV scaled factor (-1)
     return v[:,np.argsort(np.absolute(w))][:,1]
