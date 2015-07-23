@@ -272,14 +272,15 @@ class TemporalNetwork:
         ## TODO: Only iterate over those edge pairs, that actually are two paths!
         edge_dict = {}
         vertices = g2.vs()
+        sep = self.separator
         for i in range(n_vertices):
             e1 = vertices[i]
             e1name = e1["name"]
-            a,b = e1name.split(self.separator)
+            a,b = e1name.split(sep)
             for j in range(i+1, n_vertices):
                 e2 = vertices[j]
                 e2name = e2["name"]
-                a_,b_ = e2name.split(self.separator)
+                a_,b_ = e2name.split(sep)
                 
                 # Check whether this pair of nodes in the second-order 
                 # network is a *possible* forward two-path

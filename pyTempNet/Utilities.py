@@ -62,7 +62,8 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
                 target_ix = i
             elif header[i] == 'weight':
                 weight_ix = i
-    assert(source_ix >= 0 and target_ix >= 0 and time_ix >=0)
+    assert( (source_ix >= 0 and target_ix >= 0 and time_ix >=0) or
+            (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0) )
     # Read time-stamped edges
     line = f.readline()
     n = 1 
