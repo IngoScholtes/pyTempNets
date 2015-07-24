@@ -10,6 +10,9 @@ import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
+from collections import defaultdict
+import sys
+
 from pyTempNet import Utilities
 
 def Laplacian(temporalnet, model="SECOND"):
@@ -59,8 +62,11 @@ def FiedlerVector(temporalnet, model="SECOND", lanczosVecs=15, maxiter=10):
     # NOTE: in order to be more confident to find the one with the largest
     # NOTE: magnitude, see
     # NOTE: https://github.com/scipy/scipy/issues/4987
-    maxiter = 10*L.get_shape()[0]
-    w, v = sla.eigs(L, k=2, which="SM", ncv=lanczosVecs, maxiter=maxiter)
+    maxiter = maxiter*L.get_shape()[0]
+
+    import scipy.linalg as la
+
+    w, v = la.eig(L.todense())
     # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
     # TODO: finds the EV scaled factor (-1)
     return v[:,np.argsort(np.absolute(w))][:,1]
@@ -297,4 +303,115 @@ def PageRank(t, model='SECOND'):
         pagerank_1[name_map[target]] += pagerank_2[i]
     
     return pagerank_1/sum(pagerank_1)
+
+
+
+def GetShortestPathMatrix(t, start_t=0, delta=1):
+    """Calculates the (topologically) shortest time-respecting paths between 
+    all pairs of nodes starting at time start_t in an empirical temporal network t.
+    This function returns a tuple consisting of 
+        1) a matrix D containing the shortest time-respecting path lengths between all
+            pairs of nodes. The ordering of these values corresponds to the ordering of nodes 
+            in the vertex sequence of the igraph first order time-aggregated network
+        2) a list of shortest time-respecting paths, each entry being an ordered sequence 
+            of nodes on the corresponding path. This list can be used to compute the 
+            time-respecting path betweenness of nodes in a temporal network
+    
+    @param t: the temporal network to calculate shortest path for
+    @param start_t: the start time for which to consider time-respecting paths (default 0)
+    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)
+    """
+
+    # We first build some index structures to quickly access tedges by time, target and source
+    time = defaultdict( lambda: list() )
+    targets = defaultdict( lambda: dict() )
+    sources = defaultdict( lambda: dict() )
+    for e in t.tedges:
+        source = e[0]
+        target = e[1]
+        ts = e[2]
+
+        # Only keep those time-stamped edges that occur after the start_time
+        if ts >= start_t:
+            time[ts].append(e)
+            targets[ts].setdefault(target, []).append(e)
+            sources[ts].setdefault(source, []).append(e)
+
+    ordered_times = np.sort(list(time.keys()))
+
+    # This matrix will contain the length of shortest time-respecting paths between all pairs of nodes
+    D = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+    D.fill(np.inf)
+    np.fill_diagonal(D, 0)
+
+    # Keep a record of the previous time steps on the shortest time-respecting paths
+    T = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+    T.fill(start_t)
+
+    P = defaultdict( lambda: defaultdict( lambda: None ) )
+
+    # Mapping between node names and matrix indices
+    name_map = Utilities.firstOrderNameMap( t )
+
+    # initialize shortest path tree for path reconstruction 
+    for e in t.igraphFirstOrder().es():
+        v = t.igraphFirstOrder().vs["name"][e.source]
+        w = t.igraphFirstOrder().vs["name"][e.target]
+        P[v][w] = w
+    
+    # Floyd-Warshall algorithm applied to a temporal network
+    for v in t.nodes:
+        # Consider the ordered sequence of time-stamps
+        for ts in ordered_times:
+            # Consider all links e[0] -> e[1] occurring at a given time-stamp ts
+            for e in time[ts]:
+
+                # Check if there already is a time-respecting path from v to e_0 and if the previous time step on this time-respecting path is not older than t-delta ...
+                if D[name_map[v], name_map[e[0]]] < np.inf and not T[name_map[v], name_map[e[0]]] < ts - delta:
+                    if D[name_map[v], name_map[e[1]]] > D[name_map[v], name_map[e[0]]] + 1:
+                        D[name_map[v], name_map[e[1]]] = D[name_map[v], name_map[e[0]]] + 1
+                        T[name_map[v], name_map[e[1]]] = ts
+                        P[v][e[1]] = P[v][e[0]]
+    shortest_paths = []
+    for v in t.nodes:
+        for w in t.nodes:
+            if P[v][w] != None:
+                path = [ v ]
+                x = v
+                while x != w:
+                    x = P[x][w]
+                    path.append(x)
+                if len(path)>2:
+                    shortest_paths.append(path)
+    return (D, shortest_paths)
+
+
+def GetTimeRespectingBetweenness(t, start_t=0, delta=1, normalized=False):
+    """Calculates the time-respecting path betweennness values of 
+    all nodes starting at time start_t in an empirical temporal network t.
+    This function returns a numpy array of betweenness centrality values. The ordering
+    of these values corresponds to the ordering of nodes in the vertex sequence of the 
+    igraph first order time-aggregated network
+    
+    @param t: the temporal network to calculate shortest path for
+    @param start_t: the start time for which to consider time-respecting paths (default 0)
+    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)
+    @param normalized: whether or not to normalize the betweenness values by the number of all
+        shortest time-respecting paths in the temporal network.
+    """
+
+    # First calculate all shortest time-respecting paths
+    D, shortest_paths = GetShortestPathMatrix(t, start_t, delta)
+
+    bw = np.array([0]*len(t.nodes))
+
+    # Mapping between node names and matrix indices
+    name_map = Utilities.firstOrderNameMap( t )
+
+    for path in shortest_paths:
+            for i in range(1, len(path)-1):
+                bw[name_map[path[i]]] += 1
+    if normalized:
+        bw = bw/len(shortest_paths)
+    return bw
 
