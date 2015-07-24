@@ -450,12 +450,13 @@ class TemporalNetwork:
         """
         prefix = str(np.random.randint(0,10000))
         
-        self.exportMovieFrames('frames\\' + prefix, visual_style = visual_style, realtime = realtime, maxSteps=maxSteps)
+        # TODO: 
+        self.exportMovieFrames('frames' + os.sep + prefix, visual_style = visual_style, realtime = realtime, maxSteps=maxSteps)
         
         from subprocess import call
 
         # TODO: Replace by direct call to fmpeg
-        x = call("convert -delay " + str(delay) +" frames\\"+prefix+"_frame_* "+output_file, shell=True)
+        x = call("convert -delay " + str(delay) +" frames" + os.sep + prefix+"_frame_* "+output_file, shell=True)
 
 
 
