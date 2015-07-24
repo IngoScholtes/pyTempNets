@@ -306,7 +306,7 @@ def PageRank(t, model='SECOND'):
 
 
 
-def GetShortestPathMatrix(t, start_t=0, delta=1):
+def GetDistanceMatrix(t, start_t=0, delta=1):
     """Calculates the (topologically) shortest time-respecting paths between 
     all pairs of nodes starting at time start_t in an empirical temporal network t.
     This function returns a tuple consisting of 
@@ -348,42 +348,42 @@ def GetShortestPathMatrix(t, start_t=0, delta=1):
     T = np.zeros(shape=(len(t.nodes),len(t.nodes)))
     T.fill(start_t)
 
-    P = defaultdict( lambda: defaultdict( lambda: None ) )
+    Paths = defaultdict( lambda: defaultdict( lambda: [] ) )
 
     # Mapping between node names and matrix indices
     name_map = Utilities.firstOrderNameMap( t )
 
     # initialize shortest path tree for path reconstruction 
     for e in t.igraphFirstOrder().es():
-        v = t.igraphFirstOrder().vs["name"][e.source]
-        w = t.igraphFirstOrder().vs["name"][e.target]
-        P[v][w] = w
-    
-    # Floyd-Warshall algorithm applied to a temporal network
+        u = t.igraphFirstOrder().vs["name"][e.source]
+        v = t.igraphFirstOrder().vs["name"][e.target]
+        Paths[u][v] = [u,v]
+
     for v in t.nodes:
+        Paths[v][v] = [v]
+    
+    # We consider all time-respecting paths starting in any node v at the start time
+    for v in t.nodes:        
         # Consider the ordered sequence of time-stamps
         for ts in ordered_times:
+           
             # Consider all links e[0] -> e[1] occurring at a given time-stamp ts
             for e in time[ts]:
-
-                # Check if there already is a time-respecting path from v to e_0 and if the previous time step on this time-respecting path is not older than t-delta ...
+                
+                # If there is a time-respecting path (v -> e_0) and if the previous time step on 
+                # this time-respecting path is not older than ts-delta ...
                 if D[name_map[v], name_map[e[0]]] < np.inf and not T[name_map[v], name_map[e[0]]] < ts - delta:
+
+                    # The time-stamped link (e_0, e_1) leads to a new shortest path (v -> e_0 -> e_1)
+                    # if D[v,e_1] > D[v,e_0] + 1
                     if D[name_map[v], name_map[e[1]]] > D[name_map[v], name_map[e[0]]] + 1:
+                        # Update the distance between v and e_1
                         D[name_map[v], name_map[e[1]]] = D[name_map[v], name_map[e[0]]] + 1
+                        # Remeber the last time stamp on this path
                         T[name_map[v], name_map[e[1]]] = ts
-                        P[v][e[1]] = P[v][e[0]]
-    shortest_paths = []
-    for v in t.nodes:
-        for w in t.nodes:
-            if P[v][w] != None:
-                path = [ v ]
-                x = v
-                while x != w:
-                    x = P[x][w]
-                    path.append(x)
-                if len(path)>2:
-                    shortest_paths.append(path)
-    return (D, shortest_paths)
+                        Paths[v][e[1]] = Paths[v][e[0]] + [e[1]]
+    
+    return (D, Paths)
 
 
 def GetTimeRespectingBetweenness(t, start_t=0, delta=1, normalized=False):
@@ -401,17 +401,20 @@ def GetTimeRespectingBetweenness(t, start_t=0, delta=1, normalized=False):
     """
 
     # First calculate all shortest time-respecting paths
-    D, shortest_paths = GetShortestPathMatrix(t, start_t, delta)
+    D, paths = GetDistanceMatrix(t, start_t, delta)
 
     bw = np.array([0]*len(t.nodes))
 
     # Mapping between node names and matrix indices
     name_map = Utilities.firstOrderNameMap( t )
-
-    for path in shortest_paths:
-            for i in range(1, len(path)-1):
-                bw[name_map[path[i]]] += 1
+    k=0
+    for u in t.nodes:
+        for v in t.nodes:
+            if u != v:
+                for i in range(1, len(paths[u][v])-1):
+                    bw[name_map[paths[u][v][i]]] += 1
+                    k+=1
     if normalized:
-        bw = bw/len(shortest_paths)
+        bw = bw/k
     return bw
 
