@@ -101,9 +101,11 @@ class TemporalNetwork:
         call to this method is omitted, it will be run with default parameter \delta=1 whenever two-paths 
         are needed for the first time. 
         
-        @param delta: Indicates the maximum temporal distance below which two consecutive links will be considered as a time-respecting path.
-        For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) will be inferred for all delta 0 < 4, 
-        while no time-respecting path will be inferred for all delta >= 4.
+        @param delta: Indicates the maximum temporal distance below which two consecutive links will be 
+        considered as a time-respecting path. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
+        will be inferred for all delta < 4, while no time-respecting path will be inferred for all delta >= 4. 
+        For the default delta=1, a time-respecting path will be inferred for all u->v will only be inferred 
+        whenever there are directly consecutive time-stamped links (u,v;t) (v,w;t+1)
         """
         self.twopaths = []
         

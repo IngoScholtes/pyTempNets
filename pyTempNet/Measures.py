@@ -339,48 +339,60 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
 
     ordered_times = np.sort(list(time.keys()))
 
-    # This matrix will contain the length of shortest time-respecting paths between all pairs of nodes
+    # Mapping between node names and matrix indices
+    name_map = Utilities.firstOrderNameMap( t )
+
+    # This distance matrix will contain the lengths of shortest 
+    # time-respecting paths between all pairs of nodes
     D = np.zeros(shape=(len(t.nodes),len(t.nodes)))
     D.fill(np.inf)
     np.fill_diagonal(D, 0)
 
-    # Keep a record of the previous time steps on the shortest time-respecting paths
+    # In this matrix, we keep a record of the time stamps of the last 
+    # time-stamped links on alle current shortest time-respecting paths
     T = np.zeros(shape=(len(t.nodes),len(t.nodes)))
-    T.fill(start_t)
+    T.fill(-np.inf)
+    
+    for ts in ordered_times:
+        for e in time[ts]:
+            # initialize the last time stamp for all source nodes that are 
+            # active in the beginning of the link sequence, so that they 
+            # can act as seeds for the time-respecting path construction
+            if ts - start_t < delta:
+                T[name_map[e[0]], name_map[e[0]]] = start_t-1
 
     Paths = defaultdict( lambda: defaultdict( lambda: [] ) )
 
-    # Mapping between node names and matrix indices
-    name_map = Utilities.firstOrderNameMap( t )
-
     # initialize shortest path tree for path reconstruction 
+    for v in t.nodes:
+        Paths[v][v] = [v]
+
     for e in t.igraphFirstOrder().es():
         u = t.igraphFirstOrder().vs["name"][e.source]
         v = t.igraphFirstOrder().vs["name"][e.target]
-        Paths[u][v] = [u,v]
-
-    for v in t.nodes:
-        Paths[v][v] = [v]
+        Paths[u][v] = [u,v]    
     
     # We consider all time-respecting paths starting in any node v at the start time
     for v in t.nodes:        
         # Consider the ordered sequence of time-stamps
         for ts in ordered_times:
            
-            # Consider all links e[0] -> e[1] occurring at a given time-stamp ts
+            # Consider all time-stamped links (e[0], e[1], ts) occuring at time ts
             for e in time[ts]:
                 
-                # If there is a time-respecting path (v -> e_0) and if the previous time step on 
-                # this time-respecting path is not older than ts-delta ...
-                if D[name_map[v], name_map[e[0]]] < np.inf and not T[name_map[v], name_map[e[0]]] < ts - delta:
+                # If there is a time-respecting path v -> e[0] and if the previous time step on 
+                # this time-respecting path is not older than delta ...
+                if D[name_map[v], name_map[e[0]]] < np.inf and ts - T[name_map[v], name_map[e[0]]] > 0 and ts - T[name_map[v], name_map[e[0]]] <= delta:
 
-                    # The time-stamped link (e_0, e_1) leads to a new shortest path (v -> e_0 -> e_1)
-                    # if D[v,e_1] > D[v,e_0] + 1
+                    # ... then the time-stamped link (e[0], e[1], ts) leads to a 
+                    # new shortest path v -> e[0] -> e[1] iff the current distance D[v,e[1]] > D[v,e[0]] + 1
+
                     if D[name_map[v], name_map[e[1]]] > D[name_map[v], name_map[e[0]]] + 1:
-                        # Update the distance between v and e_1
+                        # Update the distance between v and e[1]
                         D[name_map[v], name_map[e[1]]] = D[name_map[v], name_map[e[0]]] + 1
-                        # Remeber the last time stamp on this path
+                        # Remember the last time stamp on this path
                         T[name_map[v], name_map[e[1]]] = ts
+                        # Update the shortest path tree
                         Paths[v][e[1]] = Paths[v][e[0]] + [e[1]]
     
     return (D, Paths)
