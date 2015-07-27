@@ -305,6 +305,23 @@ def PageRank(t, model='SECOND'):
     return pagerank_1/sum(pagerank_1)
 
 
+def GetStaticDistanceMatrix(t):        
+
+    g1 = t.igraphFirstOrder(all_links=True, force=True)
+
+    name_map = Utilities.firstOrderNameMap( t )
+
+    D = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+    D.fill(np.inf)
+    np.fill_diagonal(D, 0)
+
+    for v in g1.vs()["name"]:
+        for w in g1.vs()["name"]:
+            X = g1.get_shortest_paths(v,w)
+            for p in X:
+                D[name_map[v], name_map[w]] = len(p)-1
+    return D
+
 
 def GetDistanceMatrix(t, start_t=0, delta=1):
     """Calculates the (topologically) shortest time-respecting paths between 

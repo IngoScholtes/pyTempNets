@@ -169,15 +169,14 @@ class TemporalNetwork:
 
         return self.tpcount
     
-    def igraphFirstOrder(self):
+    def igraphFirstOrder(self, all_links=False, force=False):
         """Returns the first-order time-aggregated network
            corresponding to this temporal network. This network corresponds to 
            a first-order Markov model reproducing the link statistics in the 
            weighted, time-aggregated network."""
         
-        if self.g1 != 0:
-            return self.g1
-           
+        if self.g1 != 0 and not force:
+            return self.g1                  
            
         # If two-paths have not been extracted yet, do it now
         if self.tpcount == -1:
@@ -185,15 +184,20 @@ class TemporalNetwork:
 
         self.g1 = igraph.Graph(n=len(self.nodes), directed=True)
         self.g1.vs["name"] = self.nodes
-        
-        # Gather all edges and their (accumulated) weights in a directory
+
         edge_list = {}
-        for tp in self.twopaths:
-            key1 = (tp[0], tp[1])
-            key2 = (tp[1], tp[2])
-            # get key{1,2} with default value 0 from edge_list directory
-            edge_list[key1] = edge_list.get(key1, 0) + tp[3]
-            edge_list[key2] = edge_list.get(key2, 0) + tp[3]
+
+        # Gather all edges and their (accumulated) weights in a directory        
+        if all_links:
+            for e in self.tedges:
+                edge_list[(e[0], e[1])] = edge_list.get((e[0], e[1]), 0) + 1
+        else:                    
+            for tp in self.twopaths:
+                key1 = (tp[0], tp[1])
+                key2 = (tp[1], tp[2])
+                # get key{1,2} with default value 0 from edge_list directory
+                edge_list[key1] = edge_list.get(key1, 0) + tp[3]
+                edge_list[key2] = edge_list.get(key2, 0) + tp[3]
             
         # adding all edges at once is much faster as igraph updates internal
         # data structures after each vertex/edge added
