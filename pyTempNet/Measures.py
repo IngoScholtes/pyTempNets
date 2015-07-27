@@ -258,15 +258,31 @@ def BetweennessCentrality(t, model='SECOND'):
         g2 = t.igraphSecondOrderNull()    
 
     # Compute betweenness centrality in second-order network
-    bwcent_2 = np.array(g2.betweenness(weights=g2.es()['weight'], directed=True))
-    
-    # Aggregate to obtain first-order eigenvector centrality
+    # Problem: Simple links in second-order network will not contribute to betweenness centrality 
+    # bwcent_2 = np.array(g2.betweenness(weights=g2.es()['weight'], directed=True))
+
     bwcent_1 = np.zeros(len(name_map))
     sep = t.separator
-    for i in range(len(bwcent_2)):
-        # Get name of target node
-        target = g2.vs()[i]["name"].split(sep)[1]
-        bwcent_1[name_map[target]] += bwcent_2[i]
+    for v in g2.vs()["name"]:
+        for w in g2.vs()["name"]:
+            X = g2.get_shortest_paths(v,w)
+            for p in X:
+                if len(p) > 1:
+                    for i in range(len(p)):
+                        source = g2.vs()["name"][p[i]].split(sep)[0]
+                        target = g2.vs()["name"][p[i]].split(sep)[1]
+                        if i>0:
+                            bwcent_1[name_map[source]] += 1
+                        if i<len(p)-1:
+                            bwcent_1[name_map[target]] += 1
+    
+    # Aggregate to obtain first-order betweenness centralities
+    #bwcent_1 = np.zeros(len(name_map))
+    #sep = t.separator
+    #for i in range(len(bwcent_2)):
+    #    # Get name of target node
+    #    target = g2.vs()[i]["name"].split(sep)[1]
+    #    bwcent_1[name_map[target]] += bwcent_2[i]
     
     return bwcent_1/sum(bwcent_1)
 
@@ -319,7 +335,31 @@ def GetStaticDistanceMatrix(t):
         for w in g1.vs()["name"]:
             X = g1.get_shortest_paths(v,w)
             for p in X:
-                D[name_map[v], name_map[w]] = len(p)-1
+                if len(p)>0:
+                    D[name_map[v], name_map[w]] = len(p)-1
+    return D
+
+
+def GetSecondOrderDistanceMatrix(t):
+
+    g2 = t.igraphSecondOrder()
+
+    name_map = Utilities.firstOrderNameMap( t )
+
+    D = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+    D.fill(np.inf)
+    np.fill_diagonal(D, 0)
+
+    sep = t.separator
+
+    for v in g2.vs()["name"]:
+        source = v.split(sep)[0]
+        for w in g2.vs()["name"]:
+            target = w.split(sep)[1]
+            X = g2.get_shortest_paths(v,w)
+            for p in X:
+                if len(p)>0:
+                    D[name_map[source], name_map[target]] = len(p)
     return D
 
 
@@ -383,17 +423,22 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
     # initialize shortest path tree for path reconstruction 
     for v in t.nodes:
         Paths[v][v] = [v]
-
-    for e in t.igraphFirstOrder().es():
-        u = t.igraphFirstOrder().vs["name"][e.source]
-        v = t.igraphFirstOrder().vs["name"][e.target]
-        Paths[u][v] = [u,v]    
     
+    last_ts = ordered_times[0]
+
     # We consider all time-respecting paths starting in any node v at the start time
     for v in t.nodes:        
         # Consider the ordered sequence of time-stamps
         for ts in ordered_times:
            
+            # Since time stamps are ordered, we can stop as soon the current time stamp 
+            # is more than delta time steps away from the last time step. In this case, by definition 
+            # none of the remaining time-stamped links can contribute to a time-respecting path
+            if ts-last_ts > delta:
+                break
+
+            last_ts = ts
+
             # Consider all time-stamped links (e[0], e[1], ts) occuring at time ts
             for e in time[ts]:
                 
