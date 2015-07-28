@@ -237,56 +237,6 @@ def EigenvectorCentrality(t, model='SECOND'):
     return np.real(evcent_1/sum(evcent_1))
 
 
-def BetweennessCentrality(t, model='SECOND'):
-    """Computes betweenness centralities of nodes based on the second-order aggregate network, 
-    and aggregates betweenness centralities to obtain the betweenness centrality of nodes in the 
-    first-order network.
-    
-    @param t: The temporalnetwork instance to work on
-    @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
-      the default value.
-    """
-
-    if (model is "SECOND" or "NULL") == False:
-        raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
-
-    name_map = Utilities.firstOrderNameMap( t )
-
-    if model == 'SECOND':
-        g2 = t.igraphSecondOrder()
-    else:
-        g2 = t.igraphSecondOrderNull()    
-
-    # Compute betweenness centrality in second-order network
-    # Problem: Simple links in second-order network will not contribute to betweenness centrality 
-    # bwcent_2 = np.array(g2.betweenness(weights=g2.es()['weight'], directed=True))
-
-    bwcent_1 = np.zeros(len(name_map))
-    sep = t.separator
-    for v in g2.vs()["name"]:
-        for w in g2.vs()["name"]:
-            X = g2.get_shortest_paths(v,w)
-            for p in X:
-                if len(p) > 1:
-                    for i in range(len(p)):
-                        source = g2.vs()["name"][p[i]].split(sep)[0]
-                        target = g2.vs()["name"][p[i]].split(sep)[1]
-                        if i>0:
-                            bwcent_1[name_map[source]] += 1
-                        if i<len(p)-1:
-                            bwcent_1[name_map[target]] += 1
-    
-    # Aggregate to obtain first-order betweenness centralities
-    #bwcent_1 = np.zeros(len(name_map))
-    #sep = t.separator
-    #for i in range(len(bwcent_2)):
-    #    # Get name of target node
-    #    target = g2.vs()[i]["name"].split(sep)[1]
-    #    bwcent_1[name_map[target]] += bwcent_2[i]
-    
-    return bwcent_1/sum(bwcent_1)
-
-
 def PageRank(t, model='SECOND'):
     """Computes PageRank of nodes based on the second-order aggregate network, 
     and aggregates PageRank values to obtain the PageRank of nodes in the
@@ -321,7 +271,7 @@ def PageRank(t, model='SECOND'):
     return pagerank_1/sum(pagerank_1)
 
 
-def GetStaticDistanceMatrix(t):        
+def GetFirstOrderDistanceMatrix(t):        
     """Calculates a matrix D containing the shortest path lengths between all
     pairs of nodes calculated based on the topology of the *first-order* aggregate network. 
     The ordering of rows/columns corresponds to the ordering of nodes in the vertex sequence of 
@@ -353,7 +303,7 @@ def GetStaticDistanceMatrix(t):
     return D
 
 
-def GetSecondOrderDistanceMatrix(t):
+def GetSecondOrderDistanceMatrix(t, model='SECOND'):
     """Calculates a matrix D containing the shortest path lengths between all
     pairs of nodes calculated based on the topology of the *second-order* aggregate network. 
     The ordering of rows/columns corresponds to the ordering of nodes in the vertex sequence of 
@@ -361,12 +311,20 @@ def GetSecondOrderDistanceMatrix(t):
     found in Utilities.firstOrderNameMap().    
     
     @param t: the temporal network to calculate shortest path lengths for based on a second-order
-        aggregate representation    
+        aggregate representation 
+    @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
+      the default value.   
     """   
 
-    g2 = t.igraphSecondOrder()
+    if (model is "SECOND" or "NULL") == False:
+        raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
 
     name_map = Utilities.firstOrderNameMap( t )
+
+    if model == 'SECOND':
+        g2 = t.igraphSecondOrder()
+    else:
+        g2 = t.igraphSecondOrderNull()    
 
     D = np.zeros(shape=(len(t.nodes),len(t.nodes)))
     D.fill(np.inf)
@@ -394,10 +352,9 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
             in the vertex sequence of the igraph first order time-aggregated network. A
             mapping between nodes and indices can be found in Utilities.firstOrderNameMap().
         2) a list of shortest time-respecting paths, each entry being an ordered sequence 
-            of nodes on the corresponding path. This list can be used to compute the 
-            time-respecting path betweenness of nodes in a temporal network
+            of nodes on the corresponding path.
     
-    @param t: the temporal network to calculate shortest path for
+    @param t: the temporal network to calculate shortest time-respecting paths for
     @param start_t: the start time for which to consider time-respecting paths (default 0)
     @param delta: the maximum waiting time used in the time-respecting path definition (default 1)
     """   
@@ -479,6 +436,45 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
     return (D, Paths)
 
 
+def BetweennessCentrality(t, model='SECOND'):
+    """Computes betweenness centralities of nodes based on the second-order aggregate network, 
+    and aggregates betweenness centralities to obtain the betweenness centrality of nodes in the 
+    first-order network.
+    
+    @param t: The temporalnetwork instance to work on
+    @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
+      the default value.
+    """
+
+    if (model is "SECOND" or "NULL") == False:
+        raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
+
+    name_map = Utilities.firstOrderNameMap( t )
+
+    if model == 'SECOND':
+        g2 = t.igraphSecondOrder()
+    else:
+        g2 = t.igraphSecondOrderNull()    
+
+    # Compute betweenness centrality based on second-order network
+    bwcent_1 = np.zeros(len(name_map))
+    sep = t.separator
+    for v in g2.vs()["name"]:
+        for w in g2.vs()["name"]:
+            X = g2.get_shortest_paths(v,w)
+            for p in X:
+                if len(p) > 1:
+                    for i in range(len(p)):
+                        source = g2.vs()["name"][p[i]].split(sep)[0]
+                        target = g2.vs()["name"][p[i]].split(sep)[1]
+                        if i>0:
+                            bwcent_1[name_map[source]] += 1
+                        if i<len(p)-1:
+                            bwcent_1[name_map[target]] += 1    
+    
+    return bwcent_1/sum(bwcent_1)
+
+
 def GetAvgTimeRespectingBetweenness(t, delta=1, normalized=False):
     """Calculates the average temporal betweenness centralities of all nodes 
     in a temporal network t, using a time-respecting path definition with a 
@@ -549,6 +545,34 @@ def GetTimeRespectingBetweenness(t, start_t=0, delta=1, normalized=False):
     if normalized:
         bw = bw/k
     return bw
+
+
+def GetStaticCloseness(t, model='SECOND'):
+    """Computes closeness centralities of nodes based on the first- or second-order time-aggregated network.
+    
+    @param t: The temporal network instance for which closeness centralities will be computed
+    @param model: either C{"FIRST"}, C{"SECOND"} or C{"SECONDNULL"}, where C{"SECOND"} is the 
+      the default value.
+    """
+
+    if model =='FIRST':
+        D = GetFirstOrderDistanceMatrix(t)
+    else:
+        D = GetSecondOrderDistanceMatrix(t, model)
+
+    name_map = Utilities.firstOrderNameMap( t )
+
+    closeness = np.zeros(len(name_map))
+
+    # Calculate closeness for each node u, by summing the reciprocal of its 
+    # distances to all other nodes. Note that this definition of closeness centrality 
+    # is required for directed networks that are not strongly connected. 
+    for u in t.nodes:
+        for v in t.nodes:
+            if u!=v:
+                closeness[name_map[u]] += 1./D[name_map[v], name_map[u]]
+    
+    return closeness
 
 
 def GetAvgTimeRespectingCloseness(t, delta=1):
