@@ -592,15 +592,34 @@ def GetAvgTimeRespectingCloseness(t, delta=1):
 
     cl = np.array([0.]*len(t.nodes))
 
+    # Entry [u,v] contains the total closeness of node u to v
+    closeness_per_node = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+
+    # Entry [u,v] contains the total number of non-zero closenesses between u and v
+    counts_per_node = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+
+    # Get a mapping between node names and matrix indices
+    name_map = Utilities.firstOrderNameMap( t )
+
     # Calculate time-respecting closeness centralities for all possible starting times 
     S = 0
     for start_t in t.ordered_times:
-        cl_temp = GetTimeRespectingCloseness(t, start_t, delta)
-        cl += cl_temp
-        S += 1
+         D, paths = GetDistanceMatrix(t, start_t, delta)    
+         for u in t.nodes:
+            for v in t.nodes:
+                if u!=v:
+                    closeness_per_node[name_map[v], name_map[u]] += 1./D[name_map[v], name_map[u]]
+                    if D[name_map[v], name_map[u]]<np.inf:
+                        counts_per_node[name_map[v], name_map[u]] += 1
+
+    # Average closeness values 
+    for u in t.nodes:
+        for v in t.nodes:
+            if closeness_per_node[name_map[v], name_map[u]]>0:
+                cl[name_map[u]] += closeness_per_node[name_map[v], name_map[u]]/counts_per_node[name_map[v], name_map[u]]
 
     # Return average values
-    return cl/S
+    return cl
 
 
 def GetTimeRespectingCloseness(t, start_t=0, delta=1):
