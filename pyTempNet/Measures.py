@@ -609,13 +609,16 @@ def GetAvgTimeRespectingCloseness(t, delta=1):
          for u in t.nodes:
             for v in t.nodes:
                 if u!=v:
+                    # Store the closeness of node u from v
                     closeness_per_node[name_map[v], name_map[u]] += 1./D[name_map[v], name_map[u]]
+                    # Count how many paths we have seen to node u from v
                     if D[name_map[v], name_map[u]]<np.inf:
                         counts_per_node[name_map[v], name_map[u]] += 1
 
     # Average closeness values 
     for u in t.nodes:
         for v in t.nodes:
+            # Closeness of node u is the sum of the avg. closeness of node u from each node v
             if closeness_per_node[name_map[v], name_map[u]]>0:
                 cl[name_map[u]] += closeness_per_node[name_map[v], name_map[u]]/counts_per_node[name_map[v], name_map[u]]
 
