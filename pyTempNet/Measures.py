@@ -340,6 +340,7 @@ def GetSecondOrderDistanceMatrix(t, model='SECOND'):
             for p in X:
                 if len(p)>0:
                     D[name_map[source], name_map[target]] = len(p)
+                    #print(source, '->', target, ':', p)
     return D
 
 
