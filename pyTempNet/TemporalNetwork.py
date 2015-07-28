@@ -33,6 +33,7 @@ class TemporalNetwork:
                 self.nodes.append(source)
             if target not in self.nodes:
                 self.nodes.append(target)
+
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
         self.twopathsByTime = defaultdict( lambda: dict() )
@@ -57,12 +58,27 @@ class TemporalNetwork:
                 t +=1
             self.tpcount = len(twopaths)
 
+         # Generate some index structures to quickly access tedges by time, target and source
+        self.time = defaultdict( lambda: list() )
+        self.targets = defaultdict( lambda: dict() )
+        self.sources = defaultdict( lambda: dict() )
+        for e in self.tedges:
+            source = e[0]
+            target = e[1]
+            ts = e[2]
+
+            self.time[ts].append(e)
+            self.targets[ts].setdefault(target, []).append(e)
+            self.sources[ts].setdefault(source, []).append(e)
+
+        self.ordered_times = np.sort(list(self.time.keys()))
+
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
         
 
-    def addEdge(self, source, target, time):
+    def addEdge(self, source, target, ts):
         """Adds a directed time-stamped edge (source,target;time) to the temporal network. To add an undirected 
             time-stamped link (u,v;t) at time t, please call addEdge(u,v;t) and addEdge(v,u;t).
         
@@ -70,14 +86,26 @@ class TemporalNetwork:
         @param target: name of the target node of a directed, time-stamped link
         @param time: (integer) time-stamp of the time-stamped link
         """
-        
-        self.tedges.append((source, target, time))
+        e = (source, target, ts)
+        self.tedges.append(e)
         if source not in self.nodes:
             self.nodes.append(source)
         if target not in self.nodes:
             self.nodes.append(target)
-            
+
+        # Add edge to index structures
+        self.time[ts].append(e)
+        self.targets[ts].setdefault(target, []).append(e)
+        self.sources[ts].setdefault(source, []).append(e)
+
+        # Reorder time stamps
+        self.ordered_times = np.sort(list(self.time.keys()))
+        
+        # Invalidate indexed data 
         self.tpcount = -1
+        self.twopaths = []
+        self.twopathsByNode = defaultdict( lambda: dict() )
+        self.twopathsByTime = defaultdict( lambda: dict() )
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
@@ -108,40 +136,29 @@ class TemporalNetwork:
         whenever there are directly consecutive time-stamped links (u,v;t) (v,w;t+1)
         """
         self.twopaths = []
-        
-        # An index structure to quickly access tedges by time, target and source
-        time = defaultdict( lambda: list() )
-        targets = defaultdict( lambda: dict() )
-        sources = defaultdict( lambda: dict() )
-        for e in self.tedges:
-            source = e[0]
-            target = e[1]
-            ts = e[2]
-            
-            time[ts].append(e)
-            targets[ts].setdefault(target, []).append(e)
-            sources[ts].setdefault(source, []).append(e)
+        self.twopathsByNode = defaultdict( lambda: dict() )
+        self.twopathsByTime = defaultdict( lambda: dict() )
 
         # Extract time-respecting paths of length two             
         prev_t = -1
-        for t in np.sort(list(time.keys())):
+        for t in self.ordered_times:
             if prev_t ==-1: 
                 pass
             elif prev_t < t-delta:
                 pass
             else:
-                for v in targets[prev_t]:
-                    if v in sources[t]:
-                        for e_out in sources[t][v]:
-                            for e_in in targets[prev_t][v]:
+                for v in self.targets[prev_t]:
+                    if v in self.sources[t]:
+                        for e_out in self.sources[t][v]:
+                            for e_in in self.targets[prev_t][v]:
                                 s = e_in[0]
                                 d = e_out[1]
                                 
                                 # TODO: Add support for weighted time-
                                 # TODO: stamped links
                                 pass
-                                indeg_v = len(targets[prev_t][v])
-                                outdeg_v = len(sources[t][v])                                
+                                indeg_v = len(self.targets[prev_t][v])
+                                outdeg_v = len(self.sources[t][v])                                
                                 
                                 # Create a weighted two-path tuple
                                 # (s, v, d, weight)
@@ -345,7 +362,7 @@ class TemporalNetwork:
         
         t = 0
         
-        times = list(self.twopathsByTime.keys())        
+        times = list(self.twopathsByTime.keys())
         
         if l==0:
             l = len(self.tedges)
@@ -373,12 +390,7 @@ class TemporalNetwork:
         """Generates a tikz file that can be compiled to obtain a time-unfolded 
             representation of the temporal network.
             
-        @param filename: the name of the tex file to be generated."""
-    
-        # An index structure to quickly access tedges by time
-        time = defaultdict( lambda: list() )
-        for e in self.tedges:
-            time[e[2]].append(e)
+        @param filename: the name of the tex file to be generated."""    
         
         output = []
             
@@ -421,8 +433,8 @@ class TemporalNetwork:
         output.append("\\path[->,thick]\n")
         i = 1
         
-        for t in time:
-            for edge in time[t]:
+        for t in self.ordered_time:
+            for edge in self.time[t]:
                 output.append("(" + edge[0] + "-" + str(t+1) + ") edge (" + edge[1] + "-" + str(t + 2) + ")\n")
                 i += 1                                
         output.append(";\n")
@@ -480,12 +492,7 @@ class TemporalNetwork:
             will be exported.
         """
 
-        g = self.igraphFirstOrder()
-
-        # An index structure to quickly access tedges by time
-        time = defaultdict( lambda: list() )
-        for e in self.tedges:
-            time[e[2]].append(e)
+        g = self.igraphFirstOrder()        
 
         if visual_style == None:
             print('No visual style specified, setting to defaults')
@@ -506,9 +513,9 @@ class TemporalNetwork:
         i = 0
         # Generate movie frames
         if realtime == True:
-            t_range = range(min(time.keys()), max(time.keys())+1)
+            t_range = range(min(self.time.keys()), max(self.time.keys())+1)
         else:
-            t_range = list(time.keys())
+            t_range = self.ordered_times
 
         if maxSteps>0:
             t_range = t_range[:maxSteps]
@@ -518,7 +525,7 @@ class TemporalNetwork:
             slice = igraph.Graph(n=len(g.vs()), directed=True)
             slice.vs["name"] = g.vs["name"]
 
-            for e in time[t]:
+            for e in self.time[t]:
                 slice.add_edge(e[0], e[1])
             igraph.plot(slice, fileprefix + '_frame_' + str(t).zfill(5) + '.png', **visual_style)
             if i % 100 == 0:

@@ -377,24 +377,7 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
     @param t: the temporal network to calculate shortest path for
     @param start_t: the start time for which to consider time-respecting paths (default 0)
     @param delta: the maximum waiting time used in the time-respecting path definition (default 1)
-    """
-
-    # We first build some index structures to quickly access tedges by time, target and source
-    time = defaultdict( lambda: list() )
-    targets = defaultdict( lambda: dict() )
-    sources = defaultdict( lambda: dict() )
-    for e in t.tedges:
-        source = e[0]
-        target = e[1]
-        ts = e[2]
-
-        # Only keep those time-stamped edges that occur after the start_time
-        if ts >= start_t:
-            time[ts].append(e)
-            targets[ts].setdefault(target, []).append(e)
-            sources[ts].setdefault(source, []).append(e)
-
-    ordered_times = np.sort(list(time.keys()))
+    """   
 
     # Mapping between node names and matrix indices
     name_map = Utilities.firstOrderNameMap( t )
@@ -409,55 +392,65 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
     # time-stamped links on alle current shortest time-respecting paths
     T = np.zeros(shape=(len(t.nodes),len(t.nodes)))
     T.fill(-np.inf)
+
+    last_ts = -np.inf
     
-    for ts in ordered_times:
-        for e in time[ts]:
-            # initialize the last time stamp for all source nodes that are 
-            # active in the beginning of the link sequence, so that they 
-            # can act as seeds for the time-respecting path construction
-            if ts - start_t < delta:
-                T[name_map[e[0]], name_map[e[0]]] = start_t-1
+    for ts in t.ordered_times:
+        if ts >= start_t:
+            if last_ts < 0:
+                last_ts = ts
+            for e in t.time[ts]:
+                # initialize the last time stamp for all source nodes that are 
+                # active in the beginning of the link sequence, so that they 
+                # can act as seeds for the time-respecting path construction
+                if ts - start_t < delta:
+                    T[name_map[e[0]], name_map[e[0]]] = start_t-1
 
     Paths = defaultdict( lambda: defaultdict( lambda: [] ) )
 
     # initialize shortest path tree for path reconstruction 
     for v in t.nodes:
-        Paths[v][v] = [v]
-    
-    last_ts = ordered_times[0]
+        Paths[v][v] = [v]       
 
     # We consider all time-respecting paths starting in any node v at the start time
     for v in t.nodes:        
         # Consider the ordered sequence of time-stamps
-        for ts in ordered_times:
-           
-            # Since time stamps are ordered, we can stop as soon the current time stamp 
-            # is more than delta time steps away from the last time step. In this case, by definition 
-            # none of the remaining time-stamped links can contribute to a time-respecting path
-            if ts-last_ts > delta:
-                break
+        for ts in t.ordered_times:
+            
+            if ts >= start_t:                           
+                # Since time stamps are ordered, we can stop as soon the current time stamp 
+                # is more than delta time steps away from the last time step. In this case, by definition 
+                # none of the remaining time-stamped links can contribute to a time-respecting path
+                if ts-last_ts > delta:
+                    break
 
-            last_ts = ts
+                last_ts = ts
 
-            # Consider all time-stamped links (e[0], e[1], ts) occuring at time ts
-            for e in time[ts]:
+                # Consider all time-stamped links (e[0], e[1], ts) occuring at time ts
+                for e in t.time[ts]:
                 
-                # If there is a time-respecting path v -> e[0] and if the previous time step on 
-                # this time-respecting path is not older than delta ...
-                if D[name_map[v], name_map[e[0]]] < np.inf and ts - T[name_map[v], name_map[e[0]]] > 0 and ts - T[name_map[v], name_map[e[0]]] <= delta:
+                    # If there is a time-respecting path v -> e[0] and if the previous time step on 
+                    # this time-respecting path is not older than delta ...
+                    if D[name_map[v], name_map[e[0]]] < np.inf and ts - T[name_map[v], name_map[e[0]]] > 0 and ts - T[name_map[v], name_map[e[0]]] <= delta:
 
-                    # ... then the time-stamped link (e[0], e[1], ts) leads to a 
-                    # new shortest path v -> e[0] -> e[1] iff the current distance D[v,e[1]] > D[v,e[0]] + 1
+                        # ... then the time-stamped link (e[0], e[1], ts) leads to a 
+                        # new shortest path v -> e[0] -> e[1] iff the current distance D[v,e[1]] > D[v,e[0]] + 1
 
-                    if D[name_map[v], name_map[e[1]]] > D[name_map[v], name_map[e[0]]] + 1:
-                        # Update the distance between v and e[1]
-                        D[name_map[v], name_map[e[1]]] = D[name_map[v], name_map[e[0]]] + 1
-                        # Remember the last time stamp on this path
-                        T[name_map[v], name_map[e[1]]] = ts
-                        # Update the shortest path tree
-                        Paths[v][e[1]] = Paths[v][e[0]] + [e[1]]
-    
+                        if D[name_map[v], name_map[e[1]]] > D[name_map[v], name_map[e[0]]] + 1:
+                            # Update the distance between v and e[1]
+                            D[name_map[v], name_map[e[1]]] = D[name_map[v], name_map[e[0]]] + 1
+                            # Remember the last time stamp on this path
+                            T[name_map[v], name_map[e[1]]] = ts
+                            # Update the shortest path tree
+                            Paths[v][e[1]] = Paths[v][e[0]] + [e[1]]    
     return (D, Paths)
+
+
+def GetAvgTimeRespectingBetweenness(t, delta=1, normalized=False):
+
+    for start_t in range(len(t.tedges)):
+        bw = GetTimeRespectingBetweenness(t, start_t, delta, nornalized = False)
+
 
 
 def GetTimeRespectingBetweenness(t, start_t=0, delta=1, normalized=False):
