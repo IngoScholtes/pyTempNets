@@ -284,7 +284,7 @@ def GetFirstOrderDistanceMatrix(t):
 
     # This way of generating the first-order time-aggregated network makes sure that 
     # links are not omitted even if they do not contribute to any time-respecting path
-    g1 = t.igraphFirstOrder(all_links=True, force=True)
+    g1 = t.igraphFirstOrder(all_links=False, force=True)
 
     name_map = Utilities.firstOrderNameMap( t )
 
@@ -339,7 +339,7 @@ def GetSecondOrderDistanceMatrix(t, model='SECOND'):
             X = g2.get_shortest_paths(v,w)
             for p in X:
                 if len(p)>0:
-                    D[name_map[source], name_map[target]] = len(p)
+                    D[name_map[source], name_map[target]] = min(len(p), D[name_map[source], name_map[target]])
                     #print(source, '->', target, ':', p)
     return D
 
@@ -609,10 +609,9 @@ def GetAvgTimeRespectingCloseness(t, delta=1):
          for u in t.nodes:
             for v in t.nodes:
                 if u!=v:
-                    # Store the closeness of node u from v
-                    closeness_per_node[name_map[v], name_map[u]] += 1./D[name_map[v], name_map[u]]
-                    # Count how many paths we have seen to node u from v
+                    # Store the closeness of node u from v and count how many paths we have seen to node u from v
                     if D[name_map[v], name_map[u]]<np.inf:
+                        closeness_per_node[name_map[v], name_map[u]] += D[name_map[v], name_map[u]]
                         counts_per_node[name_map[v], name_map[u]] += 1
 
     # Average closeness values 
@@ -620,7 +619,10 @@ def GetAvgTimeRespectingCloseness(t, delta=1):
         for v in t.nodes:
             # Closeness of node u is the sum of the avg. closeness of node u from each node v
             if closeness_per_node[name_map[v], name_map[u]]>0:
-                cl[name_map[u]] += closeness_per_node[name_map[v], name_map[u]]/counts_per_node[name_map[v], name_map[u]]
+                closeness_per_node[name_map[v], name_map[u]] = 1./(closeness_per_node[name_map[v], name_map[u]]/counts_per_node[name_map[v], name_map[u]])
+    for u in t.nodes:
+        for v in t.nodes:
+            cl[name_map[u]] += closeness_per_node[name_map[v], name_map[u]]
 
     # Return average values
     return cl
