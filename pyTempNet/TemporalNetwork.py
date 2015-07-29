@@ -433,9 +433,9 @@ class TemporalNetwork:
         output.append("\\path[->,thick]\n")
         i = 1
         
-        for t in self.ordered_time:
+        for t in self.ordered_times:
             for edge in self.time[t]:
-                output.append("(" + edge[0] + "-" + str(t+1) + ") edge (" + edge[1] + "-" + str(t + 2) + ")\n")
+                output.append("(" + edge[0] + "-" + str(t) + ") edge (" + edge[1] + "-" + str(t + 1) + ")\n")
                 i += 1                                
         output.append(";\n")
         output.append("""\end{tikzpicture}

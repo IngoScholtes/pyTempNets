@@ -471,7 +471,7 @@ def BetweennessCentrality(t, model='SECOND'):
                         if i>0:
                             bwcent_1[name_map[source]] += 1
                         if i<len(p)-1:
-                            bwcent_1[name_map[target]] += 1    
+                            bwcent_1[name_map[target]] += 1
     
     return bwcent_1/sum(bwcent_1)
 
