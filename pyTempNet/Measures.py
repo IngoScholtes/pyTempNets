@@ -13,6 +13,8 @@ import scipy.sparse.linalg as sla
 from collections import defaultdict
 import sys
 
+import bisect
+
 from pyTempNet import Utilities
 
 def Laplacian(temporalnet, model="SECOND"):
@@ -284,7 +286,7 @@ def GetFirstOrderDistanceMatrix(t):
 
     # This way of generating the first-order time-aggregated network makes sure that 
     # links are not omitted even if they do not contribute to any time-respecting path
-    g1 = t.igraphFirstOrder(all_links=False, force=True)
+    g1 = t.igraphFirstOrder(all_links=True, force=True)
 
     name_map = Utilities.firstOrderNameMap( t )
 
@@ -382,20 +384,23 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
     # This will take the time stamp of the time-stamped edge considered 
     # in the previous step of the algorithm
     last_ts = -np.inf
-        
-    for ts in t.ordered_times:
-        if ts >= start_t:
+    
+    # Find th first index i such that ordered_times[i] is greater or equal than the given start_t
+    start_ix = bisect.bisect_left(t.ordered_times, start_t)
 
-            # We further initialize last_ts to the first time-stamp to be considered
-            if last_ts < 0:
+    # We need to check at most delta iterations, since t.ordered_times[i+delta]-start_t >= delta
+    for j in range(start_ix, len(t.ordered_times)):
+        ts = t.ordered_times[j]
+        if last_ts < 0:
                 last_ts = ts
-
-            # We initialize the last time stamp for all source nodes that are 
+        # We initialize the last time stamp for all source nodes that are 
             # active in the beginning of the link sequence, so that they 
-            # can act as seeds for the time-respecting path construction.     
-            for e in t.time[ts]:
-                if ts - start_t < delta:
-                    T[name_map[e[0]], name_map[e[0]]] = start_t-1
+            # can act as seeds for the time-respecting path construction.  
+        if ts - start_t < delta:
+            for e in t.time[ts]:                
+                T[name_map[e[0]], name_map[e[0]]] = start_t-1
+        else:
+                break
 
     Paths = defaultdict( lambda: defaultdict( lambda: [] ) )
 
@@ -405,35 +410,36 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
 
     # We consider all time-respecting paths starting in any node v at the start time
     for v in t.nodes:
-        # Consider the ordered sequence of time-stamps
-        for ts in t.ordered_times:
-            
-            if ts >= start_t:                           
-                # Since time stamps are ordered, we can stop as soon the current time stamp 
-                # is more than delta time steps away from the last time step. In this case, by definition 
-                # none of the future time-stamped links can contribute to a time-respecting path
-                if ts-last_ts > delta:
-                    break
+        # Consider the ordered sequence of time-stamps, starting from the first index greater or equal to start_t
+        for j in range(start_ix, len(t.ordered_times)):
+            ts = t.ordered_times[j]
 
-                last_ts = ts
+            assert ts >= start_t                         
+            # Since time stamps are ordered, we can stop as soon the current time stamp 
+            # is more than delta time steps away from the last time step. In this case, by definition 
+            # none of the future time-stamped links can contribute to a time-respecting path
+            if ts-last_ts > delta:
+                break
 
-                # Consider all time-stamped links (e[0], e[1], ts) occuring at time ts
-                for e in t.time[ts]:
+            last_ts = ts
+
+            # Consider all time-stamped links (e[0], e[1], ts) occuring at time ts
+            for e in t.time[ts]:
                 
-                    # If there is a time-respecting path v -> e[0] and if the previous time step on 
-                    # this time-respecting path is not older than delta ...
-                    if D[name_map[v], name_map[e[0]]] < np.inf and ts - T[name_map[v], name_map[e[0]]] > 0 and ts - T[name_map[v], name_map[e[0]]] <= delta:
+                # If there is a time-respecting path v -> e[0] and if the previous time step on 
+                # this time-respecting path is not older than delta ...
+                if D[name_map[v], name_map[e[0]]] < np.inf and ts - T[name_map[v], name_map[e[0]]] > 0 and ts - T[name_map[v], name_map[e[0]]] <= delta:
 
-                        # ... then the time-stamped link (e[0], e[1], ts) leads to a 
-                        # new shortest path v -> e[0] -> e[1] iff the current distance D[v,e[1]] > D[v,e[0]] + 1
+                    # ... then the time-stamped link (e[0], e[1], ts) leads to a 
+                    # new shortest path v -> e[0] -> e[1] iff the current distance D[v,e[1]] > D[v,e[0]] + 1
 
-                        if D[name_map[v], name_map[e[1]]] > D[name_map[v], name_map[e[0]]] + 1:
-                            # Update the distance between v and e[1]
-                            D[name_map[v], name_map[e[1]]] = D[name_map[v], name_map[e[0]]] + 1
-                            # Remember the last time stamp on this path
-                            T[name_map[v], name_map[e[1]]] = ts
-                            # Update the shortest path tree
-                            Paths[v][e[1]] = Paths[v][e[0]] + [e[1]]    
+                    if D[name_map[v], name_map[e[1]]] > D[name_map[v], name_map[e[0]]] + 1:
+                        # Update the distance between v and e[1]
+                        D[name_map[v], name_map[e[1]]] = D[name_map[v], name_map[e[0]]] + 1
+                        # Remember the last time stamp on this path
+                        T[name_map[v], name_map[e[1]]] = ts
+                        # Update the shortest path tree
+                        Paths[v][e[1]] = Paths[v][e[0]] + [e[1]]    
     return (D, Paths)
 
 
