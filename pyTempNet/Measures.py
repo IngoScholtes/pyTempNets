@@ -11,6 +11,11 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 import scipy.linalg as la
 
+from collections import defaultdict
+import sys
+
+import bisect
+
 from pyTempNet import Utilities
 
 def Laplacian(temporalnet, model="SECOND"):
@@ -35,7 +40,7 @@ def Laplacian(temporalnet, model="SECOND"):
     return I-T2
 
 
-def FiedlerVectorSparse(temporalnet, model="SECOND", normalize=True):
+def FiedlerVectorSparse(temporalnet, model="SECOND", normalize=True, lanczosVecs=15, maxiter=10):
     """Returns the Fiedler vector of the second-order (model=SECOND) or the
     second-order null (model=NULL) model for a temporal network. The Fiedler 
     vector can be used for a spectral bisectioning of the network.
@@ -51,17 +56,25 @@ def FiedlerVectorSparse(temporalnet, model="SECOND", normalize=True):
     @param normalize: whether (default) or not to normalize the fiedler vector.
       Normalization is done such that the sum of squares equals one in order to
       get reasonable values as entries might be positive and negative.
+    @param lanczosVecs: number of Lanczos vectors to be used in the approximate
+        calculation of eigenvectors and eigenvalues. This maps to the ncv parameter 
+        of scipy's underlying function eigs. 
+    @param maxiter: scaling factor for the number of iterations to be used in the 
+        approximate calculation of eigenvectors and eigenvalues. The number of iterations 
+        passed to scipy's underlying eigs function will be n*maxiter where n is the 
+        number of rows/columns of the Laplacian matrix.
     """
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
     
     # NOTE: The transposed matrix is needed to get the "left" eigen vectors
     L = Laplacian(temporalnet, model)
-    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: ncv=lanczosVecs sets additional auxiliary eigenvectors that are computed
     # NOTE: in order to be more confident to find the one with the largest
     # NOTE: magnitude, see
     # NOTE: https://github.com/scipy/scipy/issues/4987
-    w = sla.eigs( L, k=2, which="SM", ncv=13, return_eigenvectors=False )
+    maxiter = maxiter*L.get_shape()[0]
+    w = sla.eigs( L, k=2, which="SM", ncv=lanczosVecs, return_eigenvectors=False, maxiter=maxiter )
     
     # compute a sparse LU decomposition and solve for the eigenvector 
     # corresponding to the second largest eigenvalue
@@ -232,8 +245,8 @@ def SlowDownFactor(t):
 
 
 def EigenvectorCentrality(t, model='SECOND'):
-    """Computes eigenvector centralities of nodes in the second-order networks, 
-    and aggregates them to obtain the eigenvector centrality of nodes in the 
+    """Computes eigenvector centralities of nodes in the second-order aggregate network, 
+    and aggregates eigenvector centralities to obtain the eigenvector centrality of nodes in the 
     first-order network.
     
     @param t: The temporalnetwork instance to work on
@@ -265,43 +278,9 @@ def EigenvectorCentrality(t, model='SECOND'):
     return np.real(evcent_1/sum(evcent_1))
 
 
-def BetweennessCentrality(t, model='SECOND'):
-    """Computes betweenness centralities of nodes in the second-order networks, 
-    and aggregates them to obtain the betweenness centrality of nodes in the 
-    first-order network.
-    
-    @param t: The temporalnetwork instance to work on
-    @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
-      the default value.
-    """
-
-    if (model is "SECOND" or "NULL") == False:
-        raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
-
-    name_map = Utilities.firstOrderNameMap( t )
-
-    if model == 'SECOND':
-        g2 = t.igraphSecondOrder()
-    else:
-        g2 = t.igraphSecondOrderNull()    
-
-    # Compute betweenness centrality in second-order network
-    bwcent_2 = np.array(g2.betweenness(weights=g2.es()['weight'], directed=True))
-    
-    # Aggregate to obtain first-order eigenvector centrality
-    bwcent_1 = np.zeros(len(name_map))
-    sep = t.separator
-    for i in range(len(bwcent_2)):
-        # Get name of target node
-        target = g2.vs()[i]["name"].split(sep)[1]
-        bwcent_1[name_map[target]] += bwcent_2[i]
-    
-    return bwcent_1/sum(bwcent_1)
-
-
 def PageRank(t, model='SECOND'):
-    """Computes PageRank of nodes in the second-order networks, 
-    and aggregates them to obtain the PageRank of nodes in the 
+    """Computes PageRank of nodes based on the second-order aggregate network, 
+    and aggregates PageRank values to obtain the PageRank of nodes in the
     first-order network.
     
     @param t: The temporalnetwork instance to work on
@@ -332,3 +311,397 @@ def PageRank(t, model='SECOND'):
     
     return pagerank_1/sum(pagerank_1)
 
+
+def GetFirstOrderDistanceMatrix(t):        
+    """Calculates a matrix D containing the shortest path lengths between all
+    pairs of nodes calculated based on the topology of the *first-order* aggregate network. 
+    The ordering of rows/columns corresponds to the ordering of nodes in the vertex sequence of 
+    the igraph first order time-aggregated network. A mapping between nodes and indices can be 
+    found in Utilities.firstOrderNameMap().    
+    
+    @param t: the temporal network to calculate shortest path lengths for based on a first-order
+        aggregate representation    
+    """   
+
+    # This way of generating the first-order time-aggregated network makes sure that 
+    # links are not omitted even if they do not contribute to any time-respecting path
+    g1 = t.igraphFirstOrder(all_links=True, force=True)
+
+    name_map = Utilities.firstOrderNameMap( t )
+
+    D = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+    D.fill(np.inf)
+    np.fill_diagonal(D, 0)
+
+    for v in g1.vs()["name"]:
+        for w in g1.vs()["name"]:
+
+            # Compute all shortest paths using igraph
+            X = g1.get_shortest_paths(v,w)
+            for p in X:
+                if len(p)>0:
+                    D[name_map[v], name_map[w]] = len(p)-1
+    return D
+
+
+def GetSecondOrderDistanceMatrix(t, model='SECOND'):
+    """Calculates a matrix D containing the shortest path lengths between all
+    pairs of nodes calculated based on the topology of the *second-order* aggregate network. 
+    The ordering of rows/columns corresponds to the ordering of nodes in the vertex sequence of 
+    the igraph first order time-aggregated network. A mapping between nodes and indices can be 
+    found in Utilities.firstOrderNameMap().    
+    
+    @param t: the temporal network to calculate shortest path lengths for based on a second-order
+        aggregate representation 
+    @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
+      the default value.   
+    """   
+
+    if (model is "SECOND" or "NULL") == False:
+        raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
+
+    name_map = Utilities.firstOrderNameMap( t )
+
+    if model == 'SECOND':
+        g2 = t.igraphSecondOrder()
+    else:
+        g2 = t.igraphSecondOrderNull()    
+
+    D = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+    D.fill(np.inf)
+    np.fill_diagonal(D, 0)
+
+    sep = t.separator
+
+    for v in g2.vs()["name"]:
+        source = v.split(sep)[0]
+        for w in g2.vs()["name"]:
+            target = w.split(sep)[1]
+            X = g2.get_shortest_paths(v,w)
+            for p in X:
+                if len(p)>0:
+                    D[name_map[source], name_map[target]] = min(len(p), D[name_map[source], name_map[target]])
+                    #print(source, '->', target, ':', p)
+    return D
+
+
+def GetDistanceMatrix(t, start_t=0, delta=1):
+    """Calculates the (topologically) shortest time-respecting paths between 
+    all pairs of nodes starting at time start_t in an empirical temporal network t.
+    This function returns a tuple consisting of 
+        1) a matrix D containing the shortest time-respecting path lengths between all
+            pairs of nodes. The ordering of rows/columns corresponds to the ordering of nodes 
+            in the vertex sequence of the igraph first order time-aggregated network. A
+            mapping between nodes and indices can be found in Utilities.firstOrderNameMap().
+        2) a list of shortest time-respecting paths, each entry being an ordered sequence 
+            of nodes on the corresponding path.
+    
+    @param t: the temporal network to calculate shortest time-respecting paths for
+    @param start_t: the start time for which to consider time-respecting paths (default 0)
+    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)
+    """   
+
+    # Get a mapping between node names and matrix indices
+    name_map = Utilities.firstOrderNameMap( t )
+
+    # This distance matrix will contain the lengths of shortest 
+    # time-respecting paths between all pairs of nodes
+    # the default value (indicating a missing path) is infinity
+    D = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+    D.fill(np.inf)
+
+    # Each node is connected to itself via a path of length zero
+    np.fill_diagonal(D, 0)
+
+    # In this matrix, we keep a record of the time stamps of the last 
+    # time-stamped links on alle current shortest time-respecting paths
+    T = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+
+    # We initialize this to -infinity
+    T.fill(-np.inf)
+
+    # This will take the time stamp of the time-stamped edge considered 
+    # in the previous step of the algorithm
+    last_ts = -np.inf
+    
+    # Find th first index i such that ordered_times[i] is greater or equal than the given start_t
+    start_ix = bisect.bisect_left(t.ordered_times, start_t)
+
+    # We need to check at most delta iterations, since t.ordered_times[i+delta]-start_t >= delta
+    for j in range(start_ix, len(t.ordered_times)):
+        ts = t.ordered_times[j]
+        if last_ts < 0:
+                last_ts = ts
+        # We initialize the last time stamp for all source nodes that are 
+            # active in the beginning of the link sequence, so that they 
+            # can act as seeds for the time-respecting path construction.  
+        if ts - start_t < delta:
+            for e in t.time[ts]:                
+                T[name_map[e[0]], name_map[e[0]]] = start_t-1
+        else:
+                break
+
+    Paths = defaultdict( lambda: defaultdict( lambda: [] ) )
+
+    # initialize shortest path tree for path reconstruction 
+    for v in t.nodes:
+        Paths[v][v] = [v]       
+
+    # We consider all time-respecting paths starting in any node v at the start time
+    for v in t.nodes:
+        # Consider the ordered sequence of time-stamps, starting from the first index greater or equal to start_t
+        for j in range(start_ix, len(t.ordered_times)):
+            ts = t.ordered_times[j]
+
+            assert ts >= start_t                         
+            # Since time stamps are ordered, we can stop as soon the current time stamp 
+            # is more than delta time steps away from the last time step. In this case, by definition 
+            # none of the future time-stamped links can contribute to a time-respecting path
+            if ts-last_ts > delta:
+                break
+
+            last_ts = ts
+
+            # Consider all time-stamped links (e[0], e[1], ts) occuring at time ts
+            for e in t.time[ts]:
+                
+                # If there is a time-respecting path v -> e[0] and if the previous time step on 
+                # this time-respecting path is not older than delta ...
+                if D[name_map[v], name_map[e[0]]] < np.inf and ts - T[name_map[v], name_map[e[0]]] > 0 and ts - T[name_map[v], name_map[e[0]]] <= delta:
+
+                    # ... then the time-stamped link (e[0], e[1], ts) leads to a 
+                    # new shortest path v -> e[0] -> e[1] iff the current distance D[v,e[1]] > D[v,e[0]] + 1
+
+                    if D[name_map[v], name_map[e[1]]] > D[name_map[v], name_map[e[0]]] + 1:
+                        # Update the distance between v and e[1]
+                        D[name_map[v], name_map[e[1]]] = D[name_map[v], name_map[e[0]]] + 1
+                        # Remember the last time stamp on this path
+                        T[name_map[v], name_map[e[1]]] = ts
+                        # Update the shortest path tree
+                        Paths[v][e[1]] = Paths[v][e[0]] + [e[1]]    
+    return (D, Paths)
+
+
+def BetweennessCentrality(t, model='SECOND'):
+    """Computes betweenness centralities of nodes based on the second-order aggregate network, 
+    and aggregates betweenness centralities to obtain the betweenness centrality of nodes in the 
+    first-order network.
+    
+    @param t: The temporalnetwork instance to work on
+    @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
+      the default value.
+    """
+
+    if (model is "SECOND" or "NULL") == False:
+        raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
+
+    name_map = Utilities.firstOrderNameMap( t )
+
+    if model == 'SECOND':
+        g2 = t.igraphSecondOrder()
+    else:
+        g2 = t.igraphSecondOrderNull()    
+
+    # Compute betweenness centrality based on second-order network
+    bwcent_1 = np.zeros(len(name_map))
+    sep = t.separator
+    for v in g2.vs()["name"]:
+        for w in g2.vs()["name"]:
+            X = g2.get_shortest_paths(v,w)
+            for p in X:
+                if len(p) > 1:
+                    for i in range(len(p)):
+                        source = g2.vs()["name"][p[i]].split(sep)[0]
+                        target = g2.vs()["name"][p[i]].split(sep)[1]
+                        if i>0:
+                            bwcent_1[name_map[source]] += 1
+                        if i<len(p)-1:
+                            bwcent_1[name_map[target]] += 1
+    
+    return bwcent_1/sum(bwcent_1)
+
+
+def GetAvgTimeRespectingBetweenness(t, delta=1, normalized=False):
+    """Calculates the average temporal betweenness centralities of all nodes 
+    in a temporal network t, using a time-respecting path definition with a 
+    maximum waiting time of delta. This method will first calculate temporal betweenness 
+    centralities for all nodes for all possible starting times, and then sum the 
+    betweenness centralities across all starting times, possibly normalizing the values by
+    diving the betweenness values by the total number of shortest time-respecting paths. 
+    This function then returns a numpy array of average (temporal) betweenness centrality values of 
+    nodes. The ordering of these values corresponds to the ordering of nodes in the vertex sequence 
+    of the igraph first order time-aggregated network. A mapping between node names and array 
+    indices can be found in  Utilities.firstOrderNameMap().
+    
+    @param t: the temporal network for which temporal closeness centralities will be computed    
+    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)           
+    @param normalized: whether or not to normalize centralities by dividing each value byt the total number 
+        of shortest time-respecting paths.
+    """
+
+    bw = np.array([0]*len(t.nodes))
+    S = 0
+
+    for start_t in t.ordered_times:
+        bw_temp = GetTimeRespectingBetweenness(t, start_t, delta, normalized = False)
+        bw += bw_temp
+        S += sum(bw_temp)
+
+    if normalized:
+        bw = bw/S
+
+    return bw
+
+
+def GetTimeRespectingBetweenness(t, start_t=0, delta=1, normalized=False):
+    """Calculates the time-respecting path betweennness values of 
+    all nodes starting at time start_t in an empirical temporal network t.
+    This function returns a numpy array of (temporal) betweenness centrality values. 
+    The ordering of these values corresponds to the ordering of nodes in the vertex 
+    sequence of the igraph first order time-aggregated network. A mapping between node names
+    and array indices can be found in Utilities.firstOrderNameMap().
+    
+    @param t: the temporal network for which temporal betweenness centralities will be computed
+    @param start_t: the start time for which to consider time-respecting paths (default 0). This is 
+        important, since any unambigious definition of a shortest time-respecting path between
+        two nodes must include the time range to be considered (c.f. Holme and Saramäki, Phys. Rep., 2012)
+    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)
+    @param normalized: whether or not to normalize the temporal betweenness centrality values by
+    dividing by the number of all shortest time-respecting paths in the temporal network.
+    """
+
+    bw = np.array([0]*len(t.nodes))
+
+    # First calculate all shortest time-respecting paths starting at time start_t
+    D, paths = GetDistanceMatrix(t, start_t, delta)    
+
+    # Get a mapping between node names and matrix indices
+    name_map = Utilities.firstOrderNameMap( t )
+
+    # Compute betweenness scores of all nodes based on shortest time-respecting paths
+    k=0
+    for u in t.nodes:
+        for v in t.nodes:
+            if u != v:
+                for i in range(1, len(paths[u][v])-1):
+                    bw[name_map[paths[u][v][i]]] += 1
+                    k+=1
+
+    # Normalize by dividing by the total number of shortest time-respecting paths
+    if normalized:
+        bw = bw/k
+    return bw
+
+
+def GetStaticCloseness(t, model='SECOND'):
+    """Computes closeness centralities of nodes based on the first- or second-order time-aggregated network.
+    
+    @param t: The temporal network instance for which closeness centralities will be computed
+    @param model: either C{"FIRST"}, C{"SECOND"} or C{"SECONDNULL"}, where C{"SECOND"} is the 
+      the default value.
+    """
+
+    if model =='FIRST':
+        D = GetFirstOrderDistanceMatrix(t)
+    else:
+        D = GetSecondOrderDistanceMatrix(t, model)
+
+    name_map = Utilities.firstOrderNameMap( t )
+
+    closeness = np.zeros(len(name_map))
+
+    # Calculate closeness for each node u, by summing the reciprocal of its 
+    # distances to all other nodes. Note that this definition of closeness centrality 
+    # is required for directed networks that are not strongly connected. 
+    for u in t.nodes:
+        for v in t.nodes:
+            if u!=v:
+                closeness[name_map[u]] += 1./D[name_map[v], name_map[u]]
+    
+    return closeness
+
+
+def GetAvgTimeRespectingCloseness(t, delta=1):
+    """Calculates the average temporal closeness centralities of all nodes 
+    in a temporal network t, using a time-respecting path definition with a 
+    maximum waiting time of delta. This method will first calculate temporal closeness 
+    centralities for all nodes for all possible starting times, and then average the 
+    closeness centralities across all starting times. This function then returns a numpy 
+    array of average (temporal) closeness centrality values of nodes. The ordering of these 
+    values corresponds to the ordering of nodes in the vertex sequence of the igraph first order 
+    time-aggregated network. A mapping between node names and array indices can be found in 
+    Utilities.firstOrderNameMap().
+    
+    @param t: the temporal network for which temporal closeness centralities will be computed    
+    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)           
+    """
+
+    cl = np.array([0.]*len(t.nodes))
+
+    # Entry [u,v] contains the total closeness of node u to v
+    closeness_per_node = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+
+    # Entry [u,v] contains the total number of non-zero closenesses between u and v
+    counts_per_node = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+
+    # Get a mapping between node names and matrix indices
+    name_map = Utilities.firstOrderNameMap( t )
+
+    # Calculate time-respecting closeness centralities for all possible starting times 
+    S = 0
+    for start_t in t.ordered_times:
+         D, paths = GetDistanceMatrix(t, start_t, delta)    
+         for u in t.nodes:
+            for v in t.nodes:
+                if u!=v:
+                    # Store the closeness of node u from v and count how many paths we have seen to node u from v
+                    if D[name_map[v], name_map[u]]<np.inf:
+                        closeness_per_node[name_map[v], name_map[u]] += D[name_map[v], name_map[u]]
+                        counts_per_node[name_map[v], name_map[u]] += 1
+
+    # Average closeness values 
+    for u in t.nodes:
+        for v in t.nodes:
+            # Closeness of node u is the sum of the avg. closeness of node u from each node v
+            if closeness_per_node[name_map[v], name_map[u]]>0:
+                closeness_per_node[name_map[v], name_map[u]] = 1./(closeness_per_node[name_map[v], name_map[u]]/counts_per_node[name_map[v], name_map[u]])
+    for u in t.nodes:
+        for v in t.nodes:
+            cl[name_map[u]] += closeness_per_node[name_map[v], name_map[u]]
+
+    # Return average values
+    return cl
+
+
+def GetTimeRespectingCloseness(t, start_t=0, delta=1):
+    """Calculates the time-respecting path closeness values of 
+    all nodes starting at time start_t in an empirical temporal network t.
+    This function returns a numpy array of (temporal) closeness centrality values. 
+    The ordering of these values corresponds to the ordering of nodes in the vertex 
+    sequence of the igraph first order time-aggregated network. A mapping between node names
+    and array indices can be found in Utilities.firstOrderNameMap().
+    
+    @param t: the temporal network for which temporal closeness centralities will be computed
+    @param start_t: the start time for which to consider time-respecting paths (default 0). This is 
+        important, since any unambigious definition of a shortest time-respecting path between
+        two nodes must include the time range to be considered (c.f. Holme and Saramäki, Phys. Rep., 2012)
+    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)           
+    """
+    
+    closeness = np.array([0.]*len(t.nodes))
+
+    # Calculate all shortest time-respecting paths
+    D, paths = GetDistanceMatrix(t, start_t, delta)    
+
+    # Get a mapping between node names and matrix indices
+    name_map = Utilities.firstOrderNameMap( t )
+
+    # Calculate closeness for each node u, by summing the reciprocal of its 
+    # distances to all other nodes. Note that this definition of closeness centrality 
+    # is required for directed networks that are not strongly connected. 
+    for u in t.nodes:
+        for v in t.nodes:
+            if u!=v:
+                closeness[name_map[u]] += 1./D[name_map[v], name_map[u]]
+
+    return closeness
