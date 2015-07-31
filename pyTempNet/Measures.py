@@ -705,3 +705,76 @@ def GetTimeRespectingCloseness(t, start_t=0, delta=1):
                 closeness[name_map[u]] += 1./D[name_map[v], name_map[u]]
 
     return closeness
+
+
+def WeightedKCore( t, alpha, beta ):
+    """ TODO: write a nice docstring here
+    
+    @param t: temporal network
+    @param alpha: TODO
+    @param beta: TODO
+    """
+    
+    # work on second order network
+    g = t.g2
+    
+    # check that 'weight' is in attribute list of edges
+    if( 'weight' not in g.es.attribute_names() ):
+          raise ValueError( "Attribute \"weight\" does not exist." )
+    # check that 'names' is in attribute list of vertices
+    if( 'name' not in g.vs.attribute_names() ):
+          raise ValueError( "Attribute \"name\" is not defined." )
+    
+    
+    #-- Calculation of the Weighted k-shell structure (for the whole network)
+    edge_weights = np.array(g.es()["weight"]).astype(np.float64)
+    meandegree = np.sum(edge_weights) / len(g.es())
+    mm = np.amin(edge_weights/meandegree)
+    
+    g.es()["weight"] = np.round( (edge_weights/meandegree)/mm )
+    
+    #-- extract names and degrees
+    names = g.vs()['name']
+    degrees = g.degree()
+    # NOTE: be sure to use the right weights
+    weights = g.strength( weights='weight' )    
+    # NOTE: watch out for integer division in the exponent!!
+    new_degrees = np.around( np.power(np.power(degrees, alpha) * np.power(weights, beta), 1./(alpha + beta)) )
+    
+    old_degree = degrees
+    old_new_degrees = new_degrees
+    
+    resultName = []
+    resultShell = np.zeros(len(names))
+    
+    xx = 0
+    max_value = np.amax(new_degrees).astype(int)
+    for kval in range(1, max_value):
+        while( (len(g.vs()) > 0) and (new_degrees.min() <= kval) ):
+            # NOTE: this gives not the first element but the indices array
+            #       of all minimal values
+            ind = np.where( new_degrees == new_degrees.min() )[0]
+            # go backwards through the index array
+            for i in range( len(ind)-1, -1, -1 ):
+                index = ind[i]
+                nn = g.vs()['name'][index]
+                resultShell[xx] = kval
+                resultName.append(nn)
+                xx += 1
+            g.delete_vertices( ind )
+            
+            if len(g.vs()) > 0:
+                degrees = g.degree()
+                weights = g.strength( weights='weight' )
+                # watch out for integer division in the exponent!!
+                new_degrees = np.around( np.power(np.power(degrees, alpha) * np.power(weights, beta), 1./(alpha + beta)) )
+    
+    # relabelling
+    u = np.unique( resultShell )
+    for i in range( len(u) ):
+        resultShell[ np.where( resultShell == u[i] ) ] = i
+    
+    # NOTE: argsort().argsort() gets you the ordering index array
+    result = zip( resultName, list(np.amax(resultShell) - resultShell[resultShell.argsort().argsort()]) )
+    
+    return result
