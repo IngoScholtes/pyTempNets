@@ -689,7 +689,7 @@ def WeightedKCore( t, alpha, beta ):
     
     print("Calculating ...")
     #-- Calculation of the Weighted k-shell structure (for the whole network)
-    edge_weights = np.array(g.es()["weight"])
+    edge_weights = np.array(g.es()["weight"]).astype(np.float64)
     meandegree = np.sum(edge_weights) / len(g.es())
     mm = np.amin(edge_weights/meandegree)
     
@@ -698,8 +698,9 @@ def WeightedKCore( t, alpha, beta ):
     #-- extract names and degrees
     names = g.vs()['name']
     degrees = g.degree()
-    weights = g.strength( g.vs() )    
-    # watch out for integer division in the exponent!!
+    # NOTE: be sure to use the right weights
+    weights = g.strength( weights='weight' )    
+    # NOTE: watch out for integer division in the exponent!!
     new_degrees = np.around( np.power(np.power(degrees, alpha) * np.power(weights, beta), 1./(alpha + beta)) )
     
     old_degree = degrees
@@ -711,7 +712,7 @@ def WeightedKCore( t, alpha, beta ):
     xx = 0
     max_value = np.amax(new_degrees).astype(int)
     for kval in range(1, max_value):
-        print("we are at", round(100*kval/max_value))
+        print("we are at", round(100*kval/max_value), '%')
         while( (len(g.vs()) > 0) and (new_degrees.min() <= kval) ):
             # NOTE: this gives not the first element but the indices array
             #       of all minimal values
@@ -720,16 +721,14 @@ def WeightedKCore( t, alpha, beta ):
             for i in range( len(ind)-1, -1, -1 ):
                 index = ind[i]
                 nn = g.vs()['name'][index]
-                #idn = old_names.index(nn)
                 resultShell[xx] = kval
                 resultName.append(nn)
                 xx += 1
             g.delete_vertices( ind )
             
             if len(g.vs()) > 0:
-                names = g.vs()
                 degrees = g.degree()
-                weights = g.strength( g.vs() )
+                weights = g.strength( weights='weight' )
                 # watch out for integer division in the exponent!!
                 new_degrees = np.around( np.power(np.power(degrees, alpha) * np.power(weights, beta), 1./(alpha + beta)) )
     
@@ -742,5 +741,4 @@ def WeightedKCore( t, alpha, beta ):
     # NOTE: argsort().argsort() gets you the ordering index array
     result = zip( resultName, list(np.amax(resultShell) - resultShell[resultShell.argsort().argsort()]) )
     
-    print result[0:10]
     return result
