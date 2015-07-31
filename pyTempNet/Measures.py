@@ -687,7 +687,6 @@ def WeightedKCore( t, alpha, beta ):
           raise ValueError( "Attribute \"name\" is not defined." )
     
     
-    print("Calculating ...")
     #-- Calculation of the Weighted k-shell structure (for the whole network)
     edge_weights = np.array(g.es()["weight"]).astype(np.float64)
     meandegree = np.sum(edge_weights) / len(g.es())
@@ -712,7 +711,6 @@ def WeightedKCore( t, alpha, beta ):
     xx = 0
     max_value = np.amax(new_degrees).astype(int)
     for kval in range(1, max_value):
-        print("we are at", round(100*kval/max_value), '%')
         while( (len(g.vs()) > 0) and (new_degrees.min() <= kval) ):
             # NOTE: this gives not the first element but the indices array
             #       of all minimal values
@@ -737,7 +735,6 @@ def WeightedKCore( t, alpha, beta ):
     for i in range( len(u) ):
         resultShell[ np.where( resultShell == u[i] ) ] = i
     
-    print("Calculation finished")
     # NOTE: argsort().argsort() gets you the ordering index array
     result = zip( resultName, list(np.amax(resultShell) - resultShell[resultShell.argsort().argsort()]) )
     
