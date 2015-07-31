@@ -668,7 +668,7 @@ def GetTimeRespectingCloseness(t, start_t=0, delta=1):
     return closeness
 
 
-def WeightedCoreness( t, alpha, beta ):
+def WeightedKCore( t, alpha, beta ):
     """ TODO: write a nice docstring here
     
     @param t: temporal network
@@ -680,7 +680,12 @@ def WeightedCoreness( t, alpha, beta ):
     g = t.g2
     
     # check that 'weight' is in attribute list of edges
+    if( 'weight' not in g.es.attribute_names() ):
+          raise ValueError( "Attribute \"weight\" does not exist." )
     # check that 'names' is in attribute list of vertices
+    if( 'name' not in g.vs.attribute_names() ):
+          raise ValueError( "Attribute \"name\" is not defined." )
+    
     
     print("Calculating ...")
     #-- Calculation of the Weighted k-shell structure (for the whole network)
@@ -693,35 +698,31 @@ def WeightedCoreness( t, alpha, beta ):
     #-- extract names and degrees
     names = g.vs()['name']
     degrees = g.degree()
-    weights = g.strength( g.vs() )
-    new_degrees = np.around( np.power(np.power(degrees, alpha) * np.power(weights, beta), 1/(alpha + beta)) )
+    weights = g.strength( g.vs() )    
+    # watch out for integer division in the exponent!!
+    new_degrees = np.around( np.power(np.power(degrees, alpha) * np.power(weights, beta), 1./(alpha + beta)) )
     
-    max_value = np.amax(new_degrees).astype(int)
-    print max_value
-    xx = 1
-    
-    old_names = g.vs()['name']
     old_degree = degrees
     old_new_degrees = new_degrees
     
-    shape = len(names)
-    fill_value = -11
-    resultName = np.full(shape, fill_value)
-    resultShell = np.full(shape, fill_value)
+    resultName = []
+    resultShell = np.zeros(len(names))
     
+    xx = 0
+    max_value = np.amax(new_degrees).astype(int)
     for kval in range(1, max_value):
         print("we are at", round(100*kval/max_value))
-        while( (len(g.vs()) > 0) and (new_degreees.min() <= kval) ):
+        while( (len(g.vs()) > 0) and (new_degrees.min() <= kval) ):
             # NOTE: this gives not the first element but the indices array
             #       of all minimal values
-            ind = np.where( new_degrees = new_degrees.min() )[0]
+            ind = np.where( new_degrees == new_degrees.min() )[0]
             # go backwards through the index array
             for i in range( len(ind)-1, -1, -1 ):
                 index = ind[i]
                 nn = g.vs()['name'][index]
-                idn = np.where( old_names == nn )
+                #idn = old_names.index(nn)
                 resultShell[xx] = kval
-                resultName[xx] = nn
+                resultName.append(nn)
                 xx += 1
             g.delete_vertices( ind )
             
@@ -729,7 +730,8 @@ def WeightedCoreness( t, alpha, beta ):
                 names = g.vs()
                 degrees = g.degree()
                 weights = g.strength( g.vs() )
-                new_degrees = np.around( np.power(np.power(degrees, alpha) * np.power(weights, beta), 1/(alpha + beta)) )
+                # watch out for integer division in the exponent!!
+                new_degrees = np.around( np.power(np.power(degrees, alpha) * np.power(weights, beta), 1./(alpha + beta)) )
     
     # relabelling
     u = np.unique( resultShell )
@@ -738,5 +740,7 @@ def WeightedCoreness( t, alpha, beta ):
     
     print("Calculation finished")
     # NOTE: argsort().argsort() gets you the ordering index array
-    print resultName
-    print( np.amax(resultShell) - resultShell[resultShell.argsort().argsort()] )
+    result = zip( resultName, list(np.amax(resultShell) - resultShell[resultShell.argsort().argsort()]) )
+    
+    print result[0:10]
+    return result
