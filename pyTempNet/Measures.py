@@ -12,6 +12,7 @@ import scipy.sparse.linalg as sla
 import scipy.linalg as la
 
 import time as tm
+import matplotlib.pylab as plt
 
 from pyTempNet import Utilities
 
@@ -37,7 +38,7 @@ def Laplacian(temporalnet, model="SECOND"):
     return I-T2
 
 
-def FiedlerVector(temporalnet, model="SECOND"):
+def FiedlerVector(temporalnet, model="SECOND", normalize=True):
     """Returns the Fiedler vector of the second-order (model=SECOND) or the
     second-order null (model=NULL) model for a temporal network. The Fiedler 
      vector can be used for a spectral bisectioning of the network.
@@ -62,7 +63,7 @@ def FiedlerVector(temporalnet, model="SECOND"):
     print(      "w=", np.sort(np.absolute(w)))
     
     ew = tm.clock()
-    print("     time for laplacian and eigs()", (ew - start))
+    #print("     time for laplacian and eigs()", (ew - start))
     
     # compute sparse LU decomposition of the laplacian
     n = L.get_shape()[0]
@@ -72,7 +73,11 @@ def FiedlerVector(temporalnet, model="SECOND"):
     b[1:n] = A[0,:].toarray()
     
     ab = tm.clock()
-    print("     getting A and b ready", (ab - ew))
+    #print("     getting A and b ready", (ab - ew))
+    
+    ## have a look at the sparsity pattern of the matrix
+    #plt.spy(A, markersize=1)
+    #plt.show()
     
     #print b.shape
     #print A.shape
@@ -81,9 +86,11 @@ def FiedlerVector(temporalnet, model="SECOND"):
     b[1:n] = lu.solve(b[1:n])
     #v = b/sum(np.inner(b,b))
     #print(sum(b))
-    print("     solving the system", (tm.clock() - ab))
-    print("Time spent in FiedlerVector():", (tm.clock() - start))
+    #print("     solving the system", (tm.clock() - ab))
+    #print("Time spent in FiedlerVector():", (tm.clock() - start))
     #print(v[0:5], sum(v))
+    if normalize:
+        b /= np.sqrt(np.inner(b, b))
     return b
     
     # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
@@ -115,10 +122,10 @@ def DenseFiedlerVector(temporalnet, model="SECOND"):
     w, v = la.eig(L.todense().transpose(), right=False, left=True)
     print("     w=", np.sort(np.absolute(w))[0:2])
     #w = sla.eigs( L, k=2, which="SM", ncv=13, return_eigenvectors=False )
-    #print np.sort(np.absolute(w))
+    
     
     ew = tm.clock()
-    print("     time for laplacian and eigs()", (ew - start))
+    #print("     time for laplacian and eigs()", (ew - start))
     
     ## compute sparse LU decomposition of the laplacian
     #n = L.get_shape()[0]
