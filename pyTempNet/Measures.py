@@ -11,9 +11,6 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 import scipy.linalg as la
 
-import time as tm
-import matplotlib.pylab as plt
-
 from pyTempNet import Utilities
 
 def Laplacian(temporalnet, model="SECOND"):
@@ -45,7 +42,8 @@ def FiedlerVectorSparse(temporalnet, model="SECOND", normalize=True):
      
     Note that sparse linear algebra for eigenvalue problems with small eigenvalues 
     is problematic in terms of numerical stability. Consider using the dense version
-    of this measure.
+    of this measure. Note also that the FiedlerVector might be scaled by a factor (-1)
+    compared to the dense version.
      
     @param temporalnet: The temporalnetwork instance to work on
     @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
