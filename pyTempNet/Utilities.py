@@ -142,7 +142,7 @@ def getSparseAdjacencyMatrix( graph, attribute=None, transposed=False ):
 
 
 def RWTransitionMatrix(g):
-    """Generates a random walk transition matrix corresponding to a (possibly) weighted
+    """Generates a transposed random walk transition matrix corresponding to a (possibly) weighted
     and directed network
     
     @param g: the graph"""
