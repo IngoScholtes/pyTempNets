@@ -286,7 +286,7 @@ def GetFirstOrderDistanceMatrix(t):
 
     # This way of generating the first-order time-aggregated network makes sure that 
     # links are not omitted even if they do not contribute to any time-respecting path
-    g1 = t.igraphFirstOrder(all_links=True, force=True)
+    g1 = t.igraphFirstOrder(all_links=False, force=True)
 
     name_map = Utilities.firstOrderNameMap( t )
 
@@ -359,7 +359,10 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
     
     @param t: the temporal network to calculate shortest time-respecting paths for
     @param start_t: the start time for which to consider time-respecting paths (default 0)
-    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)
+    @param delta: the maximum time difference to be used in the time-respecting path definition (default 1).
+        Note that this parameter is independent from the internal parameter delta used for two-path extraction
+        in the class TemporalNetwork
+
     """   
 
     # Get a mapping between node names and matrix indices
@@ -495,7 +498,9 @@ def GetAvgTimeRespectingBetweenness(t, delta=1, normalized=False):
     indices can be found in  Utilities.firstOrderNameMap().
     
     @param t: the temporal network for which temporal closeness centralities will be computed    
-    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)           
+    @param delta: the maximum time difference used in the time-respecting path definition (default 1).
+        Note that this parameter is independent from the delta used internally for the extraction of two-paths
+        by the class TemporalNetwork
     @param normalized: whether or not to normalize centralities by dividing each value byt the total number 
         of shortest time-respecting paths.
     """
@@ -527,6 +532,8 @@ def GetTimeRespectingBetweenness(t, start_t=0, delta=1, normalized=False):
         important, since any unambigious definition of a shortest time-respecting path between
         two nodes must include the time range to be considered (c.f. Holme and Saramäki, Phys. Rep., 2012)
     @param delta: the maximum waiting time used in the time-respecting path definition (default 1)
+        Note that this parameter is independent from the delta used internally for the extraction of two-paths
+        by the class TemporalNetwork
     @param normalized: whether or not to normalize the temporal betweenness centrality values by
     dividing by the number of all shortest time-respecting paths in the temporal network.
     """
@@ -594,7 +601,9 @@ def GetAvgTimeRespectingCloseness(t, delta=1):
     Utilities.firstOrderNameMap().
     
     @param t: the temporal network for which temporal closeness centralities will be computed    
-    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)           
+    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)      
+        Note that this parameter is independent from the delta used internally for the extraction of two-paths
+        by the class TemporalNetwork     
     """
 
     cl = np.array([0.]*len(t.nodes))
@@ -646,7 +655,9 @@ def GetTimeRespectingCloseness(t, start_t=0, delta=1):
     @param start_t: the start time for which to consider time-respecting paths (default 0). This is 
         important, since any unambigious definition of a shortest time-respecting path between
         two nodes must include the time range to be considered (c.f. Holme and Saramäki, Phys. Rep., 2012)
-    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)           
+    @param delta: the maximum waiting time used in the time-respecting path definition (default 1)       
+        Note that this parameter is independent from the delta used internally for the extraction of two-paths
+        by the class TemporalNetwork    
     """
     
     closeness = np.array([0.]*len(t.nodes))

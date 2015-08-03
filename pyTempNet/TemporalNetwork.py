@@ -20,7 +20,6 @@ class TemporalNetwork:
     def __init__(self,  sep=',', tedges = None, twopaths = None):
         """Constructor generating an empty temporal network"""
         
-        self.separator = sep
         self.tedges = []
         self.nodes = []
         if tedges is not None:
@@ -39,6 +38,14 @@ class TemporalNetwork:
         self.twopathsByTime = defaultdict( lambda: dict() )
         self.tpcount = -1
 
+        """The separator character to be used to generate second-order nodes"""
+        self.separator = sep
+
+        """The maximum time difference between consecutive links to be used 
+        for extraction of time-respecting paths of length two"""
+        self.delta = 1
+
+        #Generate index structures if temporal network is constructed from two-paths
         if twopaths is not None:
             t = 0
             for tp in twopaths:
@@ -70,9 +77,11 @@ class TemporalNetwork:
             self.time[ts].append(e)
             self.targets[ts].setdefault(target, []).append(e)
             self.sources[ts].setdefault(source, []).append(e)
-
+        
+        # An ordered list of time-stamps (invalidated as soon as links are changed)
         self.ordered_times = np.sort(list(self.time.keys()))
 
+        # Cached instances of first- and second-order aggregate networks
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
@@ -101,6 +110,12 @@ class TemporalNetwork:
         # Reorder time stamps
         self.ordered_times = np.sort(list(self.time.keys()))
         
+        self.InvalidateTwoPaths()
+
+
+    def InvalidateTwoPaths(self):
+        """Invalidates all cached two-path data and aggregate networks"""
+        
         # Invalidate indexed data 
         self.tpcount = -1
         self.twopaths = []
@@ -109,8 +124,8 @@ class TemporalNetwork:
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
-
         
+
     def vcount(self):
         """Returns the total number of different vertices active across the whole evolution of the temporal network. 
         This number corresponds to the number of nodes in the (first-order) time-aggregated network."""
@@ -122,7 +137,17 @@ class TemporalNetwork:
         return len(self.tedges)
 
 
-    def extractTwoPaths(self, delta=1):
+    def setMaxTimeDiff(self, delta):
+        """Sets the maximum time difference between consecutive links to be used for 
+        the extraction of time-respecting paths of length two (two-paths)"""
+        
+        if delta != self.delta:
+            # Set new value and invalidate two-path structures
+            self.delta = delta
+            self.InvalidateTwoPaths()
+
+
+    def extractTwoPaths(self):
         """Extracts all time-respecting paths of length two in this temporal network. The two-paths 
         extracted by this method will be used in the construction of second-order time-aggregated 
         networks, as well as in the analysis of causal structures of this temporal network. If an explicit 
@@ -135,6 +160,9 @@ class TemporalNetwork:
         For the default delta=1, a time-respecting path will be inferred for all u->v will only be inferred 
         whenever there are directly consecutive time-stamped links (u,v;t) (v,w;t+1)
         """
+
+        print('Extracting two-paths for delta =', self.delta)
+
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
         self.twopathsByTime = defaultdict( lambda: dict() )
@@ -144,8 +172,10 @@ class TemporalNetwork:
         for t in self.ordered_times:
             if prev_t ==-1: 
                 pass
-            elif prev_t < t-delta:
+            elif prev_t < t-self.delta:
                 pass
+            # TODO: This may lead to wrong two-paths for delta>1 since in this case also other time 
+            # stamps than prev_t may lead to two-paths
             else:
                 for v in self.targets[prev_t]:
                     if v in self.sources[t]:
@@ -170,6 +200,7 @@ class TemporalNetwork:
                                 self.twopathsByTime[t].setdefault(v, []).append(two_path)
             prev_t = t
         
+        g1 = 0
         g2 = 0
         g2n = 0
         # Update the count of two-paths
@@ -193,7 +224,7 @@ class TemporalNetwork:
            weighted, time-aggregated network."""
         
         if self.g1 != 0 and not force:
-            return self.g1                  
+            return self.g1
            
         # If two-paths have not been extracted yet, do it now
         if self.tpcount == -1:
@@ -228,13 +259,16 @@ class TemporalNetwork:
         """Returns the second-order time-aggregated network
            corresponding to this temporal network. This network corresponds to 
            a second-order Markov model reproducing both the link statistics and 
-           (first-order) order correlations in the underlying temporal network."""
+           (first-order) order correlations in the underlying temporal network.
+           """
 
         if self.g2 != 0:
             return self.g2
 
         if self.tpcount == -1:
-            self.extractTwoPaths() 
+            self.extractTwoPaths()
+
+        print('Constructing second-order aggregate network')
 
         # create vertex list and edge directory first
         vertex_list = []
