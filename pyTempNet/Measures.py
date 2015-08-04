@@ -361,9 +361,9 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
     @param start_t: the start time for which to consider time-respecting paths (default 0)
     @param delta: the maximum time difference to be used in the time-respecting path definition (default 1).
         Note that this parameter is independent from the internal parameter delta used for two-path extraction
-        in the class TemporalNetwork
+        in the class TemporalNetwork"""
 
-    """   
+    # TODO: Fix calculation for arbitrary delta. Right now we may not find all shortest time-respecting paths for delta > 1
 
     # Get a mapping between node names and matrix indices
     name_map = Utilities.firstOrderNameMap( t )
@@ -409,7 +409,7 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
 
     # initialize shortest path tree for path reconstruction 
     for v in t.nodes:
-        Paths[v][v] = [v]       
+        Paths[v][v] = [ [v] ]
 
     # We consider all time-respecting paths starting in any node v at the start time
     for v in t.nodes:
@@ -442,7 +442,15 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
                         # Remember the last time stamp on this path
                         T[name_map[v], name_map[e[1]]] = ts
                         # Update the shortest path tree
-                        Paths[v][e[1]] = Paths[v][e[0]] + [e[1]]    
+
+                        Paths[v][e[1]] = []
+                        for p in Paths[v][e[0]]:
+                            Paths[v][e[1]] = Paths[v][e[1]] + [p + [e[1]]]
+                    elif D[name_map[v], name_map[e[1]]] == D[name_map[v], name_map[e[0]]] + 1:
+                        for p in Paths[v][e[0]]:
+                            Paths[v][e[1]] = Paths[v][e[1]] + [p + [e[1]]]
+
+
     return (D, Paths)
 
 
@@ -459,6 +467,7 @@ def BetweennessCentrality(t, model='SECOND'):
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
 
+    D = GetSecondOrderDistanceMatrix(t)
     name_map = Utilities.firstOrderNameMap( t )
 
     if model == 'SECOND':
@@ -469,20 +478,24 @@ def BetweennessCentrality(t, model='SECOND'):
     # Compute betweenness centrality based on second-order network
     bwcent_1 = np.zeros(len(name_map))
     sep = t.separator
+
     for v in g2.vs()["name"]:
         for w in g2.vs()["name"]:
+            s = v.split(sep)[0]
+            t = w.split(sep)[1]
+            # print(v, ' ->', w, ':', s, ' ->', t)
             X = g2.get_shortest_paths(v,w)
             for p in X:
-                if len(p) > 1:
-                    for i in range(len(p)):
-                        source = g2.vs()["name"][p[i]].split(sep)[0]
-                        target = g2.vs()["name"][p[i]].split(sep)[1]
-                        if i>0:
-                            bwcent_1[name_map[source]] += 1
-                        if i<len(p)-1:
-                            bwcent_1[name_map[target]] += 1
+                if D[name_map[s], name_map[t]] == len(p):
+                    if len(p) > 1:
+                        for i in range(len(p)):
+                            # print('\t', g2.vs()["name"][p[i]])
+                            source = g2.vs()["name"][p[i]].split(sep)[0]
+                            target = g2.vs()["name"][p[i]].split(sep)[1]
+                            if i>0:
+                                bwcent_1[name_map[source]] += 1
     
-    return bwcent_1/sum(bwcent_1)
+    return bwcent_1
 
 
 def GetAvgTimeRespectingBetweenness(t, delta=1, normalized=False):
@@ -541,7 +554,7 @@ def GetTimeRespectingBetweenness(t, start_t=0, delta=1, normalized=False):
     bw = np.array([0]*len(t.nodes))
 
     # First calculate all shortest time-respecting paths starting at time start_t
-    D, paths = GetDistanceMatrix(t, start_t, delta)    
+    D, paths = GetDistanceMatrix(t, start_t, delta)
 
     # Get a mapping between node names and matrix indices
     name_map = Utilities.firstOrderNameMap( t )
@@ -551,9 +564,10 @@ def GetTimeRespectingBetweenness(t, start_t=0, delta=1, normalized=False):
     for u in t.nodes:
         for v in t.nodes:
             if u != v:
-                for i in range(1, len(paths[u][v])-1):
-                    bw[name_map[paths[u][v][i]]] += 1
-                    k+=1
+                for p in paths[u][v]:
+                    for i in range(1, len(p)-1):
+                        bw[name_map[p[i]]] += 1
+                        k+=1
 
     # Normalize by dividing by the total number of shortest time-respecting paths
     if normalized:
