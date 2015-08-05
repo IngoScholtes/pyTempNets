@@ -154,15 +154,16 @@ class TemporalNetwork:
         call to this method is omitted, it will be run with default parameter \delta=1 whenever two-paths 
         are needed for the first time. 
         
-        @param delta: Indicates the maximum temporal distance below which two consecutive links will be 
-        considered as a time-respecting path. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
+        @param delta: Indicates the maximum temporal distance below which two *consecutive* links will be 
+        considered a time-respecting path. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
         will be inferred for all delta < 4, while no time-respecting path will be inferred for all delta >= 4. 
-        For the default delta=1, a time-respecting path will be inferred for all u->v will only be inferred 
+        For the default delta=1, a time-respecting path will only be inferred for all u->v  
         whenever there are directly consecutive time-stamped links (u,v;t) (v,w;t+1)
         """
 
         print('Extracting two-paths for delta =', self.delta)
 
+        self.TwoPathCount = -1
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
         self.twopathsByTime = defaultdict( lambda: dict() )
@@ -174,7 +175,7 @@ class TemporalNetwork:
                 pass
             elif prev_t < t-self.delta:
                 pass
-            # TODO: This may lead to wrong two-paths for delta>1 since in this case also other time 
+            # TODO: For delta>1 also other time 
             # stamps than prev_t may lead to two-paths
             else:
                 for v in self.targets[prev_t]:
