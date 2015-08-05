@@ -346,7 +346,7 @@ def GetSecondOrderDistanceMatrix(t, model='SECOND'):
     return D
 
 
-def GetDistanceMatrix(t, start_t=0, delta=1):
+def GetDistanceMatrix(t, start_t=0, delta=1, collect_paths=True):
     """Calculates the (topologically) shortest time-respecting paths between 
     all pairs of nodes starting at time start_t in an empirical temporal network t.
     This function returns a tuple consisting of 
@@ -408,8 +408,9 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
     Paths = defaultdict( lambda: defaultdict( lambda: [] ) )
 
     # initialize shortest path tree for path reconstruction 
-    for v in t.nodes:
-        Paths[v][v] = [ [v] ]
+    if collect_paths == True:
+        for v in t.nodes:
+            Paths[v][v] = [ [v] ]
 
     # We consider all time-respecting paths starting in any node v at the start time
     for v in t.nodes:
@@ -442,11 +443,11 @@ def GetDistanceMatrix(t, start_t=0, delta=1):
                         # Remember the last time stamp on this path
                         T[name_map[v], name_map[e[1]]] = ts
                         # Update the shortest path tree
-
-                        Paths[v][e[1]] = []
-                        for p in Paths[v][e[0]]:
-                            Paths[v][e[1]] = Paths[v][e[1]] + [p + [e[1]]]
-                    elif D[name_map[v], name_map[e[1]]] == D[name_map[v], name_map[e[0]]] + 1:
+                        if collect_paths == True:
+                            Paths[v][e[1]] = []
+                            for p in Paths[v][e[0]]:
+                                Paths[v][e[1]] = Paths[v][e[1]] + [p + [e[1]]]
+                    elif D[name_map[v], name_map[e[1]]] == D[name_map[v], name_map[e[0]]] + 1 and collect_paths==True:
                         for p in Paths[v][e[0]]:
                             Paths[v][e[1]] = Paths[v][e[1]] + [p + [e[1]]]
 
