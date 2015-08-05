@@ -124,6 +124,12 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
     # Return ratio
     return H2/H2n
 
+def BetweennessPreferences(t, normalized=False):
+    bwp = []
+    for v in t.igraphFirstOrder().vs()["name"]:
+        bwp.append(BetweennessPreference(t, v, normalized))
+    return np.array(bwp)
+
 
 def BetweennessPreference(t, v, normalized = False):
     """Computes the betweenness preference of a node v in a temporal network t
@@ -487,14 +493,12 @@ def BetweennessCentrality(t, model='SECOND'):
             # print(v, ' ->', w, ':', s, ' ->', t)
             X = g2.get_shortest_paths(v,w)
             for p in X:
-                if D[name_map[s], name_map[t]] == len(p):
-                    if len(p) > 1:
-                        for i in range(len(p)):
-                            # print('\t', g2.vs()["name"][p[i]])
-                            source = g2.vs()["name"][p[i]].split(sep)[0]
-                            target = g2.vs()["name"][p[i]].split(sep)[1]
-                            if i>0:
-                                bwcent_1[name_map[source]] += 1
+                if D[name_map[s], name_map[t]] == len(p) and len(p) > 1:
+                    for i in range(len(p)):
+                        # print('\t', g2.vs()["name"][p[i]])
+                        source = g2.vs()["name"][p[i]].split(sep)[0]
+                        if i>0:
+                            bwcent_1[name_map[source]] += 1
     
     return bwcent_1
 
@@ -635,7 +639,7 @@ def GetAvgTimeRespectingCloseness(t, delta=1):
     # Calculate time-respecting closeness centralities for all possible starting times 
     S = 0
     for start_t in t.ordered_times:
-         D, paths = GetDistanceMatrix(t, start_t, delta)    
+         D, paths = GetDistanceMatrix(t, start_t, delta)
          for u in t.nodes:
             for v in t.nodes:
                 if u!=v:
