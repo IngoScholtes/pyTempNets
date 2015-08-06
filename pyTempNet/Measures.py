@@ -352,6 +352,33 @@ def GetSecondOrderDistanceMatrix(t, model='SECOND'):
     return D
 
 
+
+def GetMinTemporalDistance(t, delta=1, collect_paths=True):
+
+    name_map = Utilities.firstOrderNameMap( t )
+    minD = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+    minD.fill(np.inf)
+
+    minPaths = defaultdict( lambda: defaultdict( lambda: [] ) )
+
+    # Each node is connected to itself via a path of length zero
+    np.fill_diagonal(minD, 0)
+
+    for start_t in t.ordered_times:
+        D, paths = GetDistanceMatrix(t, start_t, delta, collect_paths)
+        for v in t.nodes:
+            for w in t.nodes:
+                if D[name_map[v], name_map[w]] < minD[name_map[v], name_map[w]]:
+                    minD[name_map[v], name_map[w]] = D[name_map[v], name_map[w]]
+                    minPaths[v][w] = paths[v][w]
+                elif D[name_map[v], name_map[w]] == minD[name_map[v], name_map[w]] and minD[name_map[v], name_map[w]] < np.inf:
+                    for p in paths[v][w]:
+                        if p not in minPaths[v][w]:
+                            minPaths[v][w] = minPaths[v][w] + [p]
+    return minD, minPaths
+
+
+
 def GetDistanceMatrix(t, start_t=0, delta=1, collect_paths=True):
     """Calculates the (topologically) shortest time-respecting paths between 
     all pairs of nodes starting at time start_t in an empirical temporal network t.
@@ -490,12 +517,13 @@ def BetweennessCentrality(t, model='SECOND'):
         for w in g2.vs()["name"]:
             s = v.split(sep)[0]
             t = w.split(sep)[1]
-            # print(v, ' ->', w, ':', s, ' ->', t)
+            # print(v, ' ->*', w, ':', s, ' ->*', t)
             X = g2.get_shortest_paths(v,w)
             for p in X:
+                #print('\t', p)
                 if D[name_map[s], name_map[t]] == len(p) and len(p) > 1:
                     for i in range(len(p)):
-                        # print('\t', g2.vs()["name"][p[i]])
+              #           print('\t\t', g2.vs()["name"][p[i]])
                         source = g2.vs()["name"][p[i]].split(sep)[0]
                         if i>0:
                             bwcent_1[name_map[source]] += 1
@@ -526,14 +554,24 @@ def GetAvgTimeRespectingBetweenness(t, delta=1, normalized=False):
     bw = np.array([0]*len(t.nodes))
     S = 0
 
-    for start_t in t.ordered_times:
-        bw_temp = GetTimeRespectingBetweenness(t, start_t, delta, normalized = False)
-        bw += bw_temp
-        S += sum(bw_temp)
+    name_map = Utilities.firstOrderNameMap(t)
 
-    if normalized:
-        bw = bw/S
+    #for start_t in t.ordered_times:
+    #    bw_temp = GetTimeRespectingBetweenness(t, start_t, delta, normalized = False)
+    #    bw += bw_temp
+    #    S += sum(bw_temp)
 
+    #if normalized:
+    #    bw = bw/S
+
+    minD, minPaths = GetMinTemporalDistance(t, delta=1, collect_paths=True)
+
+    for v in t.nodes:
+        for w in t.nodes:
+            for p in minPaths[v][w]:
+                for i in range(1,len(p)-1):
+                    bw[name_map[p[i]]] += 1
+                    S+=1
     return bw
 
 
@@ -627,36 +665,46 @@ def GetAvgTimeRespectingCloseness(t, delta=1):
 
     cl = np.array([0.]*len(t.nodes))
 
-    # Entry [u,v] contains the total closeness of node u to v
-    closeness_per_node = np.zeros(shape=(len(t.nodes),len(t.nodes)))
-
-    # Entry [u,v] contains the total number of non-zero closenesses between u and v
-    counts_per_node = np.zeros(shape=(len(t.nodes),len(t.nodes)))
-
-    # Get a mapping between node names and matrix indices
     name_map = Utilities.firstOrderNameMap( t )
 
-    # Calculate time-respecting closeness centralities for all possible starting times 
-    S = 0
-    for start_t in t.ordered_times:
-         D, paths = GetDistanceMatrix(t, start_t, delta)
-         for u in t.nodes:
-            for v in t.nodes:
-                if u!=v:
-                    # Store the closeness of node u from v and count how many paths we have seen to node u from v
-                    if D[name_map[v], name_map[u]]<np.inf:
-                        closeness_per_node[name_map[v], name_map[u]] += D[name_map[v], name_map[u]]
-                        counts_per_node[name_map[v], name_map[u]] += 1
+    minD, minPaths = GetMinTemporalDistance(t, delta, True)
 
-    # Average closeness values 
+    # new implementation
     for u in t.nodes:
         for v in t.nodes:
-            # Closeness of node u is the sum of the avg. closeness of node u from each node v
-            if closeness_per_node[name_map[v], name_map[u]]>0:
-                closeness_per_node[name_map[v], name_map[u]] = 1./(closeness_per_node[name_map[v], name_map[u]]/counts_per_node[name_map[v], name_map[u]])
-    for u in t.nodes:
-        for v in t.nodes:
-            cl[name_map[u]] += closeness_per_node[name_map[v], name_map[u]]
+            if u!= v:
+                cl[name_map[v]] += 1./minD[name_map[u], name_map[v]]
+
+    # Entry [u,v] contains the total closeness of node u to v
+    #closeness_per_node = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+
+    ## Entry [u,v] contains the total number of non-zero closenesses between u and v
+    #counts_per_node = np.zeros(shape=(len(t.nodes),len(t.nodes)))
+
+    ## Get a mapping between node names and matrix indices
+    #name_map = Utilities.firstOrderNameMap( t )
+
+    ## Calculate time-respecting closeness centralities for all possible starting times 
+    #S = 0
+    #for start_t in t.ordered_times:
+    #     D, paths = GetDistanceMatrix(t, start_t, delta)
+    #     for u in t.nodes:
+    #        for v in t.nodes:
+    #            if u!=v:
+    #                # Store the closeness of node u from v and count how many paths we have seen to node u from v
+    #                if D[name_map[v], name_map[u]]<np.inf:
+    #                    closeness_per_node[name_map[v], name_map[u]] += D[name_map[v], name_map[u]]
+    #                    counts_per_node[name_map[v], name_map[u]] += 1
+
+    ## Average closeness values 
+    #for u in t.nodes:
+    #    for v in t.nodes:
+    #        # Closeness of node u is the sum of the avg. closeness of node u from each node v
+    #        if closeness_per_node[name_map[v], name_map[u]]>0:
+    #            closeness_per_node[name_map[v], name_map[u]] = 1./(closeness_per_node[name_map[v], name_map[u]]/counts_per_node[name_map[v], name_map[u]])
+    #for u in t.nodes:
+    #    for v in t.nodes:
+    #        cl[name_map[u]] += closeness_per_node[name_map[v], name_map[u]]
 
     # Return average values
     return cl
