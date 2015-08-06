@@ -456,7 +456,7 @@ class TemporalNetwork:
             last = n
             
         output.append("\\setcounter{a}{0}\n")
-        output.append("\\foreach \\number in {1,...," + str(len(self.tedges)+2) + "}{\n")
+        output.append("\\foreach \\number in {"+ str(min(self.ordered_times))+ ",...," + str(max(self.ordered_times)+1) + "}{\n")
         output.append("\\setcounter{a}{\\number}\n")
         output.append("\\addtocounter{a}{-1}\n")
         output.append("\\pgfmathparse{\\thea}\n")
