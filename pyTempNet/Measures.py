@@ -507,7 +507,7 @@ def BetweennessCentrality(t, model='SECOND'):
     if model == 'SECOND':
         g2 = t.igraphSecondOrder()
     else:
-        g2 = t.igraphSecondOrderNull()    
+        g2 = t.igraphSecondOrderNull()
 
     # Compute betweenness centrality based on second-order network
     bwcent_1 = np.zeros(len(name_map))
@@ -518,7 +518,7 @@ def BetweennessCentrality(t, model='SECOND'):
             s = v.split(sep)[0]
             t = w.split(sep)[1]
             # print(v, ' ->*', w, ':', s, ' ->*', t)
-            X = g2.get_shortest_paths(v,w)
+            X = g2.get_all_shortest_paths(v,w)
             for p in X:
                 #print('\t', p)
                 if D[name_map[s], name_map[t]] == len(p) and len(p) > 1:
