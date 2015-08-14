@@ -9,8 +9,10 @@
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
-    <InterpreterId>{99f6a880-d115-4494-afb4-44231ea4f218}</InterpreterId>
-    <InterpreterVersion>3.4</InterpreterVersion>
+    <InterpreterId>
+    </InterpreterId>
+    <InterpreterVersion>
+    </InterpreterVersion>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
   </PropertyGroup>
@@ -33,9 +35,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="pyTempNet" />
-  </ItemGroup>
-  <ItemGroup>
-    <InterpreterReference Include="{99f6a880-d115-4494-afb4-44231ea4f218}\3.4" />
   </ItemGroup>
   <ItemGroup>
     <Content Include=".gitignore" />

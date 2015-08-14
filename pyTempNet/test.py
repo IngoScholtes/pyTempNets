@@ -49,6 +49,8 @@ t.addEdge("e", "f", 19);
 t.addEdge("c", "e", 20);
 t.addEdge("e", "f", 21);
 
+t.extractTwoPaths(delta=1)
+
 print("Test network has", t.TwoPathCount(), "two-paths")
 
 

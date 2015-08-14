@@ -23,6 +23,7 @@ class TemporalNetwork:
         """Constructor generating an empty temporal network"""
         
         self.tedges = []
+        nodes_seen = defaultdict( lambda:False )
         self.nodes = []
 
         # Some index structures to quickly access tedges by time, target and source
@@ -36,10 +37,11 @@ class TemporalNetwork:
                 self.time[e[2]].append(e)
                 self.targets[e[2]].setdefault(e[1], []).append(e)
                 self.sources[e[2]].setdefault(e[0], []).append(e)
-                if e[0] not in self.nodes:
-                    self.nodes.append(e[0])
-                if e[1] not in self.nodes:
-                    self.nodes.append(e[1])            
+                if not nodes_seen[e[0]]:
+                    nodes_seen[e[0]] = True
+                if not nodes_seen[e[1]]:
+                    nodes_seen[e[1]] = True
+        self.nodes = list(nodes_seen.keys())
 
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
@@ -133,8 +135,15 @@ class TemporalNetwork:
 
 
     def setMaxTimeDiff(self, delta):
-        """Sets the maximum time difference between consecutive links to be used for 
-        the extraction of time-respecting paths of length two (two-paths)"""
+        """Sets the maximum time difference delta between consecutive links to be used for 
+        the extraction of time-respecting paths of length two (two-paths). 
+
+        @param delta: Indicates the maximum temporal distance below which two *consecutive* links will be 
+        considered a time-respecting path. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
+        will be inferred for all 0 < delta <= 4, while no time-respecting path will be inferred for all delta > 4. 
+        For the default delta=1, a time-respecting path will only be inferred for all u->v  
+        whenever there are directly consecutive time-stamped links, i.e. (u,v;t) (v,w;t+1)
+        """
         
         if delta != self.delta:
             # Set new value and invalidate two-path structures
@@ -151,16 +160,22 @@ class TemporalNetwork:
         return np.array(timediffs)
 
 
-    def extractTwoPaths_new(self):
-        """New version of two-path extraction that works efficiently for *any* delta"""
+    def extractTwoPaths(self):
+        """Extracts all time-respecting paths of length two in this temporal network. The two-paths 
+        extracted by this method will be used in the construction of second-order time-aggregated 
+        networks, as well as in the analysis of causal structures of this temporal network. If an explicit 
+        call to this method is omitted, it will be run with the current parameter delta set in the 
+        TemporalNetwork instance (default: delta=1) whenever two-paths are needed for the first time. 
+        """
 
         print('Extracting two-paths for delta =', self.delta)
 
-        self.TwoPathCount = -1
+        self.tpcount = -1
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
         self.twopathsByTime = defaultdict( lambda: dict() )
 
+        # Frequent accesses to stack variable are faster than instance variables
         dt = self.delta
 
         # For each time stamp in the data set ... 
@@ -186,71 +201,19 @@ class TemporalNetwork:
                                     outdeg_v = len(self.sources[future_t][v])    
                                     # For each s create a weighted two-path tuple
                                     # (s, v, d, weight)
+
+                                    # TODO: Add support for weighted time-stamped links
+
                                     two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
 
                                     self.twopaths.append(two_path)
                                     self.twopathsByNode[v].setdefault(t, []).append(two_path) 
                                     self.twopathsByTime[t].setdefault(v, []).append(two_path)
-                    
-
-    def extractTwoPaths(self):
-        """Extracts all time-respecting paths of length two in this temporal network. The two-paths 
-        extracted by this method will be used in the construction of second-order time-aggregated 
-        networks, as well as in the analysis of causal structures of this temporal network. If an explicit 
-        call to this method is omitted, it will be run with default parameter \delta=1 whenever two-paths 
-        are needed for the first time. 
         
-        @param delta: Indicates the maximum temporal distance below which two *consecutive* links will be 
-        considered a time-respecting path. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
-        will be inferred for all delta < 4, while no time-respecting path will be inferred for all delta >= 4. 
-        For the default delta=1, a time-respecting path will only be inferred for all u->v  
-        whenever there are directly consecutive time-stamped links (u,v;t) (v,w;t+1)
-        """
-
-        print('Extracting two-paths for delta =', self.delta)
-
-        self.TwoPathCount = -1
-        self.twopaths = []
-        self.twopathsByNode = defaultdict( lambda: dict() )
-        self.twopathsByTime = defaultdict( lambda: dict() )
-
-        # Extract time-respecting paths of length two             
-        prev_t = -1
-        for t in self.ordered_times:
-            if prev_t ==-1: 
-                pass
-            elif prev_t < t-self.delta:
-                pass
-            # TODO: For delta>1 also other time 
-            # stamps than prev_t may lead to two-paths
-            else:
-                for v in self.targets[prev_t]:
-                    if v in self.sources[t]:
-                        for e_out in self.sources[t][v]:
-                            for e_in in self.targets[prev_t][v]:
-                                s = e_in[0]
-                                d = e_out[1]
-                                
-                                # TODO: Add support for weighted time-
-                                # TODO: stamped links
-                                pass
-                                indeg_v = len(self.targets[prev_t][v])
-                                outdeg_v = len(self.sources[t][v])                                
-                                
-                                # Create a weighted two-path tuple
-                                # (s, v, d, weight)
-                                # representing two path (s,v) -> (v,d)
-                                two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
-                                self.twopaths.append(two_path)
-                                
-                                self.twopathsByNode[v].setdefault(t, []).append(two_path) 
-                                self.twopathsByTime[t].setdefault(v, []).append(two_path)
-            prev_t = t
-        
+        # Update cached values
         g1 = 0
         g2 = 0
-        g2n = 0
-        # Update the count of two-paths
+        g2n = 0        
         self.tpcount = len(self.twopaths)
 
         
