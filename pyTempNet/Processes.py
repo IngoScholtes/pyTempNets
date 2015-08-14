@@ -80,7 +80,7 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
     # Create frames
     for i in range(0,steps):
         visual_style["vertex_color"] = [color_p(p**0.1) for p in x]
-        igraph.plot(g, file_prefix + "_frame_" + str(i).zfill(3) +".png", **visual_style)
+        igraph.plot(g, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
         if i % 10 == 0:
             print('Step',i, ' TVD =', Utilities.TVD(x,pi))
         # NOTE x * T = (T^T * x^T)^T
