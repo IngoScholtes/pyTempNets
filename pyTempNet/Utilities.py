@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jul 15 10:48:48 2015
-@author: Ingo Scholtes
+@author: Ingo Scholtes, Roman Cattaneo
 
 (c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri May  8 12:35:22 2015
-@author: Ingo Scholtes
+@author: Ingo Scholtes, Roman Cattaneo
 
 (c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """
@@ -11,6 +11,8 @@ import igraph
 from collections import defaultdict
 from collections import Counter
 import os
+
+from subprocess import call
 
 from pyTempNet import Utilities
     
@@ -86,39 +88,43 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
         x = (T.dot(x.transpose())).transpose()
 
 
-def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, delay=10):
+def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, fps=10):
     """Exports an mp4 file containing a side-by-side comparison of a diffusion process in a Markovian (left) and a non-Markovian temporal network"""
     prefix_1 = str(np.random.randint(0, 10000))
     prefix_2 = str(np.random.randint(0, 10000))
     prefix_3 = str(np.random.randint(0, 10000))
 
-    print('Calculating diffusion dynamics in non-Markovian temporal network')
-    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames\\' + prefix_1, visual_style=visual_style, steps=steps, initial_index=initial_index, model='SECOND')
+    print('Calculating diffusion dynamics in non-Markovian temporal network', end='')
+    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix_1, visual_style=visual_style, steps=steps, initial_index=initial_index, model='SECOND')
+    print('finished.')
 
-    print('Calculating diffusion dynamics in Markovian temporal network')
-    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames\\' + prefix_2, visual_style=visual_style, steps=steps, initial_index=initial_index, model='NULL')
+    print('Calculating diffusion dynamics in Markovian temporal network ...', end='')
+    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix_2, visual_style=visual_style, steps=steps, initial_index=initial_index, model='NULL')
+    print('finished.')
 
-    print('Stitching video frames')
-    from subprocess import call
+    print('Stitching video frames ...', end='')    
     for i in range(200):
-        x = call("convert frames\\" + prefix_1 + "_frame_" + str(i).zfill(3)+ ".png frames\\"+prefix_2+"_frame_" + str(i).zfill(3) + ".png +append " + "frames\\"+prefix_3+"_frame_" + str(i).zfill(3) + ".png", shell=True) 
+        x = call("convert frames" + os.sep + prefix_1 + "_frame_" + str(i).zfill(5)+ ".png frames" + os.sep + prefix_2+"_frame_" + str(i).zfill(5) + ".png +append " + "frames" + os.sep + prefix_3+"_frame_" + str(i).zfill(5) + ".png", shell=True) 
+    print('finished.')
     
-    print('Encoding video')
-    x = call("convert -delay " + str(delay) +" frames\\"+prefix_3+"_frame_* "+output_file, shell=True) 
+    print('Encoding video ...', end='')
+    x = call("ffmpeg.exe -framerate " + str(fps) + "-i frames" + os.sep + prefix_3 + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)    
+    print('finished.')
 
 
-def exportDiffusionVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, delay=10, model='SECOND'):
+def exportDiffusionVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, fps=10, model='SECOND'):
     prefix = str(np.random.randint(0, 10000))
 
     if model == 'SECOND':
-        print('Calculating diffusion dynamics in non-Markovian temporal network')
+        print('Calculating diffusion dynamics in non-Markovian temporal network ...')
     else:
-        print('Calculating diffusion dynamics in Markovian temporal network')
-    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames\\' + prefix, visual_style=visual_style, steps=steps, initial_index=initial_index, model=model)
+        print('Calculating diffusion dynamics in Markovian temporal network ...')
+    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix, visual_style=visual_style, steps=steps, initial_index=initial_index, model=model)
+    print('finished.')
 
-    from subprocess import call
-    print('Encoding video')
-    x = call("convert -delay " + str(delay) +" frames\\"+prefix+"_frame_* "+output_file, shell=True) 
+    print('Encoding video ...', end='')
+    x = call("ffmpeg.exe -framerate " + str(fps) + "-i frames" + os.sep + prefix + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)    
+    print('finished.')
 
 
 def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_style = None, steps=100, initial_index=-1, model='SECOND'):
@@ -194,7 +200,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
                 x_firstorder[map_2_to_1[j]] = x_firstorder[map_2_to_1[j]] + x[j]
 
         visual_style["vertex_color"] = [color_p(np.power((p-min(x))/(max(x)-min(x)),1/1.3)) for p in x_firstorder]
-        igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(int(np.ceil(np.log10(steps)))) +".png", **visual_style)
+        igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
         if i % 50 == 0:
             print('Step',i, ' TVD =', Utilities.TVD(x,pi))
         # NOTE x * T = (T^T * x^T)^T
@@ -210,19 +216,23 @@ def exportSIComparisonVideo(t, output_file, visual_style = None, steps = 700, in
     prefix_2 = str(r + 1)
     prefix_3 = str(r + 2)
 
-    print('Simulating SI dynamics in Markovian temporal network')
-    exportSIMovieFrames(t, file_prefix='frames\\' + prefix_2, visual_style=visual_style, steps=steps, initial_index=initial_index, model='NULL')
+    print('Simulating SI dynamics in Markovian temporal network ...', sep='')
+    exportSIMovieFrames(t, file_prefix='frames' + os.sep + prefix_2, visual_style=visual_style, steps=steps, initial_index=initial_index, model='NULL')
+    print('finished.')
 
-    print('Simulating SI dynamics in non-Markovian temporal network')
-    exportSIMovieFrames(t, file_prefix='frames\\' + prefix_1, visual_style=visual_style, steps=steps, initial_index=initial_index, model='SECOND')
+    print('Simulating SI dynamics in non-Markovian temporal network ...', sep='')
+    exportSIMovieFrames(t, file_prefix='frames' + os.sep + prefix_1, visual_style=visual_style, steps=steps, initial_index=initial_index, model='SECOND')
+    print('finished.')
 
-    print('Stitching video frames')
-    from subprocess import call
+    print('Stitching video frames ...', sep='')
     for i in range(steps):
-        x = call("convert frames\\" + prefix_1 + "_frame_" + str(i).zfill(5)+ ".png frames\\"+prefix_2+"_frame_" + str(i).zfill(5) + ".png +append " + "frames\\"+prefix_3+"_frame_" + str(i).zfill(5) + ".png", shell=True) 
+        x = call("convert frames" + os.sep + prefix_1 + "_frame_" + str(i).zfill(5)+ ".png frames"+os.sep + prefix_2+"_frame_" + str(i).zfill(5) + ".png +append " + "frames" + os.sep + prefix_3+"_frame_" + str(i).zfill(5) + ".png", shell=True) 
+    print('finished.')
     
-    print('Encoding video')
-    x = call("ffmpeg.exe -framerate 30 -i " + " frames\\" + prefix_3 + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True) 
+    print('Encoding video ...', sep='')
+    x = call("ffmpeg.exe -framerate 30 -i " + " frames" + os.sep + prefix_3 + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True) 
+    print('finished.')
+
     # Alternatively, we could have used the convert frontend of imagemagick, but this is known to generate a "delegate" error on Windows machines when the number of frames is too large
     # x = call("convert -delay " + str(delay) +" frames\\"+prefix_3+"_frame_* "+output_file, shell=True) 
 
@@ -299,7 +309,6 @@ def exportSIMovieFrames(t, file_prefix='SI', visual_style = None, steps=100, ini
         igraph.plot(slice, file_prefix + '_frame_' + str(t).zfill(5) + '.png', **visual_style)
         
         c = Counter(infected)
-
 
         if i % 100 == 0:
             print('Step',i, ' infected =', c[1])

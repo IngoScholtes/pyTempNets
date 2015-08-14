@@ -26,6 +26,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="pyTempNet\Utilities.py" />
+    <Compile Include="pyTempNet\Visualizer.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="setup.py" />
     <Compile Include="pyTempNet\Measures.py" />
     <Compile Include="pyTempNet\Processes.py" />

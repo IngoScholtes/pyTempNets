@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Feb 19 11:49:39 2015
-@author: Ingo Scholtes
+@author: Ingo Scholtes, Roman Cattaneo
 
 (c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """
 
 import igraph
 import numpy as np
-import os
 from collections import defaultdict
 
 import bisect
@@ -26,17 +25,19 @@ class TemporalNetwork:
         nodes_seen = defaultdict( lambda:False )
         self.nodes = []
 
-        # Some index structures to quickly access tedges by time, target and source
-        print('Building indexing data structures ...', end='')
-
+        # Some index structures to quickly access tedges by time, target and source        
         self.time = defaultdict( lambda: list() )
         self.targets = defaultdict( lambda: dict() )
-        self.sources = defaultdict( lambda: dict() )
+        self.sources = defaultdict( lambda: dict() )        
 
-        self.tedges = tedges
+        # An ordered list of time-stamps (invalidated as soon as links are changed)
+        self.ordered_times = []
 
-        if self.tedges is not None:
-            for e in self.tedges:                
+        self.tedges = []
+
+        if tedges is not None:
+            print('Building indexing data structures ...', end='')
+            for e in tedges:
                 self.time[e[2]].append(e)
                 self.targets[e[2]].setdefault(e[1], []).append(e)
                 self.sources[e[2]].setdefault(e[0], []).append(e)
@@ -44,9 +45,13 @@ class TemporalNetwork:
                     nodes_seen[e[0]] = True
                 if not nodes_seen[e[1]]:
                     nodes_seen[e[1]] = True
-        self.nodes = list(nodes_seen.keys())
+            self.tedges = tedges
+            self.nodes = list(nodes_seen.keys())
+            print('finished.')
 
-        print('finished.')
+            print('Sorting time stamps ...', end = '')
+            self.ordered_times = np.sort(list(self.time.keys()))
+            print('finished.')
 
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
@@ -58,12 +63,7 @@ class TemporalNetwork:
 
         """The maximum time difference between consecutive links to be used 
         for extraction of time-respecting paths of length two"""
-        self.delta = 1            
-        
-        # An ordered list of time-stamps (invalidated as soon as links are changed)
-        print('Sorting time stamps ...', end = '')
-        self.ordered_times = np.sort(list(self.time.keys()))
-        print('finished.')
+        self.delta = 1                                    
 
         # Generate index structures if temporal network is constructed from two-paths
         if twopaths is not None:
@@ -143,13 +143,16 @@ class TemporalNetwork:
 
     def setMaxTimeDiff(self, delta):
         """Sets the maximum time difference delta between consecutive links to be used for 
-        the extraction of time-respecting paths of length two (two-paths). 
+        the extraction of time-respecting paths of length two (two-paths). If two-path structures
+        and/or second-order networks have previously been computed, this method will invalidate all
+        cached data if the new delta is different from the old one (for which the data have been computed)
 
-        @param delta: Indicates the maximum temporal distance below which two *consecutive* links will be 
-        considered a time-respecting path. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
+        @param delta: Indicates the maximum temporal distance up to which time-stamped links will be 
+        considered to contribute to time-respecting path. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
         will be inferred for all 0 < delta <= 4, while no time-respecting path will be inferred for all delta > 4. 
-        For the default delta=1, a time-respecting path will only be inferred for all u->v  
-        whenever there are directly consecutive time-stamped links, i.e. (u,v;t) (v,w;t+1)
+        If the max time diff is not specific speficially, the default value of delta=1 will be used, meaning that a 
+        time-respecting path u -> v will only be inferred if there are *directly consecutive* time-stamped 
+        links (u,v;t) (v,w;t+1).
         """
         
         if delta != self.delta:
@@ -157,6 +160,7 @@ class TemporalNetwork:
             self.delta = delta
             self.InvalidateTwoPaths()
     
+
     def getInterEventTimes(self):
         """Returns a numpy array containing the time differences between
             consecutive time-stamped links (by any node)"""
@@ -172,7 +176,9 @@ class TemporalNetwork:
         extracted by this method will be used in the construction of second-order time-aggregated 
         networks, as well as in the analysis of causal structures of this temporal network. If an explicit 
         call to this method is omitted, it will be run with the current parameter delta set in the 
-        TemporalNetwork instance (default: delta=1) whenever two-paths are needed for the first time. 
+        TemporalNetwork instance (default: delta=1) whenever two-paths are needed for the first time.
+        Once two-paths have been computed, they will be cached and reused until the maximum time difference 
+        delta is changed.
         """
 
         print('Extracting two-paths for delta =', self.delta)
@@ -285,7 +291,7 @@ class TemporalNetwork:
         if self.tpcount == -1:
             self.extractTwoPaths()
 
-        print('Constructing second-order aggregate network')
+        print('Constructing second-order aggregate network ...', end='')
 
         # create vertex list and edge directory first
         vertex_list = []
@@ -309,6 +315,8 @@ class TemporalNetwork:
         # add all edges in one go
         self.g2.add_edges( edge_dict.keys() )
         self.g2.es["weight"] = list(edge_dict.values())
+
+        print('finished.')
 
         return self.g2
 
@@ -388,7 +396,7 @@ class TemporalNetwork:
         if l==0:
             l = 2*int(len(self.tedges)/2)
         for i in range(l):
-            # We simply shuffle the order of all edges
+            # Here we simply shuffle the order of all edges
             edge = self.tedges[np.random.randint(0, len(self.tedges))]
             tedges.append((edge[0], edge[1], i))
         t = TemporalNetwork(sep=',', tedges=tedges)
@@ -435,149 +443,3 @@ class TemporalNetwork:
             
         tempnet = TemporalNetwork(sep=',', tedges=tedges)
         return tempnet
-
-
-    def exportTikzUnfolded(self, filename):
-        """Generates a tikz file that can be compiled to obtain a time-unfolded 
-            representation of the temporal network.
-            
-        @param filename: the name of the tex file to be generated."""    
-        
-        output = []
-            
-        output.append('\\documentclass{article}\n')
-        output.append('\\usepackage{tikz}\n')
-        output.append('\\usepackage{verbatim}\n')
-        output.append('\\usepackage[active,tightpage]{preview}\n')
-        output.append('\\PreviewEnvironment{tikzpicture}\n')
-        output.append('\\setlength\PreviewBorder{5pt}%\n')
-        output.append('\\usetikzlibrary{arrows}\n')
-        output.append('\\usetikzlibrary{positioning}\n')
-        output.append('\\begin{document}\n')
-        output.append('\\begin{center}\n')
-        output.append('\\newcounter{a}\n')
-        output.append("\\begin{tikzpicture}[->,>=stealth',auto,scale=0.5, every node/.style={scale=0.9}]\n")
-        output.append("\\tikzstyle{node} = [fill=lightgray,text=black,circle]\n")
-        output.append("\\tikzstyle{v} = [fill=black,text=white,circle]\n")
-        output.append("\\tikzstyle{dst} = [fill=lightgray,text=black,circle]\n")
-        output.append("\\tikzstyle{lbl} = [fill=white,text=black,circle]\n")
-
-        last = ''
-            
-        for n in self.nodes:
-            if last == '':
-                output.append("\\node[lbl]                     (" + n + "-0)   {$" + n + "$};\n")
-            else:
-                output.append("\\node[lbl,right=0.5cm of "+last+"-0] (" + n + "-0)   {$" + n + "$};\n")
-            last = n
-            
-        output.append("\\setcounter{a}{0}\n")
-        output.append("\\foreach \\number in {"+ str(min(self.ordered_times))+ ",...," + str(max(self.ordered_times)+1) + "}{\n")
-        output.append("\\setcounter{a}{\\number}\n")
-        output.append("\\addtocounter{a}{-1}\n")
-        output.append("\\pgfmathparse{\\thea}\n")
-        
-        for n in self.nodes:
-            output.append("\\node[v,below=0.3cm of " + n + "-\\pgfmathresult]     (" + n + "-\\number) {};\n")
-        output.append("\\node[lbl,left=0.5cm of " + self.nodes[0] + "-\\number]    (col-\\pgfmathresult) {$t=$\\number};\n")
-        output.append("}\n")
-        output.append("\\path[->,thick]\n")
-        i = 1
-        
-        for t in self.ordered_times:
-            for edge in self.time[t]:
-                output.append("(" + edge[0] + "-" + str(t) + ") edge (" + edge[1] + "-" + str(t + 1) + ")\n")
-                i += 1                                
-        output.append(";\n")
-        output.append("""\end{tikzpicture}
-\end{center}
-\end{document}""")
-        
-        # create directory if necessary to avoid IO errors
-        directory = os.path.dirname( filename )
-        if not os.path.exists( directory ):
-          os.makedirs( directory )
-        
-        text_file = open(filename, "w")
-        text_file.write(''.join(output))
-        text_file.close()
-                    
-
-
-    def exportMovie(self, output_file, visual_style = None, realtime = True, maxSteps=-1, delay=10):
-        """Exports a video showing the evolution of the temporal network.
-        
-        @param output_file: the filename of the mp4 video to be generated
-        @param visual_style: the igraph visual style to be used for the individual frames of the video.
-            If the parameter value is None, a standard visual style will be used.
-        @param realtime: Whether to generate a frame for every time step between the minimum and maximum timestamps, or only for those 
-            where at least one node is active. For realtime=true, phases with no activity are retained in the video and there is a direct relation
-            between the real time and the frame number. 
-        @param maxSteps: The maximum number of time steps to export. For the default value -1 all steps in the evolution of the temporal network
-            will be exported.
-        @param delay: The delay in ms after each frame in the video. For the default value of 10, the framerate of the generated video will be 100 fps. 
-        """
-        prefix = str(np.random.randint(0,10000))
-        
-        # TODO: 
-        self.exportMovieFrames('frames' + os.sep + prefix, visual_style = visual_style, realtime = realtime, maxSteps=maxSteps)
-        
-        from subprocess import call
-
-        # TODO: Replace by direct call to fmpeg
-        x = call("convert -delay " + str(delay) +" frames" + os.sep + prefix+"_frame_* "+output_file, shell=True)
-
-
-
-    def exportMovieFrames(self, fileprefix, visual_style = None, realtime = True, maxSteps=-1):
-        """Exports a sequence of numbered images showing the evolution of the temporal network. The resulting frames can be encoded into 
-        custm video formats, for instance using ffmpeg. 
-        
-        @param output_file: the prefix of the file names to be used for the individual images
-        @param visual_style: the igraph visual style to be used for the individual frames of the video.
-            If the parameter value is None, a standard visual style will be used.
-        @param realtime: Whether to generate a frame for every time step between the minimum and maximum timestamps, or only for those 
-            where at least one node is active. For realtime=true, phases with no activity are retained in the video and there is a direct relation
-            between the real time and the frame number. 
-        @param maxSteps: The maximum number of time steps to export. For the default value -1 all steps in the evolution of the temporal network
-            will be exported.
-        """
-
-        g = self.igraphFirstOrder()        
-
-        if visual_style == None:
-            print('No visual style specified, setting to defaults')
-            visual_style = {}
-            visual_style["vertex_color"] = "lightblue"
-            visual_style["vertex_label"] = g.vs["name"]
-            visual_style["edge_curved"] = .5
-            visual_style["vertex_size"] = 30
-            
-            # Use layout from first-order aggregate network
-            visual_style["layout"] = g.layout_auto() 
-        
-        # make sure there is a directory for the frames to avoid IO errors
-        directory = os.path.dirname(fileprefix)
-        if not os.path.exists( directory ):
-          os.makedirs( directory )
-         
-        i = 0
-        # Generate movie frames
-        if realtime == True:
-            t_range = range(min(self.time.keys()), max(self.time.keys())+1)
-        else:
-            t_range = self.ordered_times
-
-        if maxSteps>0:
-            t_range = t_range[:maxSteps]
-
-        for t in t_range:
-            i += 1
-            slice = igraph.Graph(n=len(g.vs()), directed=True)
-            slice.vs["name"] = g.vs["name"]
-
-            for e in self.time[t]:
-                slice.add_edge(e[0], e[1])
-            igraph.plot(slice, fileprefix + '_frame_' + str(t).zfill(5) + '.png', **visual_style)
-            if i % 100 == 0:
-                print('Wrote movie frame', i, ' of', len(t_range))
