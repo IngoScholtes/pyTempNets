@@ -11,6 +11,8 @@ import numpy as np
 import os
 from collections import defaultdict
 
+import bisect
+
 from pyTempNet.Utilities import RWTransitionMatrix
 from pyTempNet.Utilities import StationaryDistribution
 
@@ -22,16 +24,22 @@ class TemporalNetwork:
         
         self.tedges = []
         self.nodes = []
+
+        # Some index structures to quickly access tedges by time, target and source
+        self.time = defaultdict( lambda: list() )
+        self.targets = defaultdict( lambda: dict() )
+        self.sources = defaultdict( lambda: dict() )
+
         if tedges is not None:
             for e in tedges:
                 self.tedges.append(e)
-        for e in self.tedges:
-            source = e[0]
-            target = e[1]
-            if source not in self.nodes:
-                self.nodes.append(source)
-            if target not in self.nodes:
-                self.nodes.append(target)
+                self.time[e[2]].append(e)
+                self.targets[e[2]].setdefault(e[1], []).append(e)
+                self.sources[e[2]].setdefault(e[0], []).append(e)
+                if e[0] not in self.nodes:
+                    self.nodes.append(e[0])
+                if e[1] not in self.nodes:
+                    self.nodes.append(e[1])            
 
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
@@ -43,9 +51,12 @@ class TemporalNetwork:
 
         """The maximum time difference between consecutive links to be used 
         for extraction of time-respecting paths of length two"""
-        self.delta = 1
+        self.delta = 1            
+        
+        # An ordered list of time-stamps (invalidated as soon as links are changed)
+        self.ordered_times = np.sort(list(self.time.keys()))
 
-        #Generate index structures if temporal network is constructed from two-paths
+        # Generate index structures if temporal network is constructed from two-paths
         if twopaths is not None:
             t = 0
             for tp in twopaths:
@@ -63,23 +74,7 @@ class TemporalNetwork:
   
                 self.twopathsByNode[v].setdefault(t, []).append(tp)
                 t +=1
-            self.tpcount = len(twopaths)
-
-         # Generate some index structures to quickly access tedges by time, target and source
-        self.time = defaultdict( lambda: list() )
-        self.targets = defaultdict( lambda: dict() )
-        self.sources = defaultdict( lambda: dict() )
-        for e in self.tedges:
-            source = e[0]
-            target = e[1]
-            ts = e[2]
-
-            self.time[ts].append(e)
-            self.targets[ts].setdefault(target, []).append(e)
-            self.sources[ts].setdefault(source, []).append(e)
-        
-        # An ordered list of time-stamps (invalidated as soon as links are changed)
-        self.ordered_times = np.sort(list(self.time.keys()))
+            self.tpcount = len(twopaths)        
 
         # Cached instances of first- and second-order aggregate networks
         self.g1 = 0
@@ -145,7 +140,58 @@ class TemporalNetwork:
             # Set new value and invalidate two-path structures
             self.delta = delta
             self.InvalidateTwoPaths()
+    
+    def getInterEventTimes(self):
+        """Returns a numpy array containing the time differences between
+            consecutive time-stamped links (by any node)"""
 
+        timediffs = []
+        for i in range(1, len(self.ordered_times)):
+            timediffs += [self.ordered_times[i] - self.ordered_times[i-1]]
+        return np.array(timediffs)
+
+
+    def extractTwoPaths_new(self):
+        """New version of two-path extraction that works efficiently for *any* delta"""
+
+        print('Extracting two-paths for delta =', self.delta)
+
+        self.TwoPathCount = -1
+        self.twopaths = []
+        self.twopathsByNode = defaultdict( lambda: dict() )
+        self.twopathsByTime = defaultdict( lambda: dict() )
+
+        dt = self.delta
+
+        # For each time stamp in the data set ... 
+        for i in range(len(self.ordered_times)):
+            t = self.ordered_times[i]
+            max_ix = bisect.bisect_right(self.ordered_times, t+dt)-1
+
+            # For each possible middle node v (i.e. all target nodes at time t) ... 
+            for v in self.targets[t]:
+
+                # For all time stamps in the range (t, t+delta] ...
+                for j in range(i+1, max_ix+1):
+                    future_t = self.ordered_times[j]
+                    # First check if v is source of a time-stamped link at time last_t
+                    if v in self.sources[future_t]:
+                        # For all possible IN-edges that end with v
+                            for e_in in self.targets[t][v]:
+                                # Combine with all OUT-edges that start with v
+                                for e_out in self.sources[future_t][v]:
+                                    s = e_in[0]
+                                    d = e_out[1]
+                                    indeg_v = len(self.targets[t][v])
+                                    outdeg_v = len(self.sources[future_t][v])    
+                                    # For each s create a weighted two-path tuple
+                                    # (s, v, d, weight)
+                                    two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
+
+                                    self.twopaths.append(two_path)
+                                    self.twopathsByNode[v].setdefault(t, []).append(two_path) 
+                                    self.twopathsByTime[t].setdefault(v, []).append(two_path)
+                    
 
     def extractTwoPaths(self):
         """Extracts all time-respecting paths of length two in this temporal network. The two-paths 

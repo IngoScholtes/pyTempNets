@@ -12,6 +12,7 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
 import pyTempNet as tn
+import datetime as dt
 
 def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
     """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
@@ -26,7 +27,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
     """
     
     assert filename is not ""
-    assert fformat is "TEDGE" or "TRIGRAM"
+    assert (fformat is "TEDGE") or (fformat is "TRIGRAM")
     
     f = open(filename, 'r')
     tedges = []
@@ -34,7 +35,6 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
     
     header = f.readline()
     header = header.split(sep)
-    
     # Support for arbitrary column ordering
     time_ix = -1
     source_ix = -1
@@ -60,23 +60,28 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
             elif header[i] == 'node3' or header[i] == 'target':
                 target_ix = i
             elif header[i] == 'weight':
-                weight_ix = i
+                weight_ix = i    
     assert( (source_ix >= 0 and target_ix >= 0 and time_ix >=0) or
             (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0) )
     # Read time-stamped edges
+
+    print('Reading time-stamped links')
     line = f.readline()
     n = 1 
     while not line.strip() == '' and n <= maxlines:
         fields = line.rstrip().split(sep)
         if fformat =="TEDGE":
-            timestamp = fields[time_ix]            
-            if (timestamp.isdigit()):
-                t = int(timestamp)
-            else:
-                x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
-                t = int(time.mktime(x.timetuple()))
-            tedge = (fields[source_ix], fields[target_ix], t)
-            tedges.append(tedge)
+            try:
+                timestamp = fields[time_ix]            
+                if (timestamp.isdigit()):
+                    t = int(timestamp)
+                else:
+                    x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
+                    t = int(time.mktime(x.timetuple()))
+                tedge = (fields[source_ix], fields[target_ix], t)
+                tedges.append(tedge)
+            except IndexError:
+                print('Malformed line', line)
 
         elif fformat =="TRIGRAM":
             source = fields[source_ix].strip('"')
@@ -90,6 +95,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
         n += 1
 
     if fformat == "TEDGE":
+        print('Constructing temporal network')
         return tn.TemporalNetwork(tedges = tedges, sep=sep)
     elif fformat =="TRIGRAM":           
         return tn.TemporalNetwork(twopaths = twopaths, sep=sep)
