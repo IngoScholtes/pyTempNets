@@ -10,7 +10,7 @@ import igraph
 import numpy as np
 from collections import defaultdict
 
-import bisect
+from bisect import bisect_right
 
 from pyTempNet.Utilities import RWTransitionMatrix
 from pyTempNet.Utilities import StationaryDistribution
@@ -171,6 +171,41 @@ class TemporalNetwork:
         return np.array(timediffs)
 
 
+    def Summary(self):
+        """Print basic summary statistics of this temporal network"""
+
+        print('Nodes:\t\t\t', self.vcount())
+        print('Time-stamped links:\t', self.ecount())
+        print('Links/Nodes:\t\t', self.ecount()/self.vcount())
+        print('Observation period:\t [', min(self.ordered_times), ', ', max(self.ordered_times),']')
+        print('Observation length:\t', max(self.ordered_times) - min(self.ordered_times))
+        print('Time stamps:\t\t', len(self.ordered_times))
+
+        d = self.getInterEventTimes()
+    
+        print('Avg. inter-event dt:\t', np.mean(d))
+        print('Min/Max inter-event dt:\t', min(d), '/', max(d))    
+
+        print('Max Time Diff (delta):\t', self.delta)
+        print('Two-paths:\t\t', end='')
+        if self.tpcount>=0:
+            print(' ' + str(self.tpcount))
+        else:
+            print(' not calculated')
+        
+        if self.g1!=0:
+            print('First-order nodes:\t', self.g1.vcount())
+            print('First-order links:\t', self.g1.ecount())
+        else:
+            print('First-order network:\t not constructed')
+        
+        if self.g2!=0:
+            print('Second-order nodes:\t', self.g2.vcount())
+            print('Second-order links:\t', self.g2.ecount())
+        else:
+            print('Second-order network:\t not constructed')
+
+
     def extractTwoPaths(self):
         """Extracts all time-respecting paths of length two in this temporal network. The two-paths 
         extracted by this method will be used in the construction of second-order time-aggregated 
@@ -186,48 +221,54 @@ class TemporalNetwork:
         self.tpcount = -1
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
-        self.twopathsByTime = defaultdict( lambda: dict() )
+        self.twopathsByTime = defaultdict( lambda: dict() )        
 
-        # Frequent accesses to stack variable are faster than instance variables
+        # Avoid reevaluations in loop
+        tpappend = self.twopaths.append
+        srcs = self.sources
+        tgts = self.targets
+        odts = self.ordered_times
         dt = self.delta
 
         # For each time stamp in the data set ... 
-        for i in range(len(self.ordered_times)):
-            t = self.ordered_times[i]
-            max_ix = bisect.bisect_right(self.ordered_times, t+dt)-1
+        for i in range(len(odts)):
+            t = odts[i]
+            max_ix = bisect_right(odts, t+dt)-1
 
             # For each possible middle node v (i.e. all target nodes at time t) ... 
-            for v in self.targets[t]:
+            for v in tgts[t]:
 
                 # For all time stamps in the range (t, t+delta] ...
                 for j in range(i+1, max_ix+1):
-                    future_t = self.ordered_times[j]
+                    future_t = odts[j]
                     # First check if v is source of a time-stamped link at time last_t
-                    if v in self.sources[future_t]:
+                    if v in srcs[future_t]:
                         # For all possible IN-edges that end with v
-                            for e_in in self.targets[t][v]:
+                            for e_in in tgts[t][v]:
                                 # Combine with all OUT-edges that start with v
-                                for e_out in self.sources[future_t][v]:
+                                for e_out in srcs[future_t][v]:
                                     s = e_in[0]
                                     d = e_out[1]
-                                    indeg_v = len(self.targets[t][v])
-                                    outdeg_v = len(self.sources[future_t][v])    
-                                    # For each s create a weighted two-path tuple
+                                    indeg_v = len(tgts[t][v])
+                                    outdeg_v = len(srcs[future_t][v])                                    
+
+                                    # Create a weighted two-path tuple
                                     # (s, v, d, weight)
+                                    two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
 
                                     # TODO: Add support for weighted time-stamped links
 
-                                    two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
-
-                                    self.twopaths.append(two_path)
+                                    tpappend(two_path)
                                     self.twopathsByNode[v].setdefault(t, []).append(two_path) 
                                     self.twopathsByTime[t].setdefault(v, []).append(two_path)
         
-        # Update cached values
+        self.tpcount = len(self.twopaths)
+
+        # Invalidate cached aggregate networks
         g1 = 0
         g2 = 0
-        g2n = 0        
-        self.tpcount = len(self.twopaths)
+        g2n = 0                
+
 
         
     def TwoPathCount(self):
@@ -240,6 +281,7 @@ class TemporalNetwork:
 
         return self.tpcount
     
+
     def igraphFirstOrder(self, all_links=False, force=False):
         """Returns the first-order time-aggregated network
            corresponding to this temporal network. This network corresponds to 
@@ -252,6 +294,8 @@ class TemporalNetwork:
         # If two-paths have not been extracted yet, do it now
         if self.tpcount == -1:
             self.extractTwoPaths()
+
+        print('Constructing first-order aggregate network ...', end='')
 
         self.g1 = igraph.Graph(n=len(self.nodes), directed=True)
         self.g1.vs["name"] = self.nodes
@@ -275,6 +319,8 @@ class TemporalNetwork:
         self.g1.add_edges( edge_list.keys() )
         self.g1.es["weight"] = list(edge_list.values())
         
+        print('finished.')
+
         return self.g1
 
 
