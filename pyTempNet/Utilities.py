@@ -48,7 +48,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
                 source_ix = i
             elif header[i] == 'node2' or header[i] == 'target':
                 target_ix = i
-            elif header[i] == 'time':
+            elif header[i] == 'time' or header[i] == 'timestamp':
                 time_ix = i
     elif fformat =="TRIGRAM":
         for i in range(len(header)):
@@ -61,10 +61,11 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
                 target_ix = i
             elif header[i] == 'weight':
                 weight_ix = i    
-    assert( (source_ix >= 0 and target_ix >= 0 and time_ix >=0) or
-            (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0) )
-    # Read time-stamped edges
 
+    assert( (source_ix >= 0 and target_ix >= 0 and time_ix >=0) or
+            (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0)), "Detected invalid header columns: %s" % header
+    
+    # Read time-stamped edges
     print('Reading time-stamped links ...', end='')
     line = f.readline()
     n = 1 
