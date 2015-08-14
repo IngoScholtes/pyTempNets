@@ -65,7 +65,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
             (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0) )
     # Read time-stamped edges
 
-    print('Reading time-stamped links')
+    print('Reading time-stamped links ...', end='')
     line = f.readline()
     n = 1 
     while not line.strip() == '' and n <= maxlines:
@@ -78,10 +78,13 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
                 else:
                     x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
                     t = int(time.mktime(x.timetuple()))
-                tedge = (fields[source_ix], fields[target_ix], t)
-                tedges.append(tedge)
-            except IndexError:
-                print('Malformed line', line)
+                if t>=0:
+                    tedge = (fields[source_ix], fields[target_ix], t)
+                    tedges.append(tedge)
+                else:
+                    print('\n[Warning] Ignoring negative timestamp in line ' + str(n+1) + ': "' + line.strip() + '"')
+            except (IndexError, ValueError):
+                print('\n[Warning] Ignoring malformed data in line ' + str(n+1) + ': "' +  line.strip() + '"')
 
         elif fformat =="TRIGRAM":
             source = fields[source_ix].strip('"')
@@ -94,8 +97,8 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
         line = f.readline()
         n += 1
 
-    if fformat == "TEDGE":
-        print('Constructing temporal network')
+    print('finished.')
+    if fformat == "TEDGE":        
         return tn.TemporalNetwork(tedges = tedges, sep=sep)
     elif fformat =="TRIGRAM":           
         return tn.TemporalNetwork(twopaths = twopaths, sep=sep)

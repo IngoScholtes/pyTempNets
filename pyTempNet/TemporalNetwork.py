@@ -27,13 +27,16 @@ class TemporalNetwork:
         self.nodes = []
 
         # Some index structures to quickly access tedges by time, target and source
+        print('Building indexing data structures ...', end='')
+
         self.time = defaultdict( lambda: list() )
         self.targets = defaultdict( lambda: dict() )
         self.sources = defaultdict( lambda: dict() )
 
-        if tedges is not None:
-            for e in tedges:
-                self.tedges.append(e)
+        self.tedges = tedges
+
+        if self.tedges is not None:
+            for e in self.tedges:                
                 self.time[e[2]].append(e)
                 self.targets[e[2]].setdefault(e[1], []).append(e)
                 self.sources[e[2]].setdefault(e[0], []).append(e)
@@ -42,6 +45,8 @@ class TemporalNetwork:
                 if not nodes_seen[e[1]]:
                     nodes_seen[e[1]] = True
         self.nodes = list(nodes_seen.keys())
+
+        print('finished.')
 
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
@@ -56,7 +61,9 @@ class TemporalNetwork:
         self.delta = 1            
         
         # An ordered list of time-stamps (invalidated as soon as links are changed)
+        print('Sorting time stamps ...', end = '')
         self.ordered_times = np.sort(list(self.time.keys()))
+        print('finished.')
 
         # Generate index structures if temporal network is constructed from two-paths
         if twopaths is not None:
