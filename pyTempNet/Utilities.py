@@ -14,6 +14,7 @@ import scipy.sparse.linalg as sla
 import pyTempNet as tn
 import datetime as dt
 
+
 def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
     """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
         the file is expected to contain lines in the format 'v,w,t' each line 
@@ -65,7 +66,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
     assert( (source_ix >= 0 and target_ix >= 0 and time_ix >=0) or
             (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0)), "Detected invalid header columns: %s" % header
     
-    # Read time-stamped edges
+    # Read time-stamped links
     print('Reading time-stamped links ...', end='')
     line = f.readline()
     n = 1 
@@ -268,6 +269,7 @@ def StationaryDistribution( T, normalize=True ):
     if normalize:
         pi /= sum(pi)
     return pi
+
 
 def firstOrderNameMap( t ):
     """returns a name map of the first order network of a given temporal network t"""

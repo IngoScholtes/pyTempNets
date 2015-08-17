@@ -11,7 +11,6 @@ import numpy as np
 from collections import defaultdict
 
 from bisect import bisect_right
-from bisect import bisect_left
 
 from pyTempNet.Utilities import RWTransitionMatrix
 from pyTempNet.Utilities import StationaryDistribution
@@ -20,27 +19,34 @@ class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
     
     def __init__(self,  sep=',', tedges = None, twopaths = None):
-        """Constructor generating an empty temporal network"""
+        """Constructor generating a temporal network instance
+        
+        @param sep: a separator character to be used for the naming of higher-order nodes v-w
+        @param tedges: an optional list of (possibly unordered time-stamped) links from which to 
+            construct a temporal network instance
+        @param twopaths: an optional list of two-paths from which to 
+            construct a temporal network instance
+        """
         
         self.tedges = []
         nodes_seen = defaultdict( lambda:False )
         self.nodes = []
 
-        # Some index structures to quickly access tedges by time, target and source        
+        # Generate index structures which help to efficiently extract time-respecting paths
 
-        # A dictionary storing all time-stamped links indexed by time-stamps 
+        # A dictionary storing all time-stamped links, indexed by time-stamps
         self.time = defaultdict( lambda: list() )
 
-        # A dictionary storing all time-stamped links indexed by target and source nodes
+        # A dictionary storing all time-stamped links, indexed by target and source nodes
         self.targets = defaultdict( lambda: dict() )
 
-        # A dictionary storing all time-stamped links indexed by source and target nodes
+        # A dictionary storing all time-stamped links, indexed by source and target nodes
         self.sources = defaultdict( lambda: dict() )
 
-        # A dictionary storing, for each given node v, at which time stamps links (v,w;t) originate from this node
-        self.activities = defaultdict( lambda: list() )        
+        # A dictionary storing time stamps at which links (v,*;t) originate from node v
+        self.activities = defaultdict( lambda: list() )
 
-        # An ordered list of time-stamps (will be invalidated as soon as tedges are being changed)
+        # An ordered list of time-stamps
         self.ordered_times = []
 
         self.tedges = []
@@ -66,12 +72,13 @@ class TemporalNetwork:
                 self.activities[v] = np.sort(self.activities[v])
             print('finished.')
 
+        # Index structures for two-path structures
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
         self.twopathsByTime = defaultdict( lambda: dict() )
         self.tpcount = -1
 
-        """The separator character to be used to generate second-order nodes"""
+        """The separator character to be used to generate higher-order nodes"""
         self.separator = sep
 
         """The maximum time difference between consecutive links to be used 
@@ -110,7 +117,7 @@ class TemporalNetwork:
         
         @param source: naem of the source node of a directed, time-stamped link
         @param target: name of the target node of a directed, time-stamped link
-        @param time: (integer) time-stamp of the time-stamped link
+        @param ts: (integer) time-stamp of the time-stamped link
         """
         e = (source, target, ts)
         self.tedges.append(e)
@@ -132,7 +139,7 @@ class TemporalNetwork:
 
 
     def InvalidateTwoPaths(self):
-        """Invalidates all cached two-path data and aggregate networks"""
+        """Invalidates all cached two-paths, as well as any (higher-order) aggregate networks"""
         
         # Invalidate indexed data 
         self.tpcount = -1
@@ -159,12 +166,12 @@ class TemporalNetwork:
         """Sets the maximum time difference delta between consecutive links to be used for 
         the extraction of time-respecting paths of length two (two-paths). If two-path structures
         and/or second-order networks have previously been computed, this method will invalidate all
-        cached data if the new delta is different from the old one (for which the data have been computed)
+        cached data if the new delta is different from the old one (for which two-path statistics have been computed)
 
         @param delta: Indicates the maximum temporal distance up to which time-stamped links will be 
-        considered to contribute to time-respecting path. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
+        considered to contribute to time-respecting paths. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
         will be inferred for all 0 < delta <= 4, while no time-respecting path will be inferred for all delta > 4. 
-        If the max time diff is not specific speficially, the default value of delta=1 will be used, meaning that a 
+        If the max time diff is not set specifically, the default value of delta=1 will be used, meaning that a
         time-respecting path u -> v will only be inferred if there are *directly consecutive* time-stamped 
         links (u,v;t) (v,w;t+1).
         """
@@ -176,8 +183,8 @@ class TemporalNetwork:
     
 
     def getInterEventTimes(self):
-        """Returns a numpy array containing the time differences between
-            consecutive time-stamped links (involving any node)"""
+        """Returns a numpy array containing all time differences between any 
+            two consecutive time-stamped links (involving any node)"""
 
         timediffs = []
         for i in range(1, len(self.ordered_times)):
@@ -186,7 +193,7 @@ class TemporalNetwork:
 
 
     def getInterPathTimes(self):
-        """Returns a dictionary which, for each node v, contains a list of time differences 
+        """Returns a dictionary which, for each node v, contains all time differences 
             between any time-stamped link (*,v;t) and the next link (v,*;t') (t'>t)
             in the temporal network"""
 
@@ -204,7 +211,7 @@ class TemporalNetwork:
 
 
     def Summary(self):
-        """Get string with basic summary statistics of this temporal network"""
+        """Returns a string containing basic summary statistics of this temporal network"""
 
         summary = ''
 
@@ -241,17 +248,19 @@ class TemporalNetwork:
         
         return summary
 
+
     def extractTwoPaths(self):
-        """Extracts all time-respecting paths of length two in this temporal network. The two-paths 
-        extracted by this method will be used in the construction of second-order time-aggregated 
-        networks, as well as in the analysis of causal structures of this temporal network. If an explicit 
-        call to this method is omitted, it will be run with the current parameter delta set in the 
+        """Extracts all time-respecting paths of length two in this temporal network for the currently set 
+        maximum time difference delta. The two-paths extracted by this method will be used in the 
+        construction of second-order time-aggregated networks, as well as in the analysis of 
+        causal structures of this temporal network. If an explicit call to this method is omitted, 
+        it will be run with the current parameter delta set in the 
         TemporalNetwork instance (default: delta=1) whenever two-paths are needed for the first time.
         Once two-paths have been computed, they will be cached and reused until the maximum time difference 
         delta is changed.
         """
 
-        print('Extracting two-paths for delta =', self.delta)
+        print('Extracting two-paths for delta =', self.delta, '...', end ='')
 
         self.tpcount = -1
         self.twopaths = []
@@ -309,12 +318,12 @@ class TemporalNetwork:
         g1 = 0
         g2 = 0
         g2n = 0                
-
+        print('finished.')
 
         
     def TwoPathCount(self):
-        """Returns the total number of time-respecting paths of length two which have
-            been extracted from the time-stamped edge sequence."""
+        """Returns the total number of time-respecting paths of length two (two-paths) 
+            which have been extracted from the time-stamped edge sequence."""
         
         # If two-paths have not been extracted yet, do it now
         if self.tpcount == -1:
@@ -421,20 +430,19 @@ class TemporalNetwork:
         g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
         n_vertices = len(g2.vs)
 
-        assert(n_vertices>1)
+        assert n_vertices>1, print('Error: Strongly connected component is empty.')
         
         T = RWTransitionMatrix( g2 )
         pi = StationaryDistribution(T)
         
         # Construct null model second-order network
         self.g2n = igraph.Graph(directed=True)
-        # NOTE: This ensures that vertices are ordered in the same way as in 
-        # NOTE: the empirical second-order network
+
+        # This ensures that vertices are ordered in the same way as in the empirical second-order network
         for v in self.g2.vs():
             self.g2n.add_vertex(name=v["name"])
         
-        ## TODO: This operation is the bottleneck for large data sets!
-        ## TODO: Only iterate over those edge pairs, that actually are two paths!
+        ## TODO: This operation is the bottleneck for large data sets. We should only iterate over those edge pairs, that actually are two-paths
         edge_dict = {}
         vertices = g2.vs()
         sep = self.separator
@@ -469,7 +477,7 @@ class TemporalNetwork:
     def ShuffleEdges(self, l=0):        
         """Generates a shuffled version of the temporal network in which edge statistics (i.e.
         the frequencies of time-stamped edges) are preserved, while all order correlations are 
-        destroyed. The shuffling procedure simply randomly reassigns the time-stamps of links.
+        destroyed. The shuffling procedure randomly reshuffles the time-stamps of links.
         
         @param l: the length of the sequence to be generated (in terms of the number of time-stamped links.
             For the default value l=0, the length of the generated shuffled temporal network will be equal to that of 
@@ -483,11 +491,17 @@ class TemporalNetwork:
         if l==0:
             l = 2*int(len(self.tedges)/2)
         for i in range(l):
-            
+            # Pick random link
             edge = self.tedges[np.random.randint(0, len(self.tedges))]
-            time = self.tedges[np.random.randint(0, len(self.tedges))]
-            tedges.append((edge[0], edge[1], time[2]))
+            # Pick random time stamp
+            time = self.tedges[np.random.randint(0, len(self.ordered_times))]
+            # Generate new time-stamped link
+            tedges.append( (edge[0], edge[1], time) )
+
+        # Generate temporal network
         t = TemporalNetwork(sep=self.separator, tedges=tedges)
+
+        # Fix node order to correspond to original network
         t.nodes = self.nodes
             
         return t
