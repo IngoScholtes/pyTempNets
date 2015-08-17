@@ -49,9 +49,13 @@ t.addEdge("e", "f", 19);
 t.addEdge("c", "e", 20);
 t.addEdge("e", "f", 21);
 
-t.extractTwoPaths(delta=1)
+t.setMaxTimeDiff(delta=1)
+
+t.extractTwoPaths()
 
 print("Test network has", t.TwoPathCount(), "two-paths")
+
+assert t.TwoPathCount() == 12
 
 
 # Plot the three aggregate networks
@@ -101,7 +105,7 @@ igraph.plot(g2n, **visual_style)
 # Read temporal network from sample data file
 filename = pkg_resources.resource_filename('pyTempNet', 'example.tedges')
 
-t = tn.TemporalNetwork.readFile(filename, sep=' ')
+t = tn.readFile(filename, sep=' ')
 print("Temporal network has", t.vcount(), "nodes")
 print("Temporal network has", t.ecount(), "time-stamped edges")
 

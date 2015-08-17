@@ -11,6 +11,7 @@ import numpy as np
 from collections import defaultdict
 
 from bisect import bisect_right
+from bisect import bisect_left
 
 from pyTempNet.Utilities import RWTransitionMatrix
 from pyTempNet.Utilities import StationaryDistribution
@@ -26,18 +27,28 @@ class TemporalNetwork:
         self.nodes = []
 
         # Some index structures to quickly access tedges by time, target and source        
-        self.time = defaultdict( lambda: list() )
-        self.targets = defaultdict( lambda: dict() )
-        self.sources = defaultdict( lambda: dict() )        
 
-        # An ordered list of time-stamps (invalidated as soon as links are changed)
+        # A dictionary storing all time-stamped links indexed by time-stamps 
+        self.time = defaultdict( lambda: list() )
+
+        # A dictionary storing all time-stamped links indexed by target and source nodes
+        self.targets = defaultdict( lambda: dict() )
+
+        # A dictionary storing all time-stamped links indexed by source and target nodes
+        self.sources = defaultdict( lambda: dict() )
+
+        # A dictionary storing, for each given node v, at which time stamps links (v,w;t) originate from this node
+        self.activities = defaultdict( lambda: list() )        
+
+        # An ordered list of time-stamps (will be invalidated as soon as tedges are being changed)
         self.ordered_times = []
 
         self.tedges = []
 
         if tedges is not None:
-            print('Building indexing data structures ...', end='')
+            print('Building index data structures ...', end='')
             for e in tedges:
+                self.activities[e[0]].append(e[2])
                 self.time[e[2]].append(e)
                 self.targets[e[2]].setdefault(e[1], []).append(e)
                 self.sources[e[2]].setdefault(e[0], []).append(e)
@@ -51,6 +62,8 @@ class TemporalNetwork:
 
             print('Sorting time stamps ...', end = '')
             self.ordered_times = np.sort(list(self.time.keys()))
+            for v in self.nodes:
+                self.activities[v] = np.sort(self.activities[v])
             print('finished.')
 
         self.twopaths = []
@@ -110,6 +123,7 @@ class TemporalNetwork:
         self.time[ts].append(e)
         self.targets[ts].setdefault(target, []).append(e)
         self.sources[ts].setdefault(source, []).append(e)
+        self.activities[source].append(ts)
 
         # Reorder time stamps
         self.ordered_times = np.sort(list(self.time.keys()))
@@ -163,7 +177,7 @@ class TemporalNetwork:
 
     def getInterEventTimes(self):
         """Returns a numpy array containing the time differences between
-            consecutive time-stamped links (by any node)"""
+            consecutive time-stamped links (involving any node)"""
 
         timediffs = []
         for i in range(1, len(self.ordered_times)):
@@ -171,40 +185,61 @@ class TemporalNetwork:
         return np.array(timediffs)
 
 
-    def Summary(self):
-        """Print basic summary statistics of this temporal network"""
+    def getInterPathTimes(self):
+        """Returns a dictionary which, for each node v, contains a list of time differences 
+            between any time-stamped link (*,v;t) and the next link (v,*;t') (t'>t)
+            in the temporal network"""
 
-        print('Nodes:\t\t\t', self.vcount())
-        print('Time-stamped links:\t', self.ecount())
-        print('Links/Nodes:\t\t', self.ecount()/self.vcount())
-        print('Observation period:\t [', min(self.ordered_times), ', ', max(self.ordered_times),']')
-        print('Observation length:\t', max(self.ordered_times) - min(self.ordered_times))
-        print('Time stamps:\t\t', len(self.ordered_times))
+        interPathTimes = defaultdict( lambda: list() )
+        for e in self.tedges:
+            # Get target v of current edge e=(u,v,t)
+            v = e[1]
+            t = e[2]
+
+            # Get time stamp of link (v,*,t_next) with smallest t_next such that t_next > t
+            i = bisect_right(self.activities[v], t)
+            if i != len(self.activities[v]):
+                interPathTimes[v].append(self.activities[v][i]-t)
+        return interPathTimes
+
+
+    def Summary(self):
+        """Get string with basic summary statistics of this temporal network"""
+
+        summary = ''
+
+        summary += 'Nodes:\t\t\t' +  str(self.vcount()) + '\n'
+        summary += 'Time-stamped links:\t' + str(self.ecount()) + '\n'
+        summary += 'Links/Nodes:\t\t' + str(self.ecount()/self.vcount()) + '\n'
+        summary += 'Observation period:\t[' + str(min(self.ordered_times)) + ', ' + str(max(self.ordered_times)) + ']\n'
+        summary += 'Observation length:\t' + str(max(self.ordered_times) - min(self.ordered_times)) + '\n'
+        summary += 'Time stamps:\t\t' + str(len(self.ordered_times)) + '\n'
 
         d = self.getInterEventTimes()
     
-        print('Avg. inter-event dt:\t', np.mean(d))
-        print('Min/Max inter-event dt:\t', min(d), '/', max(d))    
+        summary += 'Avg. inter-event dt:\t' + str(np.mean(d)) + '\n'
+        summary += 'Min/Max inter-event dt:\t' + str(min(d)) + '/' + str(max(d)) + '\n'
 
-        print('Max Time Diff (delta):\t', self.delta)
-        print('Two-paths:\t\t', end='')
+        summary += 'Max Time Diff (delta):\t' +str(self.delta) + '\n'
+        summary += 'Two-paths:\t\t'
         if self.tpcount>=0:
-            print(' ' + str(self.tpcount))
+            summary += str(self.tpcount) + '\n'
         else:
-            print(' not calculated')
+            summary += 'not calculated\n'
         
         if self.g1!=0:
-            print('First-order nodes:\t', self.g1.vcount())
-            print('First-order links:\t', self.g1.ecount())
+            summary += 'First-order nodes:\t' + str(self.g1.vcount()) + '\n'
+            summary += 'First-order links:\t' + str(self.g1.ecount()) + '\n'
         else:
-            print('First-order network:\t not constructed')
+            summary += 'First-order network:\tnot constructed\n'
         
         if self.g2!=0:
-            print('Second-order nodes:\t', self.g2.vcount())
-            print('Second-order links:\t', self.g2.ecount())
+            summary += 'Second-order nodes:\t' + str(self.g2.vcount())+ '\n'
+            summary += 'Second-order links:\t' + str(self.g2.ecount())+ '\n'
         else:
-            print('Second-order network:\t not constructed')
-
+            summary += 'Second-order network:\tnot constructed\n'
+        
+        return summary
 
     def extractTwoPaths(self):
         """Extracts all time-respecting paths of length two in this temporal network. The two-paths 
@@ -230,37 +265,43 @@ class TemporalNetwork:
         odts = self.ordered_times
         dt = self.delta
 
-        # For each time stamp in the data set ... 
+        # For each time stamp in the ordered list of time stamps
         for i in range(len(odts)):
             t = odts[i]
-            max_ix = bisect_right(odts, t+dt)-1
 
             # For each possible middle node v (i.e. all target nodes at time t) ... 
             for v in tgts[t]:
+                # Get the minimum and maximum indices of time stamps in the ordered list of "activities" of node v
+                # which continue a time-respecting path, i.e. we are interested in 
+                # the time stamps t' of all links (v,*;t') such that t'  \in (t, t+delta]
 
-                # For all time stamps in the range (t, t+delta] ...
-                for j in range(i+1, max_ix+1):
-                    future_t = odts[j]
-                    # First check if v is source of a time-stamped link at time last_t
-                    if v in srcs[future_t]:
-                        # For all possible IN-edges that end with v
-                            for e_in in tgts[t][v]:
-                                # Combine with all OUT-edges that start with v
-                                for e_out in srcs[future_t][v]:
-                                    s = e_in[0]
-                                    d = e_out[1]
-                                    indeg_v = len(tgts[t][v])
-                                    outdeg_v = len(srcs[future_t][v])                                    
+                # The minimum index is the index of the smallest time stamp that is larger than t
+                min_ix = bisect_right(self.activities[v], t)
 
-                                    # Create a weighted two-path tuple
-                                    # (s, v, d, weight)
-                                    two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
+                # The maximum index is the index of the largest time stamp that is smaller or equal than t + delta
+                max_ix = bisect_right(self.activities[v], t+dt)-1
 
-                                    # TODO: Add support for weighted time-stamped links
+                # For all time-stamped links (v,*;t') with t' \in (t, t+delta] ...
+                for j in range(min_ix, max_ix+1):
+                    future_t = self.activities[v][j]
+                    # For all possible IN-edges at time t that link *to* node v
+                    for e_in in tgts[t][v]:
+                        # Combine with all OUT-edges at time future_t that link *from* v
+                        for e_out in srcs[future_t][v]:
+                            s = e_in[0]
+                            d = e_out[1]
+                            indeg_v = len(tgts[t][v])
+                            outdeg_v = len(srcs[future_t][v])                                    
 
-                                    tpappend(two_path)
-                                    self.twopathsByNode[v].setdefault(t, []).append(two_path) 
-                                    self.twopathsByTime[t].setdefault(v, []).append(two_path)
+                            # Create a weighted two-path tuple
+                            # (s, v, d, weight)
+                            two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
+
+                            # TODO: Add support for time-stamped links which have link weights w by themselves, i.e. (u,v;t;w)
+
+                            tpappend(two_path)
+                            self.twopathsByNode[v].setdefault(t, []).append(two_path)
+                            self.twopathsByTime[t].setdefault(v, []).append(two_path)
         
         self.tpcount = len(self.twopaths)
 
@@ -428,7 +469,7 @@ class TemporalNetwork:
     def ShuffleEdges(self, l=0):        
         """Generates a shuffled version of the temporal network in which edge statistics (i.e.
         the frequencies of time-stamped edges) are preserved, while all order correlations are 
-        destroyed.
+        destroyed. The shuffling procedure simply randomly reassigns the time-stamps of links.
         
         @param l: the length of the sequence to be generated (in terms of the number of time-stamped links.
             For the default value l=0, the length of the generated shuffled temporal network will be equal to that of 
@@ -442,10 +483,11 @@ class TemporalNetwork:
         if l==0:
             l = 2*int(len(self.tedges)/2)
         for i in range(l):
-            # Here we simply shuffle the order of all edges
+            
             edge = self.tedges[np.random.randint(0, len(self.tedges))]
-            tedges.append((edge[0], edge[1], i))
-        t = TemporalNetwork(sep=',', tedges=tedges)
+            time = self.tedges[np.random.randint(0, len(self.tedges))]
+            tedges.append((edge[0], edge[1], time[2]))
+        t = TemporalNetwork(sep=self.separator, tedges=tedges)
         t.nodes = self.nodes
             
         return t
