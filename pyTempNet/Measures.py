@@ -9,6 +9,7 @@ Created on Thu Feb 19 11:49:39 2015
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
+import scipy.linalg as la
 
 from collections import defaultdict
 import sys
@@ -19,7 +20,7 @@ from pyTempNet import Utilities
 from pyTempNet import Paths
 
 def Laplacian(temporalnet, model="SECOND"):
-    """Returns the Laplacian matrix corresponding to the the second-order (model=SECOND) or 
+    """Returns the transposed Laplacian matrix corresponding to the the second-order (model=SECOND) or 
     the second-order null (model=NULL) model for a temporal network.
     
     @param temporalnet: The temporalnetwork instance to work on
@@ -40,14 +41,22 @@ def Laplacian(temporalnet, model="SECOND"):
     return I-T2
 
 
-def FiedlerVector(temporalnet, model="SECOND", lanczosVecs=15, maxiter=10):
+def FiedlerVectorSparse(temporalnet, model="SECOND", normalize=True, lanczosVecs=15, maxiter=10):
     """Returns the Fiedler vector of the second-order (model=SECOND) or the
     second-order null (model=NULL) model for a temporal network. The Fiedler 
-     vector can be used for a spectral bisectioning of the network.
+    vector can be used for a spectral bisectioning of the network.
+     
+    Note that sparse linear algebra for eigenvalue problems with small eigenvalues 
+    is problematic in terms of numerical stability. Consider using the dense version
+    of this measure. Note also that the FiedlerVector might be scaled by a factor (-1)
+    compared to the dense version.
      
     @param temporalnet: The temporalnetwork instance to work on
     @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
       the default value.
+    @param normalize: whether (default) or not to normalize the fiedler vector.
+      Normalization is done such that the sum of squares equals one in order to
+      get reasonable values as entries might be positive and negative.
     @param lanczosVecs: number of Lanczos vectors to be used in the approximate
         calculation of eigenvectors and eigenvalues. This maps to the ncv parameter 
         of scipy's underlying function eigs. 
@@ -61,19 +70,49 @@ def FiedlerVector(temporalnet, model="SECOND", lanczosVecs=15, maxiter=10):
     
     # NOTE: The transposed matrix is needed to get the "left" eigen vectors
     L = Laplacian(temporalnet, model)
-    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: ncv=lanczosVecs sets additional auxiliary eigenvectors that are computed
     # NOTE: in order to be more confident to find the one with the largest
     # NOTE: magnitude, see
     # NOTE: https://github.com/scipy/scipy/issues/4987
     maxiter = maxiter*L.get_shape()[0]
+    w = sla.eigs( L, k=2, which="SM", ncv=lanczosVecs, return_eigenvectors=False, maxiter=maxiter )
+    
+    # compute a sparse LU decomposition and solve for the eigenvector 
+    # corresponding to the second largest eigenvalue
+    n = L.get_shape()[0]
+    b = np.ones(n)
+    evalue = np.sort(np.abs(w))[1]
+    A = (L[1:n,:].tocsc()[:,1:n] - sparse.identity(n-1).multiply(evalue))
+    b[1:n] = A[0,:].toarray()
+    
+    lu = sla.splu(A)
+    b[1:n] = lu.solve(b[1:n])
 
-    import scipy.linalg as la
+    if normalize:
+        b /= np.sqrt(np.inner(b, b))
+    return b
 
-    w, v = la.eig(L.todense())
-    # TODO: ask, if this vector should be normalized. Sparse Linalg sometimes
-    # TODO: finds the EV scaled factor (-1)
+
+def FiedlerVectorDense(temporalnet, model="SECOND"):
+    """Returns the Fiedler vector of the second-order (model=SECOND) or the
+    second-order null (model=NULL) model for a temporal network. The Fiedler 
+     vector can be used for a spectral bisectioning of the network.
+     
+    @param temporalnet: The temporalnetwork instance to work on
+    @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
+      the default value.
+    """
+    if (model is "SECOND" or "NULL") == False:
+        raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
+    
+    # NOTE: The Laplacian is transposed for the sparse case to get the left
+    # NOTE: eigenvalue.
+    L = Laplacian(temporalnet, model)
+    # convert to dense matrix and transpose again to have the untransposed
+    # laplacian again.
+    w, v = la.eig(L.todense().transpose(), right=False, left=True)
+
     return v[:,np.argsort(np.absolute(w))][:,1]
-
 
 def AlgebraicConn(temporalnet, model="SECOND"):
     """Returns the algebraic connectivity of the second-order (model=SECOND) or the
@@ -486,3 +525,76 @@ def GetTemporalClosenessInstantaneous(t, start_t=0, delta=1):
                 closeness[name_map[u]] += 1./D[name_map[v], name_map[u]]
 
     return closeness
+
+
+def WeightedKCore( t, alpha, beta ):
+    """ TODO: write a nice docstring here
+    
+    @param t: temporal network
+    @param alpha: TODO
+    @param beta: TODO
+    """
+    
+    # work on second order network
+    g = t.g2
+    
+    # check that 'weight' is in attribute list of edges
+    if( 'weight' not in g.es.attribute_names() ):
+          raise ValueError( "Attribute \"weight\" does not exist." )
+    # check that 'names' is in attribute list of vertices
+    if( 'name' not in g.vs.attribute_names() ):
+          raise ValueError( "Attribute \"name\" is not defined." )
+    
+    
+    #-- Calculation of the Weighted k-shell structure (for the whole network)
+    edge_weights = np.array(g.es()["weight"]).astype(np.float64)
+    meandegree = np.sum(edge_weights) / len(g.es())
+    mm = np.amin(edge_weights/meandegree)
+    
+    g.es()["weight"] = np.round( (edge_weights/meandegree)/mm )
+    
+    #-- extract names and degrees
+    names = g.vs()['name']
+    degrees = g.degree()
+    # NOTE: be sure to use the right weights
+    weights = g.strength( weights='weight' )    
+    # NOTE: watch out for integer division in the exponent!!
+    new_degrees = np.around( np.power(np.power(degrees, alpha) * np.power(weights, beta), 1./(alpha + beta)) )
+    
+    old_degree = degrees
+    old_new_degrees = new_degrees
+    
+    resultName = []
+    resultShell = np.zeros(len(names))
+    
+    xx = 0
+    max_value = np.amax(new_degrees).astype(int)
+    for kval in range(1, max_value):
+        while( (len(g.vs()) > 0) and (new_degrees.min() <= kval) ):
+            # NOTE: this gives not the first element but the indices array
+            #       of all minimal values
+            ind = np.where( new_degrees == new_degrees.min() )[0]
+            # go backwards through the index array
+            for i in range( len(ind)-1, -1, -1 ):
+                index = ind[i]
+                nn = g.vs()['name'][index]
+                resultShell[xx] = kval
+                resultName.append(nn)
+                xx += 1
+            g.delete_vertices( ind )
+            
+            if len(g.vs()) > 0:
+                degrees = g.degree()
+                weights = g.strength( weights='weight' )
+                # watch out for integer division in the exponent!!
+                new_degrees = np.around( np.power(np.power(degrees, alpha) * np.power(weights, beta), 1./(alpha + beta)) )
+    
+    # relabelling
+    u = np.unique( resultShell )
+    for i in range( len(u) ):
+        resultShell[ np.where( resultShell == u[i] ) ] = i
+    
+    # NOTE: argsort().argsort() gets you the ordering index array
+    result = zip( resultName, list(np.amax(resultShell) - resultShell[resultShell.argsort().argsort()]) )
+    
+    return result
