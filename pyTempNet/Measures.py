@@ -401,7 +401,7 @@ def GetDistanceMatrix(t, start_t=0, delta=1, collect_paths=True):
     # Get a mapping between node names and matrix indices
     name_map = Utilities.firstOrderNameMap( t )
 
-    # This distance matrix will contain the lengths of shortest 
+    # This distance matrix will contain the (topological) lengths of shortest 
     # time-respecting paths between all pairs of nodes
     # the default value (indicating a missing path) is infinity
     D = np.zeros(shape=(len(t.nodes),len(t.nodes)))
@@ -410,21 +410,19 @@ def GetDistanceMatrix(t, start_t=0, delta=1, collect_paths=True):
     # Each node is connected to itself via a path of length zero
     np.fill_diagonal(D, 0)
 
-    # In this matrix, we keep a record of the time stamps of the last 
-    # time-stamped links on alle current shortest time-respecting paths
+    # In this matrix, we keep a record of the time stamp of the last 
+    # time-stamped link for each of the current shortest time-respecting paths
     T = np.zeros(shape=(len(t.nodes),len(t.nodes)))
-
-    # We initialize this to -infinity
     T.fill(-np.inf)
 
     # This will take the time stamp of the time-stamped edge considered 
     # in the previous step of the algorithm
     last_ts = -np.inf
     
-    # Find th first index i such that ordered_times[i] is greater or equal than the given start_t
+    # Find first index i such that ordered_times[i] is greater or equal than the given start time
     start_ix = bisect_left(t.ordered_times, start_t)
 
-    # We need to check at most delta iterations, since t.ordered_times[i+delta]-start_t >= delta
+    # Initialize matrix T
     for j in range(start_ix, len(t.ordered_times)):
         ts = t.ordered_times[j]
         if last_ts < 0:
@@ -438,20 +436,18 @@ def GetDistanceMatrix(t, start_t=0, delta=1, collect_paths=True):
         else:
                 break
 
-    Paths = defaultdict( lambda: defaultdict( lambda: [] ) )
-
-    # initialize shortest path tree for path reconstruction 
+    # Initialize shortest path tree for path reconstruction
+    Paths = defaultdict( lambda: defaultdict( lambda: [] ) )    
     if collect_paths == True:
         for v in t.nodes:
             Paths[v][v] = [ [v] ]
 
-    # We consider all time-respecting paths starting in any node v at the start time
+    # Consider all time-respecting paths starting in any node v at the start time
     for v in t.nodes:
         # Consider the ordered sequence of time-stamps, starting from the first index greater or equal to start_t
         for j in range(start_ix, len(t.ordered_times)):
             ts = t.ordered_times[j]
 
-            assert ts >= start_t                         
             # Since time stamps are ordered, we can stop as soon the current time stamp 
             # is more than delta time steps away from the last time step. In this case, by definition 
             # none of the future time-stamped links can contribute to a time-respecting path
