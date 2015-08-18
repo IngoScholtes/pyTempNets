@@ -54,7 +54,9 @@ class TemporalNetwork:
         if tedges is not None:
             print('Building index data structures ...', end='')
             for e in tedges:
-                self.activities[e[0]].append(e[2])
+                # TODO: This could probably be done more efficiently ...
+                if e[2] not in self.activities[e[0]]:
+                    self.activities[e[0]].append(e[2])
                 self.time[e[2]].append(e)
                 self.targets[e[2]].setdefault(e[1], []).append(e)
                 self.sources[e[2]].setdefault(e[0], []).append(e)
@@ -130,7 +132,10 @@ class TemporalNetwork:
         self.time[ts].append(e)
         self.targets[ts].setdefault(target, []).append(e)
         self.sources[ts].setdefault(source, []).append(e)
-        self.activities[source].append(ts)
+
+        # TODO: This could probably be done more efficiently ...
+        if ts not in self.activities[source]:
+            self.activities[source].append(ts)
 
         # Reorder time stamps
         self.ordered_times = np.sort(list(self.time.keys()))

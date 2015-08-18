@@ -22,6 +22,9 @@
     <PtvsTargetsFile>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets</PtvsTargetsFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="pyTempNet\Paths.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="pyTempNet\TimeSlices.py">
       <SubType>Code</SubType>
     </Compile>
