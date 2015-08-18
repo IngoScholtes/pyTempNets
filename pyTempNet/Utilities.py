@@ -14,6 +14,7 @@ import scipy.sparse.linalg as sla
 import pyTempNet as tn
 import datetime as dt
 
+import sys
 
 def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
     """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
@@ -68,6 +69,8 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
     
     # Read time-stamped links
     print('Reading time-stamped links ...', end='')
+    sys.stdout.flush()
+
     line = f.readline()
     n = 1 
     while not line.strip() == '' and n <= maxlines:

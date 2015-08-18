@@ -94,7 +94,6 @@ def GetSecondOrderDistanceMatrix(t, model='SECOND'):
     return D
 
 
-
 def GetMinTemporalDistance(t, delta=1, collect_paths=True):
     """ Computes the minimum temporal distance between all pairs of nodes in 
         terms of time-respecting paths (using a given maximum time difference delta), 
@@ -131,8 +130,6 @@ def GetMinTemporalDistance(t, delta=1, collect_paths=True):
                             minPaths[v][w] = minPaths[v][w] + [p]
     print('finished.')
     return minD, minPaths
-
-
 
 
 def GetTemporalDistanceMatrix(t, start_t=-1, delta=1, collect_paths=True):

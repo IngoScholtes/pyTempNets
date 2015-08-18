@@ -19,6 +19,7 @@ from bisect import bisect_left
 from pyTempNet import Utilities
 from pyTempNet import Paths
 
+
 def Laplacian(temporalnet, model="SECOND"):
     """Returns the transposed Laplacian matrix corresponding to the the second-order (model=SECOND) or 
     the second-order null (model=NULL) model for a temporal network.
@@ -114,6 +115,7 @@ def FiedlerVectorDense(temporalnet, model="SECOND"):
 
     return v[:,np.argsort(np.absolute(w))][:,1]
 
+
 def AlgebraicConn(temporalnet, model="SECOND"):
     """Returns the algebraic connectivity of the second-order (model=SECOND) or the
     second-order null (model=NULL) model for a temporal network.
@@ -163,6 +165,7 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
 
     # Return ratio
     return H2/H2n
+
 
 def BetweennessPreferences(t, normalized=False):
     bwp = []
@@ -217,6 +220,7 @@ def BetweennessPreference(t, v, normalized = False):
         I =  I/np.min([H_s,H_d])
 
     return I
+
 
 def SlowDownFactor(t):    
     """Returns a factor S that indicates how much slower (S>1) or faster (S<1)
@@ -355,8 +359,7 @@ def GetStaticBetweenness(t, model='SECOND'):
                     for i in range(len(p)):
                         source = g2.vs()["name"][p[i]].split(sep)[0]
                         if i>0:
-                            bwcent_1[name_map[source]] += 1
-    
+                            bwcent_1[name_map[source]] += 1 
     return bwcent_1
 
 
@@ -458,8 +461,7 @@ def GetStaticCloseness(t, model='SECOND'):
     for u in t.nodes:
         for v in t.nodes:
             if u!=v:
-                closeness[name_map[u]] += 1./D[name_map[v], name_map[u]]
-    
+                closeness[name_map[u]] += 1./D[name_map[v], name_map[u]] 
     return closeness
 
 

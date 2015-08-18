@@ -57,6 +57,8 @@ class TemporalNetwork:
 
         if tedges is not None:
             print('Building index data structures ...', end='')
+            sys.stdout.flush()
+
             for e in tedges:
                 self.activities_sets[e[0]].add(e[2])
                 self.time[e[2]].append(e)
@@ -71,6 +73,8 @@ class TemporalNetwork:
             print('finished.')
 
             print('Sorting time stamps ...', end = '')
+            sys.stdout.flush()
+
             self.ordered_times = sorted(self.time.keys())
             for v in self.nodes:
                 self.activities[v] = sorted(self.activities_sets[v])
