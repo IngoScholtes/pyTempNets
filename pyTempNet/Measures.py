@@ -348,7 +348,7 @@ def GetTemporalBetweenness(t, delta=1, normalized=False):
         for w in t.nodes:
             for p in minPaths[v][w]:
                 for i in range(1,len(p)-1):
-                    bw[name_map[p[i]]] += 1
+                    bw[name_map[p[i][0]]] += 1
                     S+=1
     return bw
 
@@ -375,7 +375,7 @@ def GetTemporalBetweennessInstantaneous(t, start_t=0, delta=1, normalized=False)
     bw = np.array([0]*len(t.nodes))
 
     # First calculate all shortest time-respecting paths starting at time start_t
-    D, paths = Paths.GetTemporalDistanceMatrix(t, start_t, delta)
+    D, paths = Paths.GetTemporalDistanceMatrix(t, start_t, delta, collect_paths=True)
 
     # Get a mapping between node names and matrix indices
     name_map = Utilities.firstOrderNameMap( t )
@@ -387,7 +387,7 @@ def GetTemporalBetweennessInstantaneous(t, start_t=0, delta=1, normalized=False)
             if u != v:
                 for p in paths[u][v]:
                     for i in range(1, len(p)-1):
-                        bw[name_map[p[i]]] += 1
+                        bw[name_map[p[i][0]]] += 1
                         k+=1
 
     # Normalize by dividing by the total number of shortest time-respecting paths
@@ -443,7 +443,7 @@ def GetTemporalCloseness(t, delta=1):
 
     name_map = Utilities.firstOrderNameMap( t )
 
-    minD, minPaths = Paths.GetMinTemporalDistance(t, delta, True)
+    minD, minPaths = Paths.GetMinTemporalDistance(t, delta, collect_paths=False)
 
     for u in t.nodes:
         for v in t.nodes:
@@ -472,7 +472,7 @@ def GetTemporalClosenessInstantaneous(t, start_t=0, delta=1):
     closeness = np.array([0.]*len(t.nodes))
 
     # Calculate all shortest time-respecting paths
-    D, paths = Paths.GetTemporalDistanceMatrix(t, start_t, delta)    
+    D, paths = Paths.GetTemporalDistanceMatrix(t, start_t, delta, collect_paths=False)
 
     # Get a mapping between node names and matrix indices
     name_map = Utilities.firstOrderNameMap( t )

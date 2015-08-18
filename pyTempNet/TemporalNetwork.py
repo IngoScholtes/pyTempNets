@@ -15,6 +15,8 @@ from bisect import bisect_right
 from pyTempNet.Utilities import RWTransitionMatrix
 from pyTempNet.Utilities import StationaryDistribution
 
+import sys
+
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
     
@@ -46,6 +48,8 @@ class TemporalNetwork:
         # A dictionary storing time stamps at which links (v,*;t) originate from node v
         self.activities = defaultdict( lambda: list() )
 
+        self.activities_sets = defaultdict( lambda: set() )
+
         # An ordered list of time-stamps
         self.ordered_times = []
 
@@ -54,9 +58,7 @@ class TemporalNetwork:
         if tedges is not None:
             print('Building index data structures ...', end='')
             for e in tedges:
-                # TODO: This could probably be done more efficiently ...
-                if e[2] not in self.activities[e[0]]:
-                    self.activities[e[0]].append(e[2])
+                self.activities_sets[e[0]].add(e[2])
                 self.time[e[2]].append(e)
                 self.targets[e[2]].setdefault(e[1], []).append(e)
                 self.sources[e[2]].setdefault(e[0], []).append(e)
@@ -69,9 +71,9 @@ class TemporalNetwork:
             print('finished.')
 
             print('Sorting time stamps ...', end = '')
-            self.ordered_times = np.sort(list(self.time.keys()))
+            self.ordered_times = sorted(self.time.keys())
             for v in self.nodes:
-                self.activities[v] = np.sort(self.activities[v])
+                self.activities[v] = sorted(self.activities_sets[v])
             print('finished.')
 
         # Index structures for two-path structures
@@ -133,12 +135,12 @@ class TemporalNetwork:
         self.targets[ts].setdefault(target, []).append(e)
         self.sources[ts].setdefault(source, []).append(e)
 
-        # TODO: This could probably be done more efficiently ...
         if ts not in self.activities[source]:
             self.activities[source].append(ts)
+            self.activities[source].sort()
 
         # Reorder time stamps
-        self.ordered_times = np.sort(list(self.time.keys()))
+        self.ordered_times = sorted(self.time.keys())
         
         self.InvalidateTwoPaths()
 
@@ -266,6 +268,7 @@ class TemporalNetwork:
         """
 
         print('Extracting two-paths for delta =', self.delta, '...', end ='')
+        sys.stdout.flush()
 
         self.tpcount = -1
         self.twopaths = []
