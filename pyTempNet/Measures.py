@@ -12,12 +12,12 @@ import scipy.sparse.linalg as sla
 import scipy.linalg as la
 
 from collections import defaultdict
-import sys
 
 from bisect import bisect_left
 
 from pyTempNet import Utilities
 from pyTempNet import Paths
+from pyTempNet.Log import *
 
 
 def Laplacian(temporalnet, model="SECOND"):

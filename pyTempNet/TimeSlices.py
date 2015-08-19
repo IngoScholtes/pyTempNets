@@ -9,6 +9,7 @@ Created on Thu Jun 04 10:27:00 2015
 import igraph
 import pyTempNet as tn
 import numpy as np
+from pyTempNet.Log import *
 
 class TimeSlices:
     def __init__(self, tempnet, start=0, end=0, window=1, delta=1):
@@ -77,7 +78,7 @@ class TimeSlices:
         prefix = str(np.random.randint(0,10000))
         
         if visual_style == None:
-            print('No visual style specified, setting to defaults')
+            Log.add('No visual style specified, setting to defaults', Severity.WARNING)
             visual_style = {}
             visual_style["vertex_color"] = "lightblue"
             visual_style["edge_curved"] = .5

@@ -14,6 +14,8 @@ import scipy.sparse.linalg as sla
 import pyTempNet as tn
 import datetime as dt
 
+from pyTempNet.Log import *
+
 import sys
 
 def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
@@ -68,8 +70,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
             (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0)), "Detected invalid header columns: %s" % header
     
     # Read time-stamped links
-    print('Reading time-stamped links ...', end='')
-    sys.stdout.flush()
+    Log.add('Reading time-stamped links ...')
 
     line = f.readline()
     n = 1 
@@ -87,9 +88,9 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
                     tedge = (fields[source_ix], fields[target_ix], t)
                     tedges.append(tedge)
                 else:
-                    print('\n[Warning] Ignoring negative timestamp in line ' + str(n+1) + ': "' + line.strip() + '"')
+                    Log.add('Ignoring negative timestamp in line ' + str(n+1) + ': "' + line.strip() + '"', Severity.WARNING)
             except (IndexError, ValueError):
-                print('\n[Warning] Ignoring malformed data in line ' + str(n+1) + ': "' +  line.strip() + '"')
+                Log.add('Ignoring malformed data in line ' + str(n+1) + ': "' +  line.strip() + '"', Severity.WARNING)
 
         elif fformat =="TRIGRAM":
             source = fields[source_ix].strip('"')
@@ -102,7 +103,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
         line = f.readline()
         n += 1
 
-    print('finished.')
+    Log.add('finished.')
     if fformat == "TEDGE":        
         return tn.TemporalNetwork(tedges = tedges, sep=sep)
     elif fformat =="TRIGRAM":           

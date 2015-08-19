@@ -13,6 +13,8 @@ from subprocess import call
 
 import pyTempNet as tn
 
+from pyTempNet.Log import *
+
 def exportTikzUnfolded(t, filename):
     """Generates a tikz file that can be compiled to obtain a time-unfolded 
         representation of the temporal network.
@@ -99,10 +101,9 @@ def exportMovie(t, output_file, visual_style = None, realtime = True, maxSteps=-
     exportMovieFrames(t, 'frames' + os.sep + prefix, visual_style = visual_style, realtime = realtime, maxSteps=maxSteps)
             
 
-    print('Encoding video ...', end='')
+    Log.add('Encoding video ...')
     x = call("ffmpeg -nostdin -framerate " + str(fps) + " -i frames" + os.sep + prefix + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)
-    if x==0:
-        print('finished.')
+    Log.add('finished.')
 
 
 
@@ -124,7 +125,7 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, maxSt
     g = t.igraphFirstOrder()        
 
     if visual_style == None:
-        print('No visual style specified, setting to defaults')
+        Log.add('No visual style specified, setting to defaults', Severity.WARNING)
         visual_style = {}
         visual_style["vertex_color"] = "lightblue"
         visual_style["vertex_label"] = g.vs["name"]
@@ -158,4 +159,4 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, maxSt
             slice.add_edge(e[0], e[1])
         igraph.plot(slice, fileprefix + '_frame_' + str(ts).zfill(5) + '.png', **visual_style)
         if i % 100 == 0:
-            print('Wrote movie frame', i, ' of', len(t_range))
+            Log.add('Wrote movie frame ' + str(i) + ' of ' + str(len(t_range)))

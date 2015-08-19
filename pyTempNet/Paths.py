@@ -11,14 +11,12 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
 from collections import defaultdict
-import sys
 
 from bisect import bisect_left
 from bisect import bisect_right
 
 from pyTempNet import Utilities
-
-import sys
+from pyTempNet.Log import *
 
 
 def GetFirstOrderDistanceMatrix(t):        
@@ -90,7 +88,6 @@ def GetSecondOrderDistanceMatrix(t, model='SECOND'):
             for p in X:
                 if len(p)>0:
                     D[name_map[source], name_map[target]] = min(len(p), D[name_map[source], name_map[target]])
-                    #print(source, '->', target, ':', p)
     return D
 
 
@@ -104,8 +101,7 @@ def GetMinTemporalDistance(t, delta=1, collect_paths=True):
         @param collect_paths: whether or not to return all shortest time-respecting paths
     """
 
-    print('Computing minimum temporal distances for delta =', delta, '...', end='')
-    sys.stdout.flush()
+    Log.add('Computing minimum temporal distances for delta = ' + str(int(delta)) + ' ...')
 
     name_map = Utilities.firstOrderNameMap( t )
 
@@ -128,7 +124,7 @@ def GetMinTemporalDistance(t, delta=1, collect_paths=True):
                     for p in paths[v][w]:
                         if p not in minPaths[v][w]:
                             minPaths[v][w] = minPaths[v][w] + [p]
-    print('finished.')
+    Log.add('finished.')
     return minD, minPaths
 
 

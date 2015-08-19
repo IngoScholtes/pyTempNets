@@ -14,8 +14,7 @@ from bisect import bisect_right
 
 from pyTempNet.Utilities import RWTransitionMatrix
 from pyTempNet.Utilities import StationaryDistribution
-
-import sys
+from pyTempNet.Log import *
 
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
@@ -56,8 +55,7 @@ class TemporalNetwork:
         self.tedges = []
 
         if tedges is not None:
-            print('Building index data structures ...', end='')
-            sys.stdout.flush()
+            Log.add('Building index data structures ...')
 
             for e in tedges:
                 self.activities_sets[e[0]].add(e[2])
@@ -70,15 +68,14 @@ class TemporalNetwork:
                     nodes_seen[e[1]] = True
             self.tedges = tedges
             self.nodes = list(nodes_seen.keys())
-            print('finished.')
+            Log.add('finished.')
 
-            print('Sorting time stamps ...', end = '')
-            sys.stdout.flush()
+            Log.add('Sorting time stamps ...')
 
             self.ordered_times = sorted(self.time.keys())
             for v in self.nodes:
                 self.activities[v] = sorted(self.activities_sets[v])
-            print('finished.')
+            Log.add('finished.')
 
         # Index structures for two-path structures
         self.twopaths = []
@@ -271,8 +268,7 @@ class TemporalNetwork:
         delta is changed.
         """
 
-        print('Extracting two-paths for delta =', self.delta, '...', end ='')
-        sys.stdout.flush()
+        Log.add('Extracting two-paths for delta = ' + str(int(self.delta)) + '...')
 
         self.tpcount = -1
         self.twopaths = []
@@ -330,7 +326,7 @@ class TemporalNetwork:
         g1 = 0
         g2 = 0
         g2n = 0                
-        print('finished.')
+        Log.add('finished.')
 
         
     def TwoPathCount(self):
@@ -357,7 +353,7 @@ class TemporalNetwork:
         if self.tpcount == -1:
             self.extractTwoPaths()
 
-        print('Constructing first-order aggregate network ...', end='')
+        Log.add('Constructing first-order aggregate network ...')
 
         self.g1 = igraph.Graph(n=len(self.nodes), directed=True)
         self.g1.vs["name"] = self.nodes
@@ -381,7 +377,7 @@ class TemporalNetwork:
         self.g1.add_edges( edge_list.keys() )
         self.g1.es["weight"] = list(edge_list.values())
         
-        print('finished.')
+        Log.add('finished.')
 
         return self.g1
 
@@ -399,7 +395,7 @@ class TemporalNetwork:
         if self.tpcount == -1:
             self.extractTwoPaths()
 
-        print('Constructing second-order aggregate network ...', end='')
+        Log.add('Constructing second-order aggregate network ...')
 
         # create vertex list and edge directory first
         vertex_list = []
@@ -424,7 +420,7 @@ class TemporalNetwork:
         self.g2.add_edges( edge_dict.keys() )
         self.g2.es["weight"] = list(edge_dict.values())
 
-        print('finished.')
+        Log.add('finished.')
 
         return self.g2
 
@@ -442,7 +438,7 @@ class TemporalNetwork:
         g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
         n_vertices = len(g2.vs)
 
-        assert n_vertices>1, print('Error: Strongly connected component is empty.')
+        assert n_vertices>1, Log.add('Strongly connected component is empty.', Severity.ERROR)
         
         T = RWTransitionMatrix( g2 )
         pi = StationaryDistribution(T)
