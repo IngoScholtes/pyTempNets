@@ -42,7 +42,6 @@ def GetFirstOrderDistanceMatrix(t):
 
     for v in g1.vs()["name"]:
         for w in g1.vs()["name"]:
-
             # Compute all shortest paths using igraph
             X = g1.get_shortest_paths(v,w)
             for p in X:
@@ -84,7 +83,7 @@ def GetSecondOrderDistanceMatrix(t, model='SECOND'):
         source = v.split(sep)[0]
         for w in g2.vs()["name"]:
             target = w.split(sep)[1]
-            X = g2.get_shortest_paths(v,w)
+            X = g2.get_shortest_paths(v,w)            
             for p in X:
                 if len(p)>0:
                     D[name_map[source], name_map[target]] = min(len(p), D[name_map[source], name_map[target]])
