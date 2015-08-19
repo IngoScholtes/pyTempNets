@@ -83,7 +83,7 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
         visual_style["vertex_color"] = [color_p(p**0.1) for p in x]
         igraph.plot(g, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
         if i % 10 == 0:
-            Log.add('Step' + str(i) + ' TVD =' + str(Utilities.TVD(x,pi)), Severity.INFO)
+            Log.add('Step' + str(i) + '\tTVD = ' + str(Utilities.TVD(x,pi)), Severity.INFO)
         # NOTE x * T = (T^T * x^T)^T
         # NOTE T is already transposed to get the left EV
         x = (T.dot(x.transpose())).transpose()
@@ -109,7 +109,7 @@ def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 
     Log.add('finished.')
     
     Log.add('Encoding video ...')
-    x = call("ffmpeg.exe -framerate " + str(fps) + "-i frames" + os.sep + prefix_3 + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)    
+    x = call("ffmpeg -nostdin -framerate " + str(fps) + " -i frames" + os.sep + prefix_3 + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)    
     Log.add('finished.')
 
 
@@ -124,7 +124,7 @@ def exportDiffusionVideo(t, output_file, visual_style = None, steps = 100, initi
     Log.add('finished.')
 
     Log.add('Encoding video ...')
-    x = call("ffmpeg.exe -framerate " + str(fps) + "-i frames" + os.sep + prefix + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)    
+    x = call("ffmpeg -nostdin -framerate " + str(fps) + " -i frames" + os.sep + prefix + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)    
     Log.add('finished.')
 
 
@@ -203,7 +203,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
         visual_style["vertex_color"] = [color_p(np.power((p-min(x))/(max(x)-min(x)),1/1.3)) for p in x_firstorder]
         igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
         if i % 50 == 0:
-            Log.add('Step ' + str(i) + ' TVD =' + str(Utilities.TVD(x,pi)))
+            Log.add('Step ' + str(i) + '\tTVD = ' + str(Utilities.TVD(x,pi)))
         # NOTE x * T = (T^T * x^T)^T
         # NOTE T is already transposed to get the left EV
         x = (T.dot(x.transpose())).transpose()
@@ -231,7 +231,7 @@ def exportSIComparisonVideo(t, output_file, visual_style = None, steps = 700, in
     Log.add('finished.')
     
     Log.add('Encoding video ...')
-    x = call("ffmpeg.exe -framerate 30 -i " + " frames" + os.sep + prefix_3 + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True) 
+    x = call("ffmpeg -nostdin -framerate 30 -i " + " frames" + os.sep + prefix_3 + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True) 
     Log.add('finished.')
 
     # Alternatively, we could have used the convert frontend of imagemagick, but this is known to generate a "delegate" error on Windows machines when the number of frames is too large
