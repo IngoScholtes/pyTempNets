@@ -171,7 +171,9 @@ def RWTransitionMatrix(g):
           row.append(t)
           col.append(s)
           tmp = edge["weight"] / D[s]
-          assert tmp >= 0 and tmp <= 1
+          if tmp <0 or tmp > 1:
+              tn.Log.add('Encountered transition probability outside [0,1] range.', Severity.ERROR)
+              raise ValueError()
           data.append( tmp )
     else:
       D = g.degree(mode='out')
@@ -180,7 +182,9 @@ def RWTransitionMatrix(g):
           row.append(t)
           col.append(s)
           tmp = 1. / D[s]
-          assert tmp >= 0 and tmp <= 1
+          if tmp <0 or tmp > 1:
+              tn.Log.add('Encountered transition probability outside [0,1] range.', Severity.ERROR)
+              raise ValueError()
           data.append( tmp )
     
     # TODO: find out why data is some times of type (N, 1)

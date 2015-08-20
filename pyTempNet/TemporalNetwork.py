@@ -16,6 +16,9 @@ from pyTempNet.Utilities import RWTransitionMatrix
 from pyTempNet.Utilities import StationaryDistribution
 from pyTempNet.Log import *
 
+class EmptySCCError(Exception):
+    pass
+
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
     
@@ -169,6 +172,11 @@ class TemporalNetwork:
         """Returns the number of time-stamped edges (u,v;t) in this temporal network"""
         return len(self.tedges)
 
+    def getObservationLength(self):
+        """Returns the length of the observation time, i.e. the difference between the 
+            maximum and minimum time stamp of any time-stamped link."""
+
+        return max(self.ordered_times)-min(self.ordered_times)
 
     def setMaxTimeDiff(self, delta):
         """Sets the maximum time difference delta between consecutive links to be used for 
@@ -438,7 +446,9 @@ class TemporalNetwork:
         g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
         n_vertices = len(g2.vs)
 
-        assert n_vertices>1, Log.add('Strongly connected component is empty.', Severity.ERROR)
+        if n_vertices<=1:
+            Log.add('Strongly connected component is empty for delta = ' + str(self.delta), Severity.ERROR)
+            raise EmptySCCError()
         
         T = RWTransitionMatrix( g2 )
         pi = StationaryDistribution(T)
@@ -447,7 +457,7 @@ class TemporalNetwork:
         self.g2n = igraph.Graph(directed=True)
 
         # This ensures that vertices are ordered in the same way as in the empirical second-order network
-        for v in self.g2.vs():
+        for v in g2.vs():
             self.g2n.add_vertex(name=v["name"])
         
         ## TODO: This operation is the bottleneck for large data sets. We should only iterate over those edge pairs, that actually are two-paths
