@@ -96,8 +96,11 @@ def GetMinTemporalDistance(t, delta=1, collect_paths=True):
         across all possible starting times in the temporal network
 
         @param t: the temporal network to calculate the distance for
-        @param delta: the maximum waiting time to be used for the definition of time-respecting paths
-        @param collect_paths: whether or not to return all shortest time-respecting paths
+        @param delta: the maximum waiting time to be used for the definition of time-respecting paths.
+            Note that this is independent of the delta parameter set in the temporal networks instancd
+           for the two-path extraction
+        @param collect_paths: whether or not to return all shortest time-respecting paths. If False, only 
+            shortest path distances will be returned.
     """
 
     Log.add('Computing minimum temporal distances for delta = ' + str(int(delta)) + ' ...')
@@ -169,14 +172,15 @@ def GetTemporalDistanceMatrix(t, start_t=-1, delta=1, collect_paths=True):
         D[name_map[v], name_map[v]] = 0        
         Paths[v][v] = [ [(v,start_t)] ]
 
-        stack = [ (v, start_t) ]
+        stack = set([ (v, start_t) ])
         
         # While there are nodes, which could possibly continue a time-respecting path
         while len(stack)>0:
 
             (x,ts) = stack.pop()
 
-            # Get indices of time range which can possibly continue a time-respecting path
+            # Get indices of time range within which a time-respecting path via x 
+            # can possibly be continued
             min_ix = bisect_left(t.activities[x], ts)
             max_ix = bisect_left(t.activities[x], ts+delta)-1
 
@@ -187,11 +191,12 @@ def GetTemporalDistanceMatrix(t, start_t=-1, delta=1, collect_paths=True):
                 # For all edges starting at node x at this time
                 for e in t.sources[time][x]:
 
-                    # We found a new node that can continue time-respecting paths
+                    # We found a new node on a time-respecting path
                     new_node = (e[1], time+1)
                     
-                    if new_node not in stack:
-                        stack.append( new_node )
+                    # This node can again continue time-respecting paths
+                    # The set will take care that no duplicates are recorded
+                    stack.add( new_node )
 
                     # Check whether we found a time-respecting path shorter than the current shortest one ... 
                     if D[name_map[v], name_map[e[1]]] > D[name_map[v], name_map[e[0]]] + 1:
@@ -208,7 +213,7 @@ def GetTemporalDistanceMatrix(t, start_t=-1, delta=1, collect_paths=True):
                                 Paths[v][e[1]] = Paths[v][e[1]] + [p + [(e[1],time+1)]]
 
                     # We may also have found a path that has the same length as other shortest paths ...
-                    elif D[name_map[v], name_map[e[1]]] == D[name_map[v], name_map[e[0]]] + 1 and collect_paths == True:
+                    elif collect_paths == True and D[name_map[v], name_map[e[1]]] == D[name_map[v], name_map[e[0]]] + 1:
 
                         # Collect all paths to e[0] and concatenate with the current node e[1]
                         for p in Paths[v][e[0]]:
