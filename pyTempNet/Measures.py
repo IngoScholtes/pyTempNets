@@ -128,6 +128,8 @@ def AlgebraicConn(temporalnet, model="SECOND"):
     if (model is "SECOND" or "NULL") == False:
         raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
     
+    Log.add('Calculating algebraic connectivity ... ', Severity.INFO)
+
     L = Laplacian(temporalnet, model)
     # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
     # NOTE: in order to be more confident to find the one with the largest
@@ -135,6 +137,9 @@ def AlgebraicConn(temporalnet, model="SECOND"):
     # NOTE: https://github.com/scipy/scipy/issues/4987
     w = sla.eigs( L, which="SM", k=2, ncv=13, return_eigenvectors=False )
     evals_sorted = np.sort(np.absolute(w))
+
+    Log.add('finished.', Severity.INFO)
+
     return np.abs(evals_sorted[1])
     
     
@@ -155,6 +160,8 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
     else:
         g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
     
+    Log.add('Calculating entropy growth rate ratio ... ', Severity.INFO)
+
     # Calculate transition matrices
     T2 = Utilities.RWTransitionMatrix(g2)
     T2n = Utilities.RWTransitionMatrix(g2n)
@@ -162,6 +169,8 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
     # Compute entropy growth rates of transition matrices        
     H2 = np.absolute(Utilities.EntropyGrowthRate(T2))
     H2n = np.absolute(Utilities.EntropyGrowthRate(T2n))
+
+    Log.add('finished.', Severity.INFO)
 
     # Return ratio
     return H2/H2n
@@ -237,6 +246,8 @@ def SlowDownFactor(t):
     g2 = t.igraphSecondOrder().components(mode="STRONG").giant()
     g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
     
+    Log.add('Calculating slow down factor ... ', Severity.INFO)
+
     # Build transition matrices
     T2 = Utilities.RWTransitionMatrix(g2)
     T2n = Utilities.RWTransitionMatrix(g2n)
@@ -251,6 +262,8 @@ def SlowDownFactor(t):
 
     w2n = sla.eigs(T2n, which="LM", k=2, ncv=13, return_eigenvectors=False)
     evals2n_sorted = np.sort(-np.absolute(w2n))
+
+    Log.add('finished.', Severity.INFO)
     
     return np.log(np.abs(evals2n_sorted[1]))/np.log(np.abs(evals2_sorted[1]))
 

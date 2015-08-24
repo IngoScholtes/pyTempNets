@@ -117,7 +117,28 @@ class TemporalNetwork:
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
-        
+
+      
+    def filterEdges(self, edge_filter):
+        """Allows to filter time-stamped edges according to a given filter expression. 
+
+        @param edge_filter: an arbitrary (lambda) expression of the form filter_func(v, w, time) that 
+            returns True for time-stamped edges that shall pass the filter, and False for all edges that shall be filtered out.
+            Note that for the purpose of filtering, data structures such as the activities dictionary, the first- or the second-
+           order aggregate networks of the TemporalNetwork instance can be used. 
+        """
+
+        Log.add('Starting filtering ...', Severity.INFO)
+        new_t_edges = []
+
+        for (v,w,t) in self.tedges:
+            if edge_filter(v,w,t):
+                new_t_edges.append((v,w,t))
+
+        Log.add('finished. Filtered out ' + str(self.ecount() - len(new_t_edges)) + ' time-stamped edges.', Severity.INFO)
+
+        return TemporalNetwork(self.separator, new_t_edges, None)
+
 
     def addEdge(self, source, target, ts):
         """Adds a directed time-stamped edge (source,target;time) to the temporal network. To add an undirected 
