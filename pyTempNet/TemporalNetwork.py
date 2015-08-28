@@ -17,6 +17,8 @@ from pyTempNet.Utilities import StationaryDistribution
 from pyTempNet.Log import *
 
 class EmptySCCError(Exception):
+    """An exception that will be thrown whenever we require a non-empty strongly 
+    connected component, but encounter an empty one"""
     pass
 
 class TemporalNetwork:
@@ -50,6 +52,9 @@ class TemporalNetwork:
         # A dictionary storing time stamps at which links (v,*;t) originate from node v
         self.activities = defaultdict( lambda: list() )
 
+        # A dictionary storing sets of time stamps at which links (v,*;t) originate from node v
+        # Note that the insertion into a set is much faster than repeatedly checking whether 
+        # an element already exists in a list!
         self.activities_sets = defaultdict( lambda: set() )
 
         # An ordered list of time-stamps
@@ -373,7 +378,15 @@ class TemporalNetwork:
         """Returns the first-order time-aggregated network
            corresponding to this temporal network. This network corresponds to 
            a first-order Markov model reproducing the link statistics in the 
-           weighted, time-aggregated network."""
+           weighted, time-aggregated network.
+           
+           @param all_links: whether or not to generate a time-aggregated representation
+                that included *all* time-stamped links, whether or not they contribute to 
+                time-respecting paths of length two or not.
+           @param force: whether or not to force the recomputation of the first-order 
+                time-aggregated network. If set to True this will regenerate the cached 
+                instance.
+           """
         
         if self.g1 != 0 and not force:
             return self.g1
@@ -385,14 +398,18 @@ class TemporalNetwork:
         Log.add('Constructing first-order aggregate network ...')
 
         self.g1 = igraph.Graph(n=len(self.nodes), directed=True)
+
+        # Make sure that the ordering of vertices matches that in the nodes list
         self.g1.vs["name"] = self.nodes
 
         edge_list = {}
 
-        # Gather all edges and their (accumulated) weights in a directory        
+        # Consider *all* edges and their (accumulated) weights ... 
         if all_links:
             for e in self.tedges:
                 edge_list[(e[0], e[1])] = edge_list.get((e[0], e[1]), 0) + 1
+
+        # ... or only consider edges contributing to two paths and their (accumulated) weights
         else:                    
             for tp in self.twopaths:
                 key1 = (tp[0], tp[1])
