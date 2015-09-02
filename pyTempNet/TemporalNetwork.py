@@ -43,10 +43,10 @@ class TemporalNetwork:
         # A dictionary storing all time-stamped links, indexed by time-stamps
         self.time = defaultdict( lambda: list() )
 
-        # A dictionary storing all time-stamped links, indexed by target and source nodes
+        # A dictionary storing all time-stamped links, indexed by time and target node
         self.targets = defaultdict( lambda: dict() )
 
-        # A dictionary storing all time-stamped links, indexed by source and target nodes
+        # A dictionary storing all time-stamped links, indexed by time and source node 
         self.sources = defaultdict( lambda: dict() )
 
         # A dictionary storing time stamps at which links (v,*;t) originate from node v
