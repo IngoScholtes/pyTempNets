@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jul 15 10:48:48 2015
-@author: Ingo Scholtes
+@author: Ingo Scholtes, Roman Cattaneo
 
 (c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """
@@ -12,6 +12,11 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
 import pyTempNet as tn
+import datetime as dt
+
+from pyTempNet.Log import *
+
+import sys
 
 def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
     """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
@@ -26,7 +31,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
     """
     
     assert filename is not ""
-    assert fformat is "TEDGE" or "TRIGRAM"
+    assert (fformat is "TEDGE") or (fformat is "TRIGRAM")
     
     f = open(filename, 'r')
     tedges = []
@@ -34,7 +39,6 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
     
     header = f.readline()
     header = header.split(sep)
-    
     # Support for arbitrary column ordering
     time_ix = -1
     source_ix = -1
@@ -48,7 +52,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
                 source_ix = i
             elif header[i] == 'node2' or header[i] == 'target':
                 target_ix = i
-            elif header[i] == 'time':
+            elif header[i] == 'time' or header[i] == 'timestamp':
                 time_ix = i
     elif fformat =="TRIGRAM":
         for i in range(len(header)):
@@ -60,23 +64,33 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
             elif header[i] == 'node3' or header[i] == 'target':
                 target_ix = i
             elif header[i] == 'weight':
-                weight_ix = i
+                weight_ix = i    
+
     assert( (source_ix >= 0 and target_ix >= 0 and time_ix >=0) or
-            (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0) )
-    # Read time-stamped edges
+            (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0)), "Detected invalid header columns: %s" % header
+    
+    # Read time-stamped links
+    Log.add('Reading time-stamped links ...')
+
     line = f.readline()
     n = 1 
     while not line.strip() == '' and n <= maxlines:
         fields = line.rstrip().split(sep)
         if fformat =="TEDGE":
-            timestamp = fields[time_ix]            
-            if (timestamp.isdigit()):
-                t = int(timestamp)
-            else:
-                x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
-                t = int(time.mktime(x.timetuple()))
-            tedge = (fields[source_ix], fields[target_ix], t)
-            tedges.append(tedge)
+            try:
+                timestamp = fields[time_ix]            
+                if (timestamp.isdigit()):
+                    t = int(timestamp)
+                else:
+                    x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
+                    t = int(time.mktime(x.timetuple()))
+                if t>=0:
+                    tedge = (fields[source_ix], fields[target_ix], t)
+                    tedges.append(tedge)
+                else:
+                    Log.add('Ignoring negative timestamp in line ' + str(n+1) + ': "' + line.strip() + '"', Severity.WARNING)
+            except (IndexError, ValueError):
+                Log.add('Ignoring malformed data in line ' + str(n+1) + ': "' +  line.strip() + '"', Severity.WARNING)
 
         elif fformat =="TRIGRAM":
             source = fields[source_ix].strip('"')
@@ -89,7 +103,8 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
         line = f.readline()
         n += 1
 
-    if fformat == "TEDGE":
+    Log.add('finished.')
+    if fformat == "TEDGE":        
         return tn.TemporalNetwork(tedges = tedges, sep=sep)
     elif fformat =="TRIGRAM":           
         return tn.TemporalNetwork(twopaths = twopaths, sep=sep)
@@ -156,7 +171,9 @@ def RWTransitionMatrix(g):
           row.append(t)
           col.append(s)
           tmp = edge["weight"] / D[s]
-          assert tmp >= 0 and tmp <= 1
+          if tmp <0 or tmp > 1:
+              tn.Log.add('Encountered transition probability outside [0,1] range.', Severity.ERROR)
+              raise ValueError()
           data.append( tmp )
     else:
       D = g.degree(mode='out')
@@ -165,7 +182,9 @@ def RWTransitionMatrix(g):
           row.append(t)
           col.append(s)
           tmp = 1. / D[s]
-          assert tmp >= 0 and tmp <= 1
+          if tmp <0 or tmp > 1:
+              tn.Log.add('Encountered transition probability outside [0,1] range.', Severity.ERROR)
+              raise ValueError()
           data.append( tmp )
     
     # TODO: find out why data is some times of type (N, 1)
@@ -257,6 +276,7 @@ def StationaryDistribution( T, normalize=True ):
     if normalize:
         pi /= sum(pi)
     return pi
+
 
 def firstOrderNameMap( t ):
     """returns a name map of the first order network of a given temporal network t"""

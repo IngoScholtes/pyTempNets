@@ -1,44 +1,104 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Feb 19 11:49:39 2015
-@author: Ingo Scholtes
+@author: Ingo Scholtes, Roman Cattaneo
 
 (c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """
 
 import igraph
 import numpy as np
-import os
 from collections import defaultdict
+
+from bisect import bisect_right
 
 from pyTempNet.Utilities import RWTransitionMatrix
 from pyTempNet.Utilities import StationaryDistribution
+from pyTempNet.Log import *
+
+class EmptySCCError(Exception):
+    """An exception that will be thrown whenever we require a non-empty strongly 
+    connected component, but encounter an empty one"""
+    pass
 
 class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of time-stamped edges"""
     
     def __init__(self,  sep=',', tedges = None, twopaths = None):
-        """Constructor generating an empty temporal network"""
+        """Constructor generating a temporal network instance
         
-        self.separator = sep
+        @param sep: a separator character to be used for the naming of higher-order nodes v-w
+        @param tedges: an optional list of (possibly unordered time-stamped) links from which to 
+            construct a temporal network instance
+        @param twopaths: an optional list of two-paths from which to 
+            construct a temporal network instance
+        """
+        
         self.tedges = []
+        nodes_seen = defaultdict( lambda:False )
         self.nodes = []
-        if tedges is not None:
-            for e in tedges:
-                self.tedges.append(e)
-        for e in self.tedges:
-            source = e[0]
-            target = e[1]
-            if source not in self.nodes:
-                self.nodes.append(source)
-            if target not in self.nodes:
-                self.nodes.append(target)
 
+        # Generate index structures which help to efficiently extract time-respecting paths
+
+        # A dictionary storing all time-stamped links, indexed by time-stamps
+        self.time = defaultdict( lambda: list() )
+
+        # A dictionary storing all time-stamped links, indexed by time and target node
+        self.targets = defaultdict( lambda: dict() )
+
+        # A dictionary storing all time-stamped links, indexed by time and source node 
+        self.sources = defaultdict( lambda: dict() )
+
+        # A dictionary storing time stamps at which links (v,*;t) originate from node v
+        self.activities = defaultdict( lambda: list() )
+
+        # A dictionary storing sets of time stamps at which links (v,*;t) originate from node v
+        # Note that the insertion into a set is much faster than repeatedly checking whether 
+        # an element already exists in a list!
+        self.activities_sets = defaultdict( lambda: set() )
+
+        # An ordered list of time-stamps
+        self.ordered_times = []
+
+        self.tedges = []
+
+        if tedges is not None:
+            Log.add('Building index data structures ...')
+
+            for e in tedges:
+                self.activities_sets[e[0]].add(e[2])
+                self.time[e[2]].append(e)
+                self.targets[e[2]].setdefault(e[1], []).append(e)
+                self.sources[e[2]].setdefault(e[0], []).append(e)
+                if not nodes_seen[e[0]]:
+                    nodes_seen[e[0]] = True
+                if not nodes_seen[e[1]]:
+                    nodes_seen[e[1]] = True
+            self.tedges = tedges
+            self.nodes = list(nodes_seen.keys())
+            Log.add('finished.')
+
+            Log.add('Sorting time stamps ...')
+
+            self.ordered_times = sorted(self.time.keys())
+            for v in self.nodes:
+                self.activities[v] = sorted(self.activities_sets[v])
+            Log.add('finished.')
+
+        # Index structures for two-path structures
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
         self.twopathsByTime = defaultdict( lambda: dict() )
         self.tpcount = -1
 
+        """The separator character to be used to generate higher-order nodes"""
+        self.separator = sep
+
+        """The maximum time difference between consecutive links to be used 
+        for extraction of time-respecting paths of length two"""
+        self.delta = 1                                    
+
+        # Generate index structures if temporal network is constructed from two-paths
         if twopaths is not None:
             t = 0
             for tp in twopaths:
@@ -56,27 +116,34 @@ class TemporalNetwork:
   
                 self.twopathsByNode[v].setdefault(t, []).append(tp)
                 t +=1
-            self.tpcount = len(twopaths)
+            self.tpcount = len(twopaths)        
 
-         # Generate some index structures to quickly access tedges by time, target and source
-        self.time = defaultdict( lambda: list() )
-        self.targets = defaultdict( lambda: dict() )
-        self.sources = defaultdict( lambda: dict() )
-        for e in self.tedges:
-            source = e[0]
-            target = e[1]
-            ts = e[2]
-
-            self.time[ts].append(e)
-            self.targets[ts].setdefault(target, []).append(e)
-            self.sources[ts].setdefault(source, []).append(e)
-
-        self.ordered_times = np.sort(list(self.time.keys()))
-
+        # Cached instances of first- and second-order aggregate networks
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
-        
+
+      
+    def filterEdges(self, edge_filter):
+        """Allows to filter time-stamped edges according to a given filter expression. 
+
+        @param edge_filter: an arbitrary (lambda) expression of the form filter_func(v, w, time) that 
+            returns True for time-stamped edges that shall pass the filter, and False for all edges that shall be filtered out.
+            Note that for the purpose of filtering, data structures such as the activities dictionary, the first- or the second-
+           order aggregate networks of the TemporalNetwork instance can be used. 
+        """
+
+        Log.add('Starting filtering ...', Severity.INFO)
+        new_t_edges = []
+
+        for (v,w,t) in self.tedges:
+            if edge_filter(v,w,t):
+                new_t_edges.append((v,w,t))
+
+        Log.add('finished. Filtered out ' + str(self.ecount() - len(new_t_edges)) + ' time-stamped edges.', Severity.INFO)
+
+        return TemporalNetwork(self.separator, new_t_edges, None)
+
 
     def addEdge(self, source, target, ts):
         """Adds a directed time-stamped edge (source,target;time) to the temporal network. To add an undirected 
@@ -84,7 +151,7 @@ class TemporalNetwork:
         
         @param source: naem of the source node of a directed, time-stamped link
         @param target: name of the target node of a directed, time-stamped link
-        @param time: (integer) time-stamp of the time-stamped link
+        @param ts: (integer) time-stamp of the time-stamped link
         """
         e = (source, target, ts)
         self.tedges.append(e)
@@ -98,8 +165,18 @@ class TemporalNetwork:
         self.targets[ts].setdefault(target, []).append(e)
         self.sources[ts].setdefault(source, []).append(e)
 
+        if ts not in self.activities[source]:
+            self.activities[source].append(ts)
+            self.activities[source].sort()
+
         # Reorder time stamps
-        self.ordered_times = np.sort(list(self.time.keys()))
+        self.ordered_times = sorted(self.time.keys())
+        
+        self.InvalidateTwoPaths()
+
+
+    def InvalidateTwoPaths(self):
+        """Invalidates all cached two-paths, as well as any (higher-order) aggregate networks"""
         
         # Invalidate indexed data 
         self.tpcount = -1
@@ -109,8 +186,8 @@ class TemporalNetwork:
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
-
         
+
     def vcount(self):
         """Returns the total number of different vertices active across the whole evolution of the temporal network. 
         This number corresponds to the number of nodes in the (first-order) time-aggregated network."""
@@ -121,64 +198,174 @@ class TemporalNetwork:
         """Returns the number of time-stamped edges (u,v;t) in this temporal network"""
         return len(self.tedges)
 
+    def getObservationLength(self):
+        """Returns the length of the observation time, i.e. the difference between the 
+            maximum and minimum time stamp of any time-stamped link."""
 
-    def extractTwoPaths(self, delta=1):
-        """Extracts all time-respecting paths of length two in this temporal network. The two-paths 
-        extracted by this method will be used in the construction of second-order time-aggregated 
-        networks, as well as in the analysis of causal structures of this temporal network. If an explicit 
-        call to this method is omitted, it will be run with default parameter \delta=1 whenever two-paths 
-        are needed for the first time. 
-        
-        @param delta: Indicates the maximum temporal distance below which two consecutive links will be 
-        considered as a time-respecting path. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
-        will be inferred for all delta < 4, while no time-respecting path will be inferred for all delta >= 4. 
-        For the default delta=1, a time-respecting path will be inferred for all u->v will only be inferred 
-        whenever there are directly consecutive time-stamped links (u,v;t) (v,w;t+1)
+        return max(self.ordered_times)-min(self.ordered_times)
+
+    def setMaxTimeDiff(self, delta):
+        """Sets the maximum time difference delta between consecutive links to be used for 
+        the extraction of time-respecting paths of length two (two-paths). If two-path structures
+        and/or second-order networks have previously been computed, this method will invalidate all
+        cached data if the new delta is different from the old one (for which two-path statistics have been computed)
+
+        @param delta: Indicates the maximum temporal distance up to which time-stamped links will be 
+        considered to contribute to time-respecting paths. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
+        will be inferred for all 0 < delta <= 4, while no time-respecting path will be inferred for all delta > 4. 
+        If the max time diff is not set specifically, the default value of delta=1 will be used, meaning that a
+        time-respecting path u -> v will only be inferred if there are *directly consecutive* time-stamped 
+        links (u,v;t) (v,w;t+1).
         """
+        
+        if delta != self.delta:
+            # Set new value and invalidate two-path structures
+            self.delta = delta
+            self.InvalidateTwoPaths()
+    
+
+    def getInterEventTimes(self):
+        """Returns a numpy array containing all time differences between any 
+            two consecutive time-stamped links (involving any node)"""
+
+        timediffs = []
+        for i in range(1, len(self.ordered_times)):
+            timediffs += [self.ordered_times[i] - self.ordered_times[i-1]]
+        return np.array(timediffs)
+
+
+    def getInterPathTimes(self):
+        """Returns a dictionary which, for each node v, contains all time differences 
+            between any time-stamped link (*,v;t) and the next link (v,*;t') (t'>t)
+            in the temporal network"""
+
+        interPathTimes = defaultdict( lambda: list() )
+        for e in self.tedges:
+            # Get target v of current edge e=(u,v,t)
+            v = e[1]
+            t = e[2]
+
+            # Get time stamp of link (v,*,t_next) with smallest t_next such that t_next > t
+            i = bisect_right(self.activities[v], t)
+            if i != len(self.activities[v]):
+                interPathTimes[v].append(self.activities[v][i]-t)
+        return interPathTimes
+
+
+    def Summary(self):
+        """Returns a string containing basic summary statistics of this temporal network"""
+
+        summary = ''
+
+        summary += 'Nodes:\t\t\t' +  str(self.vcount()) + '\n'
+        summary += 'Time-stamped links:\t' + str(self.ecount()) + '\n'
+        summary += 'Links/Nodes:\t\t' + str(self.ecount()/self.vcount()) + '\n'
+        summary += 'Observation period:\t[' + str(min(self.ordered_times)) + ', ' + str(max(self.ordered_times)) + ']\n'
+        summary += 'Observation length:\t' + str(max(self.ordered_times) - min(self.ordered_times)) + '\n'
+        summary += 'Time stamps:\t\t' + str(len(self.ordered_times)) + '\n'
+
+        d = self.getInterEventTimes()
+    
+        summary += 'Avg. inter-event dt:\t' + str(np.mean(d)) + '\n'
+        summary += 'Min/Max inter-event dt:\t' + str(min(d)) + '/' + str(max(d)) + '\n'
+
+        summary += 'Max Time Diff (delta):\t' +str(self.delta) + '\n'
+        summary += 'Two-paths:\t\t'
+        if self.tpcount>=0:
+            summary += str(self.tpcount) + '\n'
+        else:
+            summary += 'not calculated\n'
+        
+        if self.g1!=0:
+            summary += 'First-order nodes:\t' + str(self.g1.vcount()) + '\n'
+            summary += 'First-order links:\t' + str(self.g1.ecount()) + '\n'
+        else:
+            summary += 'First-order network:\tnot constructed\n'
+        
+        if self.g2!=0:
+            summary += 'Second-order nodes:\t' + str(self.g2.vcount())+ '\n'
+            summary += 'Second-order links:\t' + str(self.g2.ecount())+ '\n'
+        else:
+            summary += 'Second-order network:\tnot constructed\n'
+        
+        return summary
+
+
+    def extractTwoPaths(self):
+        """Extracts all time-respecting paths of length two in this temporal network for the currently set 
+        maximum time difference delta. The two-paths extracted by this method will be used in the 
+        construction of second-order time-aggregated networks, as well as in the analysis of 
+        causal structures of this temporal network. If an explicit call to this method is omitted, 
+        it will be run with the current parameter delta set in the 
+        TemporalNetwork instance (default: delta=1) whenever two-paths are needed for the first time.
+        Once two-paths have been computed, they will be cached and reused until the maximum time difference 
+        delta is changed.
+        """
+
+        Log.add('Extracting two-paths for delta = ' + str(int(self.delta)) + '...')
+
+        self.tpcount = -1
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
-        self.twopathsByTime = defaultdict( lambda: dict() )
+        self.twopathsByTime = defaultdict( lambda: dict() )        
 
-        # Extract time-respecting paths of length two             
-        prev_t = -1
-        for t in self.ordered_times:
-            if prev_t ==-1: 
-                pass
-            elif prev_t < t-delta:
-                pass
-            else:
-                for v in self.targets[prev_t]:
-                    if v in self.sources[t]:
-                        for e_out in self.sources[t][v]:
-                            for e_in in self.targets[prev_t][v]:
-                                s = e_in[0]
-                                d = e_out[1]
-                                
-                                # TODO: Add support for weighted time-
-                                # TODO: stamped links
-                                pass
-                                indeg_v = len(self.targets[prev_t][v])
-                                outdeg_v = len(self.sources[t][v])                                
-                                
-                                # Create a weighted two-path tuple
-                                # (s, v, d, weight)
-                                # representing two path (s,v) -> (v,d)
-                                two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
-                                self.twopaths.append(two_path)
-                                
-                                self.twopathsByNode[v].setdefault(t, []).append(two_path) 
-                                self.twopathsByTime[t].setdefault(v, []).append(two_path)
-            prev_t = t
+        # Avoid reevaluations in loop
+        tpappend = self.twopaths.append
+        srcs = self.sources
+        tgts = self.targets
+        odts = self.ordered_times
+        dt = self.delta
+
+        # For each time stamp in the ordered list of time stamps
+        for i in range(len(odts)):
+            t = odts[i]
+
+            # For each possible middle node v (i.e. all target nodes at time t) ... 
+            for v in tgts[t]:
+                # Get the minimum and maximum indices of time stamps in the ordered list of "activities" of node v
+                # which continue a time-respecting path, i.e. we are interested in 
+                # the time stamps t' of all links (v,*;t') such that t'  \in (t, t+delta]
+
+                # The minimum index is the index of the smallest time stamp that is larger than t
+                min_ix = bisect_right(self.activities[v], t)
+
+                # The maximum index is the index of the largest time stamp that is smaller or equal than t + delta
+                max_ix = bisect_right(self.activities[v], t+dt)-1
+
+                # For all time-stamped links (v,*;t') with t' \in (t, t+delta] ...
+                for j in range(min_ix, max_ix+1):
+                    future_t = self.activities[v][j]
+                    # For all possible IN-edges at time t that link *to* node v
+                    for e_in in tgts[t][v]:
+                        # Combine with all OUT-edges at time future_t that link *from* v
+                        for e_out in srcs[future_t][v]:
+                            s = e_in[0]
+                            d = e_out[1]
+                            indeg_v = len(tgts[t][v])
+                            outdeg_v = len(srcs[future_t][v])                                    
+
+                            # Create a weighted two-path tuple
+                            # (s, v, d, weight)
+                            two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
+
+                            # TODO: Add support for time-stamped links which have link weights w by themselves, i.e. (u,v;t;w)
+
+                            tpappend(two_path)
+                            self.twopathsByNode[v].setdefault(t, []).append(two_path)
+                            self.twopathsByTime[t].setdefault(v, []).append(two_path)
         
-        g2 = 0
-        g2n = 0
-        # Update the count of two-paths
         self.tpcount = len(self.twopaths)
+
+        # Invalidate cached aggregate networks
+        g1 = 0
+        g2 = 0
+        g2n = 0                
+        Log.add('finished.')
 
         
     def TwoPathCount(self):
-        """Returns the total number of time-respecting paths of length two which have
-            been extracted from the time-stamped edge sequence."""
+        """Returns the total number of time-respecting paths of length two (two-paths) 
+            which have been extracted from the time-stamped edge sequence."""
         
         # If two-paths have not been extracted yet, do it now
         if self.tpcount == -1:
@@ -186,28 +373,43 @@ class TemporalNetwork:
 
         return self.tpcount
     
+
     def igraphFirstOrder(self, all_links=False, force=False):
         """Returns the first-order time-aggregated network
            corresponding to this temporal network. This network corresponds to 
            a first-order Markov model reproducing the link statistics in the 
-           weighted, time-aggregated network."""
+           weighted, time-aggregated network.
+           
+           @param all_links: whether or not to generate a time-aggregated representation
+                that included *all* time-stamped links, whether or not they contribute to 
+                time-respecting paths of length two or not.
+           @param force: whether or not to force the recomputation of the first-order 
+                time-aggregated network. If set to True this will regenerate the cached 
+                instance.
+           """
         
         if self.g1 != 0 and not force:
-            return self.g1                  
+            return self.g1
            
         # If two-paths have not been extracted yet, do it now
         if self.tpcount == -1:
             self.extractTwoPaths()
 
+        Log.add('Constructing first-order aggregate network ...')
+
         self.g1 = igraph.Graph(n=len(self.nodes), directed=True)
+
+        # Make sure that the ordering of vertices matches that in the nodes list
         self.g1.vs["name"] = self.nodes
 
         edge_list = {}
 
-        # Gather all edges and their (accumulated) weights in a directory        
+        # Consider *all* edges and their (accumulated) weights ... 
         if all_links:
             for e in self.tedges:
                 edge_list[(e[0], e[1])] = edge_list.get((e[0], e[1]), 0) + 1
+
+        # ... or only consider edges contributing to two paths and their (accumulated) weights
         else:                    
             for tp in self.twopaths:
                 key1 = (tp[0], tp[1])
@@ -221,6 +423,8 @@ class TemporalNetwork:
         self.g1.add_edges( edge_list.keys() )
         self.g1.es["weight"] = list(edge_list.values())
         
+        Log.add('finished.')
+
         return self.g1
 
 
@@ -228,13 +432,16 @@ class TemporalNetwork:
         """Returns the second-order time-aggregated network
            corresponding to this temporal network. This network corresponds to 
            a second-order Markov model reproducing both the link statistics and 
-           (first-order) order correlations in the underlying temporal network."""
+           (first-order) order correlations in the underlying temporal network.
+           """
 
         if self.g2 != 0:
             return self.g2
 
         if self.tpcount == -1:
-            self.extractTwoPaths() 
+            self.extractTwoPaths()
+
+        Log.add('Constructing second-order aggregate network ...')
 
         # create vertex list and edge directory first
         vertex_list = []
@@ -259,6 +466,8 @@ class TemporalNetwork:
         self.g2.add_edges( edge_dict.keys() )
         self.g2.es["weight"] = list(edge_dict.values())
 
+        Log.add('finished.')
+
         return self.g2
 
 
@@ -275,20 +484,21 @@ class TemporalNetwork:
         g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
         n_vertices = len(g2.vs)
 
-        assert(n_vertices>1)
+        if n_vertices<=1:
+            Log.add('Strongly connected component is empty for delta = ' + str(self.delta), Severity.ERROR)
+            raise EmptySCCError()
         
         T = RWTransitionMatrix( g2 )
         pi = StationaryDistribution(T)
         
         # Construct null model second-order network
         self.g2n = igraph.Graph(directed=True)
-        # NOTE: This ensures that vertices are ordered in the same way as in 
-        # NOTE: the empirical second-order network
-        for v in self.g2.vs():
+
+        # This ensures that vertices are ordered in the same way as in the empirical second-order network
+        for v in g2.vs():
             self.g2n.add_vertex(name=v["name"])
         
-        ## TODO: This operation is the bottleneck for large data sets!
-        ## TODO: Only iterate over those edge pairs, that actually are two paths!
+        ## TODO: This operation is the bottleneck for large data sets. We should only iterate over those edge pairs, that actually are two-paths
         edge_dict = {}
         vertices = g2.vs()
         sep = self.separator
@@ -323,7 +533,7 @@ class TemporalNetwork:
     def ShuffleEdges(self, l=0):        
         """Generates a shuffled version of the temporal network in which edge statistics (i.e.
         the frequencies of time-stamped edges) are preserved, while all order correlations are 
-        destroyed.
+        destroyed. The shuffling procedure randomly reshuffles the time-stamps of links.
         
         @param l: the length of the sequence to be generated (in terms of the number of time-stamped links.
             For the default value l=0, the length of the generated shuffled temporal network will be equal to that of 
@@ -337,10 +547,17 @@ class TemporalNetwork:
         if l==0:
             l = 2*int(len(self.tedges)/2)
         for i in range(l):
-            # We simply shuffle the order of all edges
+            # Pick random link
             edge = self.tedges[np.random.randint(0, len(self.tedges))]
-            tedges.append((edge[0], edge[1], i))
-        t = TemporalNetwork(sep=',', tedges=tedges)
+            # Pick random time stamp
+            time = self.tedges[np.random.randint(0, len(self.ordered_times))]
+            # Generate new time-stamped link
+            tedges.append( (edge[0], edge[1], time) )
+
+        # Generate temporal network
+        t = TemporalNetwork(sep=self.separator, tedges=tedges)
+
+        # Fix node order to correspond to original network
         t.nodes = self.nodes
             
         return t
@@ -384,149 +601,3 @@ class TemporalNetwork:
             
         tempnet = TemporalNetwork(sep=',', tedges=tedges)
         return tempnet
-
-
-    def exportTikzUnfolded(self, filename):
-        """Generates a tikz file that can be compiled to obtain a time-unfolded 
-            representation of the temporal network.
-            
-        @param filename: the name of the tex file to be generated."""    
-        
-        output = []
-            
-        output.append('\\documentclass{article}\n')
-        output.append('\\usepackage{tikz}\n')
-        output.append('\\usepackage{verbatim}\n')
-        output.append('\\usepackage[active,tightpage]{preview}\n')
-        output.append('\\PreviewEnvironment{tikzpicture}\n')
-        output.append('\\setlength\PreviewBorder{5pt}%\n')
-        output.append('\\usetikzlibrary{arrows}\n')
-        output.append('\\usetikzlibrary{positioning}\n')
-        output.append('\\begin{document}\n')
-        output.append('\\begin{center}\n')
-        output.append('\\newcounter{a}\n')
-        output.append("\\begin{tikzpicture}[->,>=stealth',auto,scale=0.5, every node/.style={scale=0.9}]\n")
-        output.append("\\tikzstyle{node} = [fill=lightgray,text=black,circle]\n")
-        output.append("\\tikzstyle{v} = [fill=black,text=white,circle]\n")
-        output.append("\\tikzstyle{dst} = [fill=lightgray,text=black,circle]\n")
-        output.append("\\tikzstyle{lbl} = [fill=white,text=black,circle]\n")
-
-        last = ''
-            
-        for n in self.nodes:
-            if last == '':
-                output.append("\\node[lbl]                     (" + n + "-0)   {$" + n + "$};\n")
-            else:
-                output.append("\\node[lbl,right=0.5cm of "+last+"-0] (" + n + "-0)   {$" + n + "$};\n")
-            last = n
-            
-        output.append("\\setcounter{a}{0}\n")
-        output.append("\\foreach \\number in {1,...," + str(len(self.tedges)+2) + "}{\n")
-        output.append("\\setcounter{a}{\\number}\n")
-        output.append("\\addtocounter{a}{-1}\n")
-        output.append("\\pgfmathparse{\\thea}\n")
-        
-        for n in self.nodes:
-            output.append("\\node[v,below=0.3cm of " + n + "-\\pgfmathresult]     (" + n + "-\\number) {};\n")
-        output.append("\\node[lbl,left=0.5cm of " + self.nodes[0] + "-\\number]    (col-\\pgfmathresult) {$t=$\\number};\n")
-        output.append("}\n")
-        output.append("\\path[->,thick]\n")
-        i = 1
-        
-        for t in self.ordered_times:
-            for edge in self.time[t]:
-                output.append("(" + edge[0] + "-" + str(t) + ") edge (" + edge[1] + "-" + str(t + 1) + ")\n")
-                i += 1                                
-        output.append(";\n")
-        output.append("""\end{tikzpicture}
-\end{center}
-\end{document}""")
-        
-        # create directory if necessary to avoid IO errors
-        directory = os.path.dirname( filename )
-        if not os.path.exists( directory ):
-          os.makedirs( directory )
-        
-        text_file = open(filename, "w")
-        text_file.write(''.join(output))
-        text_file.close()
-                    
-
-
-    def exportMovie(self, output_file, visual_style = None, realtime = True, maxSteps=-1, delay=10):
-        """Exports a video showing the evolution of the temporal network.
-        
-        @param output_file: the filename of the mp4 video to be generated
-        @param visual_style: the igraph visual style to be used for the individual frames of the video.
-            If the parameter value is None, a standard visual style will be used.
-        @param realtime: Whether to generate a frame for every time step between the minimum and maximum timestamps, or only for those 
-            where at least one node is active. For realtime=true, phases with no activity are retained in the video and there is a direct relation
-            between the real time and the frame number. 
-        @param maxSteps: The maximum number of time steps to export. For the default value -1 all steps in the evolution of the temporal network
-            will be exported.
-        @param delay: The delay in ms after each frame in the video. For the default value of 10, the framerate of the generated video will be 100 fps. 
-        """
-        prefix = str(np.random.randint(0,10000))
-        
-        # TODO: 
-        self.exportMovieFrames('frames' + os.sep + prefix, visual_style = visual_style, realtime = realtime, maxSteps=maxSteps)
-        
-        from subprocess import call
-
-        # TODO: Replace by direct call to fmpeg
-        x = call("convert -delay " + str(delay) +" frames" + os.sep + prefix+"_frame_* "+output_file, shell=True)
-
-
-
-    def exportMovieFrames(self, fileprefix, visual_style = None, realtime = True, maxSteps=-1):
-        """Exports a sequence of numbered images showing the evolution of the temporal network. The resulting frames can be encoded into 
-        custm video formats, for instance using ffmpeg. 
-        
-        @param output_file: the prefix of the file names to be used for the individual images
-        @param visual_style: the igraph visual style to be used for the individual frames of the video.
-            If the parameter value is None, a standard visual style will be used.
-        @param realtime: Whether to generate a frame for every time step between the minimum and maximum timestamps, or only for those 
-            where at least one node is active. For realtime=true, phases with no activity are retained in the video and there is a direct relation
-            between the real time and the frame number. 
-        @param maxSteps: The maximum number of time steps to export. For the default value -1 all steps in the evolution of the temporal network
-            will be exported.
-        """
-
-        g = self.igraphFirstOrder()        
-
-        if visual_style == None:
-            print('No visual style specified, setting to defaults')
-            visual_style = {}
-            visual_style["vertex_color"] = "lightblue"
-            visual_style["vertex_label"] = g.vs["name"]
-            visual_style["edge_curved"] = .5
-            visual_style["vertex_size"] = 30
-            
-            # Use layout from first-order aggregate network
-            visual_style["layout"] = g.layout_auto() 
-        
-        # make sure there is a directory for the frames to avoid IO errors
-        directory = os.path.dirname(fileprefix)
-        if not os.path.exists( directory ):
-          os.makedirs( directory )
-         
-        i = 0
-        # Generate movie frames
-        if realtime == True:
-            t_range = range(min(self.time.keys()), max(self.time.keys())+1)
-        else:
-            t_range = self.ordered_times
-
-        if maxSteps>0:
-            t_range = t_range[:maxSteps]
-
-        for t in t_range:
-            i += 1
-            slice = igraph.Graph(n=len(g.vs()), directed=True)
-            slice.vs["name"] = g.vs["name"]
-
-            for e in self.time[t]:
-                slice.add_edge(e[0], e[1])
-            igraph.plot(slice, fileprefix + '_frame_' + str(t).zfill(5) + '.png', **visual_style)
-            if i % 100 == 0:
-                print('Wrote movie frame', i, ' of', len(t_range))

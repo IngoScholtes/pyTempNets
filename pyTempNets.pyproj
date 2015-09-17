@@ -9,18 +9,32 @@
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
-    <InterpreterId>{99f6a880-d115-4494-afb4-44231ea4f218}</InterpreterId>
-    <InterpreterVersion>3.4</InterpreterVersion>
+    <InterpreterId>
+    </InterpreterId>
+    <InterpreterVersion>
+    </InterpreterVersion>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
   <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <PtvsTargetsFile>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets</PtvsTargetsFile>
+  </PropertyGroup>
   <ItemGroup>
+    <Compile Include="pyTempNet\Log.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="pyTempNet\Paths.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="pyTempNet\TimeSlices.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="pyTempNet\Utilities.py" />
+    <Compile Include="pyTempNet\Visualizer.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="setup.py" />
     <Compile Include="pyTempNet\Measures.py" />
     <Compile Include="pyTempNet\Processes.py" />
@@ -32,13 +46,11 @@
     <Folder Include="pyTempNet" />
   </ItemGroup>
   <ItemGroup>
-    <InterpreterReference Include="{99f6a880-d115-4494-afb4-44231ea4f218}\3.4" />
-  </ItemGroup>
-  <ItemGroup>
     <Content Include=".gitignore" />
     <Content Include="DESCRIPTION.rst" />
     <Content Include="README.md" />
     <Content Include="README.rst" />
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />
+  <Import Project="$(PtvsTargetsFile)" Condition="Exists($(PtvsTargetsFile))" />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" Condition="!Exists($(PtvsTargetsFile))" />
 </Project>
