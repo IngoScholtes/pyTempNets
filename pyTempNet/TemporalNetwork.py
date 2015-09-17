@@ -203,25 +203,6 @@ class TemporalNetwork:
             maximum and minimum time stamp of any time-stamped link."""
 
         return max(self.ordered_times)-min(self.ordered_times)
-
-    def setMaxTimeDiff(self, delta):
-        """Sets the maximum time difference delta between consecutive links to be used for 
-        the extraction of time-respecting paths of length two (two-paths). If two-path structures
-        and/or second-order networks have previously been computed, this method will invalidate all
-        cached data if the new delta is different from the old one (for which two-path statistics have been computed)
-
-        @param delta: Indicates the maximum temporal distance up to which time-stamped links will be 
-        considered to contribute to time-respecting paths. For (u,v;3) and (v,w;7) a time-respecting path (u,v)->(v,w) 
-        will be inferred for all 0 < delta <= 4, while no time-respecting path will be inferred for all delta > 4. 
-        If the max time diff is not set specifically, the default value of delta=1 will be used, meaning that a
-        time-respecting path u -> v will only be inferred if there are *directly consecutive* time-stamped 
-        links (u,v;t) (v,w;t+1).
-        """
-        
-        if delta != self.delta:
-            # Set new value and invalidate two-path structures
-            self.delta = delta
-            self.InvalidateTwoPaths()
     
 
     def getInterEventTimes(self):
@@ -361,17 +342,6 @@ class TemporalNetwork:
         g2 = 0
         g2n = 0                
         Log.add('finished.')
-
-        
-    def TwoPathCount(self):
-        """Returns the total number of time-respecting paths of length two (two-paths) 
-            which have been extracted from the time-stamped edge sequence."""
-        
-        # If two-paths have not been extracted yet, do it now
-        if self.tpcount == -1:
-            self.extractTwoPaths()
-
-        return self.tpcount
     
 
     def igraphFirstOrder(self, all_links=False, force=False):
