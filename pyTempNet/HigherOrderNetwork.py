@@ -26,6 +26,9 @@ class HigherOrderNetwork:
         (u,v;t) (v,w;t+1).
         """
         
+        assert order >= 1
+        assert maxTimeDiff >= 1
+        
         self.tn    = tempNet
         self.k     = order
         self.delta = maxTimeDiff
@@ -73,7 +76,7 @@ class HigherOrderNetwork:
         only be inferred if there are *directly consecutive* time-stamped 
         links (u,v;t) (v,w;t+1).
         """
-        
+        assert delta >= 1
         if delta != self.delta:
             # Set new value and invalidate two-path structures
             Log.add("Changing maximal time difference from " + str(self.data) 
@@ -91,7 +94,7 @@ class HigherOrderNetwork:
         order is different from the old one (for which k-path statistics have 
         been computed)
         """
-        
+        assert k >= 1
         if k != self.k:
             # Set new value and invalidate any cached data
             Log.add("Changeing order of aggregated network from " + str(self.k) 
