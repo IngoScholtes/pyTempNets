@@ -135,11 +135,8 @@ class HigherOrderNetwork:
         Once k-paths have been computed, they will be cached and reused until 
         the maximum time difference, delta, and/or the order k is changed.        
         """
-        # TODO
-        # self.kpaths = ...
         
         tmpNet = self.tn
-        
         
         #loop over all time-steps (at which something is happening)
         for t in range(tmpNet.ordered_times):
@@ -153,7 +150,7 @@ class HigherOrderNetwork:
                 candidates.add(e[1])
                 
             # 1 <= current_k <= k
-            for current_k in range(1, k+1):
+            for current_k in range(1, self.k+1):
                 new_candidates = set()
                 
                 for node in candidates:
@@ -163,29 +160,19 @@ class HigherOrderNetwork:
                         src = e[0]
                         dst = e[1]
                         for path in possible_path[src]:
-                            possible_path[dst].append( path.append( dst ) )
+                            possible_path[dst].append( path.append(dst) )
                             new_candidates.add( dst )
+                            if current_k == self.k:
+                                self.kpaths.append( path.append(dst) )
                 
                 candidates = new_candidates
-                
-            #for node in candidates:
-                ## edges at time t+1 originating from node
-                #outlinks = tmpNet.sources[t+1][node]
-                #for link in outlinks:
-                    ## for all possible_paths[link[source]] add
-                    ## possible_path[link[target]] = old_path, target
             
-            ## now try to find a path of size k starting at this time-step
-            #for counter in range(self.k):
-                ## list of edges at this time-step
-                #current_edges = tmpNet.time[t+k]
-                #for e in current_edges:
-                    ## put e[0] in the list for possible k-paths
-                    #possible_path[k] = e[0]
-                    ## put e[1] in the list to check at time t+1
-                
+            # NOTE: possible_path will hold all k-paths for 1 <= k <= self.k at
+            # NOTE: this time-step
         
-        return []
+        self.KPathCount = len(self.kpaths)
+        
+        return self.kpaths
     
     
     def igraphKthOrder(self):
