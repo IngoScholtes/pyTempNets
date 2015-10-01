@@ -138,6 +138,53 @@ class HigherOrderNetwork:
         # TODO
         # self.kpaths = ...
         
+        tmpNet = self.tn
+        
+        
+        #loop over all time-steps (at which something is happening)
+        for t in range(tmpNet.ordered_times):
+            possible_path = defaultdict( lambda: list() )
+            candidates = set()
+            
+            # case k == 0
+            current_edges = tmpNet.time[t]
+            for e in current_edges:
+                possible_path[e[1]].append( [e[0], e[1]] )
+                candidates.add(e[1])
+                
+            # 1 <= current_k <= k
+            for current_k in range(1, k+1):
+                new_candidates = set()
+                
+                for node in candidates:
+                    # edges at time t+1 originating from node
+                    new_edges = tmpNet.sources[t+current_k][node]
+                    for e in new_edges:
+                        src = e[0]
+                        dst = e[1]
+                        for path in possible_path[src]:
+                            possible_path[dst].append( path.append( dst ) )
+                            new_candidates.add( dst )
+                
+                candidates = new_candidates
+                
+            #for node in candidates:
+                ## edges at time t+1 originating from node
+                #outlinks = tmpNet.sources[t+1][node]
+                #for link in outlinks:
+                    ## for all possible_paths[link[source]] add
+                    ## possible_path[link[target]] = old_path, target
+            
+            ## now try to find a path of size k starting at this time-step
+            #for counter in range(self.k):
+                ## list of edges at this time-step
+                #current_edges = tmpNet.time[t+k]
+                #for e in current_edges:
+                    ## put e[0] in the list for possible k-paths
+                    #possible_path[k] = e[0]
+                    ## put e[1] in the list to check at time t+1
+                
+        
         return []
     
     
