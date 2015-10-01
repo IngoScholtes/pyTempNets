@@ -139,6 +139,10 @@ class HigherOrderNetwork:
         the maximum time difference, delta, and/or the order k is changed.        
         """
         
+        # TODO this is possibly not the best/fastest solution to the problem
+        # TODO since foreach time-step all possible k-paths are generated
+        # TODO again
+        
         tmpNet = self.tn
         
         #loop over all time-steps (at which something is happening)
@@ -166,13 +170,16 @@ class HigherOrderNetwork:
                             possible_path[dst].append( path.append(dst) )
                             new_candidates.add( dst )
                             if current_k == self.k:
-                                self.kpaths.append( path.append(dst) )
+                                # readd weights w again
+                                w = len(new_edges) * len(possible_path[src])
+                                self.kpaths.append( {"kpath": path.append(dst),
+                                                     "weight": w} )
                 
                 candidates = new_candidates
             
-            # NOTE: possible_path will hold all k-paths for 1 <= k <= self.k at
-            # NOTE: this time-step
-        
+            # NOTE: possible_path will hold all k-paths for 1 <= k <= self.k and
+            # this time-step at point in the program
+            
         self.KPathCount = len(self.kpaths)
         
         return self.kpaths
