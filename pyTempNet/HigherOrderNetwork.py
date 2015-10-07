@@ -146,6 +146,9 @@ class HigherOrderNetwork:
         # TODO since foreach time-step all possible k-paths are generated
         # TODO again
         
+        # TODO this only works for delta=1. readd the ability to get kpaths for
+        # TODO any delta
+        
         start = tm.clock()
         
         tmpNet = self.tn
@@ -153,26 +156,30 @@ class HigherOrderNetwork:
         #loop over all time-steps (at which something is happening)
         for t in tmpNet.ordered_times:
             possible_path = defaultdict( lambda: list() )
-            candidates = set()
+            candidate_nodes = set()
             #print("current t", t)
             
             # case k == 0
+            # NOTE: this is fine like this and needs no generalization
+            # NOTE: to delta > 1. Edges starting at later time points
+            # NOTE: will be added in later iterations of this loop
             current_edges = tmpNet.time[t]
             for e in current_edges:
                 possible_path[e[1]].append( [e[0], e[1]] )
-                candidates.add(e[1])
+                candidate_nodes.add(e[1])
             
             #print("possible paths after k = 0", possible_path)
             
-            # 1 <= current_k <= k
+            # 1 <= current_k < k
             for current_k in range(1, self.k):
-                new_candidates = set()
+                new_candidate_nodes = set()
                 #print("  current_k", current_k)
                 
-                #print("this are the candidates:", candidates)
-                for node in candidates:
+                #print("this are the candidate_nodes:", candidate_nodes)
+                for node in candidate_nodes:
                     #print("    processing node", node)
                     # edges at time t+1 originating from node
+                    # TODO: add all edges orginating from node at times t in [t+1, t+delta]
                     new_edges = tmpNet.sources[t+current_k].get(node, list())
                     #print("    new_edges", new_edges)
                     for e in new_edges:
@@ -188,15 +195,15 @@ class HigherOrderNetwork:
                             #print("      intended new path: ", new_path )
                             possible_path[dst].append( new_path )
                             #print("      new possible paths:", possible_path)
-                            new_candidates.add( dst )
+                            new_candidate_nodes.add( dst )
                             if current_k+1 == self.k:
                                 # readd weights w again
-                                w = len(new_edges) * len(possible_path[src])
+                                w = 1. / (len(new_edges) * len(possible_path[src]))
                                 self.kpaths.append( {"nodes": new_path,
                                                      "weight": w} )
                                 #print("      found new kpath! these are now all kpaths:", self.kpaths)
                 
-                candidates = new_candidates
+                candidate_nodes = new_candidate_nodes
             
             # NOTE: possible_path will hold all k-paths for 1 <= k <= self.k and
             # this time-step at point in the program
