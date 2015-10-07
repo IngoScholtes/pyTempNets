@@ -21,7 +21,7 @@ class HigherOrderNetwork:
                             respecting paths.
         @param maxTimeDiff: maximal temporal distance up to which time-stamped 
                             links will be considered to contribute to a time-
-                            respecting path.
+                            respecting path. Default: 1
         
         Note: If the max time diff is not set specifically, the default value of 
         delta=1 will be used, meaning that a time-respecting path u -> v will 
@@ -38,7 +38,7 @@ class HigherOrderNetwork:
         
         # time-respecting k-paths and their count
         self.kpaths = []
-        self.kpcount = 0
+        self.kpcount = -1
         
         # do not extract k-paths as long as they are not needed
         ## TODO: extract k-path with respect to delta
@@ -53,7 +53,7 @@ class HigherOrderNetwork:
         """Clears the cached information: K-paths, aggregated k-th order 
         network and null model"""
         self.kpaths = []
-        self.kpcount = 0
+        self.kpcount = -1
         
         self.gk  = 0
         self.gkn = 0
@@ -72,12 +72,8 @@ class HigherOrderNetwork:
         @param delta: Indicates the maximum temporal distance up to which 
         time-stamped links will be considered to contribute to time-
         respecting paths. For (u,v;3) and (v,w;7) a time-respecting path 
-        (u,v)->(v,w) will be inferred for all 0 < delta <= 4, while no 
-        time-respecting path will be inferred for all delta > 4. 
-        If the max time diff is not set specifically, the default value of 
-        delta=1 will be used, meaning that a time-respecting path u -> v will 
-        only be inferred if there are *directly consecutive* time-stamped 
-        links (u,v;t) (v,w;t+1).
+        (u,v)->(v,w) will be inferred for all delta >= 4, while no 
+        time-respecting path will be inferred for all delta < 4.
         """
         assert delta >= 1
         if delta != self.delta:
@@ -86,7 +82,12 @@ class HigherOrderNetwork:
                     + " to " + str(delta), Severity.INFO)
             self.delta = delta
             self.clearCache()
-
+    
+    def resetMaxTimeDiff(self):
+        """Resets the maximal time difference delta between consecutive links 
+           to be used for the extraction of time-respecting paths to the
+           default value of delta=1"""
+        setMaxTimeDiff()
 
     def setOrder(self, k):
         """Changes the order of the aggregated temporal network and therefore 
@@ -109,25 +110,37 @@ class HigherOrderNetwork:
     def KPathCount(self):
         """Returns the total number of time-respecting paths of length k 
         (so called k-paths) which have been extracted from the temporal 
-        network."""
-        
-        # If two-paths have not been extracted yet, do it now
-        if self.kpcount == -1:
-            self.extractKPaths()
+        network.
+        A count of -1 indicates that they have not yet been extracted."""
 
         return self.kpcount
 
 
     def order(self):
         """Returns the order, k, of the aggregated network"""
-        return k
+        return self.k
 
 
     def maxTimeDiff(self):
         """Returns the maximal time difference, delta, between consecutive 
         links in the temporal network"""
-        return delta
+        return self.delta
     
+    def Summary(self):
+        """ some meaning full docstring here... give a summary of the net"""
+        summary = ''
+        summary += "Higher order network with the following params:"
+        summary += "order: " + str(self.order())
+        summary += "delta: " + str(self.maxTimeDiff())
+        
+        summary += "kpaths"
+        if self.KPathCount == -1:
+            summary += "  count: " + self.KPathCount
+            summary += "  list of paths: " + self.kpaths
+        else:
+            summary += "  not yet extracted."
+            
+        return summary
     
     def extractKPaths(self):
         """Extracts all time-respecting paths of length k in this temporal 
@@ -146,69 +159,82 @@ class HigherOrderNetwork:
         # TODO since foreach time-step all possible k-paths are generated
         # TODO again
         
-        # TODO this only works for delta=1. readd the ability to get kpaths for
-        # TODO any delta
-        
         start = tm.clock()
         
         tmpNet = self.tn
         
         #loop over all time-steps (at which something is happening)
+        print("ordered times:", tmpNet.ordered_times)
+        next_valid_t = 0
         for t in tmpNet.ordered_times:
+            if t < next_valid_t:
+                continue
+            
+            next_valid_t = t + self.delta
             possible_path = defaultdict( lambda: list() )
             candidate_nodes = set()
-            #print("current t", t)
+            print("current t", t)
             
             # case k == 0
             # NOTE: this is fine like this and needs no generalization
             # NOTE: to delta > 1. Edges starting at later time points
             # NOTE: will be added in later iterations of this loop
-            current_edges = tmpNet.time[t]
+            # TODO  the above statement is actually wrong after all :(
+            # TODO  and the additional for loop (over i) is necessary
+            current_edges = list()
+            for i in range(self.delta):
+                current_edges.extend(tmpNet.time[t+i])
+                
             for e in current_edges:
                 possible_path[e[1]].append( [e[0], e[1]] )
                 candidate_nodes.add(e[1])
             
-            #print("possible paths after k = 0", possible_path)
+            print("possible paths after k = 0", possible_path)
             
             # 1 <= current_k < k
             for current_k in range(1, self.k):
                 new_candidate_nodes = set()
-                #print("  current_k", current_k)
+                print("  current_k", current_k)
                 
-                #print("this are the candidate_nodes:", candidate_nodes)
+                print("this are the candidate_nodes:", candidate_nodes)
                 for node in candidate_nodes:
-                    #print("    processing node", node)
+                    print("    processing node", node)
                     # edges at time t+1 originating from node
                     # TODO: add all edges orginating from node at times t in [t+1, t+delta]
-                    new_edges = tmpNet.sources[t+current_k].get(node, list())
-                    #print("    new_edges", new_edges)
+                    new_edges = list()
+                    for i in range(self.delta+1):
+                        new_edges.extend( tmpNet.sources[t+current_k+i].get(node, list()) )
+                    print("    new_edges", new_edges)
                     for e in new_edges:
                         src = e[0]
                         dst = e[1]
-                        #print("      possible_path[src]", possible_path[src])
+                        print("      possible_path[src]", possible_path[src])
                         for path in possible_path[src]:
-                            #print("      processing path:", path)
+                            print("        processing path:", path)
                             # NOTE: you have to do this in two steps. you can
                             # NOTE: not directly append 'dst'
                             new_path = list(path)
                             new_path.append( dst )
                             #print("      intended new path: ", new_path )
                             possible_path[dst].append( new_path )
-                            #print("      new possible paths:", possible_path)
+                            print("        new possible paths:", possible_path)
                             new_candidate_nodes.add( dst )
-                            if current_k+1 == self.k:
+                            if( (current_k+1 == self.k) and (len(new_path) == self.k+1) ):
                                 # readd weights w again
-                                w = 1. / (len(new_edges) * len(possible_path[src]))
+                                # TODO: make the next line more readable
+                                w = 1. / (len(new_edges) * len([i for i in possible_path[src] if len(i) == self.k]))
                                 self.kpaths.append( {"nodes": new_path,
                                                      "weight": w} )
-                                #print("      found new kpath! these are now all kpaths:", self.kpaths)
+                                print("        found new kpath! these are now all kpaths:", self.kpaths)
+                                print("        # new edges:", len(new_edges))
+                                print("        # possible_paths[src]", len(possible_path[src]))
                 
                 candidate_nodes = new_candidate_nodes
             
             # NOTE: possible_path will hold all k-paths for 1 <= k <= self.k and
             # this time-step at point in the program
             
-        self.KPathCount = len(self.kpaths)
+        self.kpcount = len(self.kpaths)
         end = tm.clock()
         
         print( 'time elapsed:', (end-start))
