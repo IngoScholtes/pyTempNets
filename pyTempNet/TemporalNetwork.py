@@ -16,6 +16,8 @@ from pyTempNet.Utilities import RWTransitionMatrix
 from pyTempNet.Utilities import StationaryDistribution
 from pyTempNet.Log import *
 
+import time as tm
+
 class EmptySCCError(Exception):
     """An exception that will be thrown whenever we require a non-empty strongly 
     connected component, but encounter an empty one"""
@@ -284,7 +286,8 @@ class TemporalNetwork:
         """
 
         Log.add('Extracting two-paths for delta = ' + str(int(self.delta)) + '...')
-
+        start = tm.clock()
+        
         self.tpcount = -1
         self.twopaths = []
         self.twopathsByNode = defaultdict( lambda: dict() )
@@ -342,6 +345,9 @@ class TemporalNetwork:
         g2 = 0
         g2n = 0                
         Log.add('finished.')
+        end = tm.clock()
+        print( 'time elapsed:', (end - start) )
+        return self.twopaths
     
 
     def igraphFirstOrder(self, all_links=False, force=False):

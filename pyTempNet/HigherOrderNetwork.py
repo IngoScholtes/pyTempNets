@@ -6,6 +6,9 @@ Created on Thu Sep 17 16:47:31 CEST 2015
 (c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """
 
+from collections import defaultdict
+import time as tm
+
 class HigherOrderNetwork:
     """A class representing higher order networks of a given temporal network 
     instance"""
@@ -126,7 +129,7 @@ class HigherOrderNetwork:
         return delta
     
     
-    def extractKPaths():
+    def extractKPaths(self):
         """Extracts all time-respecting paths of length k in this temporal 
         network for the currently set maximum time difference delta. The 
         k-paths extracted by this method will be used in the construction of 
@@ -143,37 +146,55 @@ class HigherOrderNetwork:
         # TODO since foreach time-step all possible k-paths are generated
         # TODO again
         
+        start = tm.clock()
+        
         tmpNet = self.tn
         
         #loop over all time-steps (at which something is happening)
-        for t in range(tmpNet.ordered_times):
+        for t in tmpNet.ordered_times:
             possible_path = defaultdict( lambda: list() )
             candidates = set()
+            #print("current t", t)
             
             # case k == 0
             current_edges = tmpNet.time[t]
             for e in current_edges:
                 possible_path[e[1]].append( [e[0], e[1]] )
                 candidates.add(e[1])
-                
+            
+            #print("possible paths after k = 0", possible_path)
+            
             # 1 <= current_k <= k
-            for current_k in range(1, self.k+1):
+            for current_k in range(1, self.k):
                 new_candidates = set()
+                #print("  current_k", current_k)
                 
+                #print("this are the candidates:", candidates)
                 for node in candidates:
+                    #print("    processing node", node)
                     # edges at time t+1 originating from node
-                    new_edges = tmpNet.sources[t+current_k][node]
+                    new_edges = tmpNet.sources[t+current_k].get(node, list())
+                    #print("    new_edges", new_edges)
                     for e in new_edges:
                         src = e[0]
                         dst = e[1]
+                        #print("      possible_path[src]", possible_path[src])
                         for path in possible_path[src]:
-                            possible_path[dst].append( path.append(dst) )
+                            #print("      processing path:", path)
+                            # NOTE: you have to do this in two steps. you can
+                            # NOTE: not directly append 'dst'
+                            new_path = list(path)
+                            new_path.append( dst )
+                            #print("      intended new path: ", new_path )
+                            possible_path[dst].append( new_path )
+                            #print("      new possible paths:", possible_path)
                             new_candidates.add( dst )
-                            if current_k == self.k:
+                            if current_k+1 == self.k:
                                 # readd weights w again
                                 w = len(new_edges) * len(possible_path[src])
-                                self.kpaths.append( {"kpath": path.append(dst),
+                                self.kpaths.append( {"nodes": new_path,
                                                      "weight": w} )
+                                #print("      found new kpath! these are now all kpaths:", self.kpaths)
                 
                 candidates = new_candidates
             
@@ -181,7 +202,9 @@ class HigherOrderNetwork:
             # this time-step at point in the program
             
         self.KPathCount = len(self.kpaths)
+        end = tm.clock()
         
+        print( 'time elapsed:', (end-start))
         return self.kpaths
     
     
@@ -191,13 +214,12 @@ class HigherOrderNetwork:
            a kth-order Markov model reproducing both the link statistics and 
            (first-order) order correlations in the underlying temporal network.
            """
-           
+
            # TODO
            # self.gk = ...
-           
-           return 0
-       
-       
+        return igraph.Graph()
+
+
     def igraphKthOrderNull(self):
         """Returns a kth-order null Markov model 
            corresponding to the first-order aggregate network. This network
@@ -211,5 +233,4 @@ class HigherOrderNetwork:
            # self.gkn = ...
            
            # NOTE: pay attention to the fact, that a null model only makes sense for k > 1.
-           
-           return 0
+        return igraph.Graph()

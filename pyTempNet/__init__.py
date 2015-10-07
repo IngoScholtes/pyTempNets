@@ -6,3 +6,4 @@ from .Utilities import *
 from .Visualizer import *
 from .Paths import *
 from .Log import *
+from .HigherOrderNetwork import *
