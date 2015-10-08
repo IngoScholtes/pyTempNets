@@ -159,6 +159,9 @@ class HigherOrderNetwork:
         # TODO since foreach time-step all possible k-paths are generated
         # TODO again
         
+        # TODO make sure the weights get added, if the same path is found twice
+        # TODO @see test_threePaths.py WeightCummulationTest
+        
         start = tm.clock()
         
         tmpNet = self.tn
@@ -176,11 +179,6 @@ class HigherOrderNetwork:
             print("current t", t)
             
             # case k == 0
-            # NOTE: this is fine like this and needs no generalization
-            # NOTE: to delta > 1. Edges starting at later time points
-            # NOTE: will be added in later iterations of this loop
-            # TODO  the above statement is actually wrong after all :(
-            # TODO  and the additional for loop (over i) is necessary
             current_edges = list()
             for i in range(self.delta):
                 current_edges.extend(tmpNet.time[t+i])
@@ -199,8 +197,7 @@ class HigherOrderNetwork:
                 print("this are the candidate_nodes:", candidate_nodes)
                 for node in candidate_nodes:
                     print("    processing node", node)
-                    # edges at time t+1 originating from node
-                    # TODO: add all edges orginating from node at times t in [t+1, t+delta]
+                    # all edges orginating from node at times t in [t+1, t+delta]
                     new_edges = list()
                     for i in range(self.delta):
                         new_edges.extend( tmpNet.sources[t+current_k+i].get(node, list()) )
