@@ -202,7 +202,7 @@ class HigherOrderNetwork:
                     # edges at time t+1 originating from node
                     # TODO: add all edges orginating from node at times t in [t+1, t+delta]
                     new_edges = list()
-                    for i in range(self.delta+1):
+                    for i in range(self.delta):
                         new_edges.extend( tmpNet.sources[t+current_k+i].get(node, list()) )
                     print("    new_edges", new_edges)
                     for e in new_edges:
