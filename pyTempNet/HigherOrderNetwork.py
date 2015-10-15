@@ -210,6 +210,8 @@ class HigherOrderNetwork:
                 print("this are the candidate_nodes:", candidate_nodes)
                 for node in candidate_nodes:
                     print("    processing node", node)
+                    update = dict()
+                    
                     # all edges orginating from node at times t in [t+1, t+delta]
                     new_edges = list()
                     for i in range(self.delta):
@@ -233,11 +235,21 @@ class HigherOrderNetwork:
                                 # readd weights w again
                                 # TODO: make the next line more readable
                                 w = 1. / (len(new_edges) * len([i for i in possible_path[src] if len(i) == self.k]))
-                                self.kpaths.append( {"nodes": new_path,
-                                                     "weight": w} )
+                                #self.kpaths.append( {"nodes": new_path,
+                                                     #"weight": w} )
                                 print("        found new kpath! these are now all kpaths:", self.kpaths)
                                 print("        # new edges:", len(new_edges))
                                 print("        # possible_paths[src]", len(possible_path[src]))
+                                key = tuple(new_path)
+                                update[key] = update.get(key, 0) + w
+                                print("        update: ", update)
+                    
+                    print("    i should add update here ...")
+                    for key, val in update.items():
+                        self.kpaths.append( { "nodes": list(key), "weight": val } )
+                        print(" kpaths:", { "nodes": list(key), "weight": val })
+                        ##print(" val:", val)
+                                
                 
                 candidate_nodes = new_candidate_nodes
             
@@ -248,6 +260,7 @@ class HigherOrderNetwork:
         end = tm.clock()
         
         print( 'time elapsed:', (end-start))
+        print( 'kpaths:', self.kpaths)
         return self.kpaths
     
     
