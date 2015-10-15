@@ -6,8 +6,9 @@ Created on Thu Sep 17 16:47:31 CEST 2015
 (c) Copyright ETH Zürich, Chair of Systems Design, 2015
 """
 
-from collections import defaultdict
-import time as tm
+from collections import defaultdict    # default dictionaries
+import time as tm                      # timings
+import igraph as ig                    # graph construction & output
 
 class HigherOrderNetwork:
     """A class representing higher order networks of a given temporal network 
@@ -40,13 +41,10 @@ class HigherOrderNetwork:
         self.kpaths = []
         self.kpcount = -1
         
-        # do not extract k-paths as long as they are not needed
-        ## TODO: extract k-path with respect to delta
-        #self.extractKPaths()
-        
         # order k aggregated network
         self.gk  = 0
-        self.gkn = 0
+        # TODO readd null model again
+        # self.gkn = 0
         
         
     def clearCache(self):
@@ -56,7 +54,8 @@ class HigherOrderNetwork:
         self.kpcount = -1
         
         self.gk  = 0
-        self.gkn = 0
+        # TODO readd null model again
+        # self.gkn = 0
         Log.add("Cache cleared.", Severity.INFO)
         
         
@@ -86,7 +85,8 @@ class HigherOrderNetwork:
     def resetMaxTimeDiff(self):
         """Resets the maximal time difference delta between consecutive links 
            to be used for the extraction of time-respecting paths to the
-           default value of delta=1"""
+           default value
+        """
         setMaxTimeDiff()
 
     def setOrder(self, k):
@@ -106,13 +106,18 @@ class HigherOrderNetwork:
             self.k = k
             self.clearCache()
 
+    def resetOrder(self):
+        """Resets the order of the aggregated network and therefore the lenght
+        of time-respecting paths (k-paths) to the default value
+        """
+        self.setOrder()
 
     def KPathCount(self):
         """Returns the total number of time-respecting paths of length k 
         (so called k-paths) which have been extracted from the temporal 
         network.
-        A count of -1 indicates that they have not yet been extracted."""
-
+        A count of -1 indicates that they have not yet been extracted.
+        """
         return self.kpcount
 
 
@@ -247,20 +252,20 @@ class HigherOrderNetwork:
 
            # TODO
            # self.gk = ...
-        return igraph.Graph()
+        return ig.Graph()
 
 
-    def igraphKthOrderNull(self):
-        """Returns a kth-order null Markov model 
-           corresponding to the first-order aggregate network. This network
-           is a kth-order representation of the weighted time-aggregated network.
+    #def igraphKthOrderNull(self):
+        #"""Returns a kth-order null Markov model
+           #corresponding to the first-order aggregate network. This network
+           #is a kth-order representation of the weighted time-aggregated network.
+
+           #Note: In order to compute the null model, the strongly connected
+           #component of the kth-order network needs to have at least two nodes.
+           #"""
            
-           Note: In order to compute the null model, the strongly connected 
-           component of the kth-order network needs to have at least two nodes.          
-           """
+           ## TODO
+           ## self.gkn = ...
            
-           # TODO
-           # self.gkn = ...
-           
-           # NOTE: pay attention to the fact, that a null model only makes sense for k > 1.
-        return igraph.Graph()
+           ## NOTE: pay attention to the fact, that a null model only makes sense for k > 1.
+        #return ig.Graph()
