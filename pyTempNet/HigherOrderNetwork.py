@@ -7,7 +7,10 @@ Created on Thu Sep 17 16:47:31 CEST 2015
 """
 
 from collections import defaultdict
-import time as tm
+import time as tm                      # timings
+import igraph                          # construction & output of networks
+from pyTempNet.Log import *            # logging
+
 
 class HigherOrderNetwork:
     """A class representing higher order networks of a given temporal network 
@@ -254,22 +257,23 @@ class HigherOrderNetwork:
         Log.add('Constructing third-order aggregate network ...')
         
         # NOTE this only makes sense for 3rd order 
-        assert( self.order == 3 )
+        assert( self.k == 3 )
         
         # extract two-paths for nodes
-        if( self.tn.tpcount == -1 )
+        if( self.tn.tpcount == -1 ):
             self.tn.extractTwoPaths()
 
         # extract three-paths to connect the nodes
-        if( self.kpathcount == -1 )
+        if( self.kpcount == -1 ):
             self.extractKPaths()
         
         # create vertex list and edge directory first
         vertices = []
         edge_dict = {}
+        sep = self.tn.separator
         for path in self.kpaths:
             n1 = str(path['nodes'][0])+sep+str(path['nodes'][1])+sep+str(path['nodes'][2])
-            n1 = str(path['nodes'][1])+sep+str(path['nodes'][2])+sep+str(path['nodes'][3])
+            n2 = str(path['nodes'][1])+sep+str(path['nodes'][2])+sep+str(path['nodes'][3])
             vertices.append(n1)
             vertices.append(n2)
             key = (n1, n2)
