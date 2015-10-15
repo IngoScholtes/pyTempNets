@@ -48,6 +48,9 @@ class HigherOrderNetwork:
         self.gk  = 0
         self.gkn = 0
         
+        # 3rd order network
+        self.g3  = 0
+        
         
     def clearCache(self):
         """Clears the cached information: K-paths, aggregated k-th order 
@@ -57,6 +60,7 @@ class HigherOrderNetwork:
         
         self.gk  = 0
         self.gkn = 0
+        self.g3  = 0
         Log.add("Cache cleared.", Severity.INFO)
         
         
@@ -237,6 +241,54 @@ class HigherOrderNetwork:
         print( 'time elapsed:', (end-start))
         return self.kpaths
     
+    def igraphThirdOrder( self ):
+        """Returns the 3rd-order time-aggregated network corresponding to this
+        temporal network.
+        In a 3rd-order network is a directed network where nodes consist of 
+        two-paths which are only connected, if there exists a time-respecting
+        three-path connecting the source node of the first two-path with 
+        the target node of the second two-path.
+        """
+        # TODO add an example to make this docstring understandable
+        
+        Log.add('Constructing third-order aggregate network ...')
+        
+        # NOTE this only makes sense for 3rd order 
+        assert( self.order == 3 )
+        
+        # extract two-paths for nodes
+        if( self.tn.tpcount == -1 )
+            self.tn.extractTwoPaths()
+
+        # extract three-paths to connect the nodes
+        if( self.kpathcount == -1 )
+            self.extractKPaths()
+        
+        # create vertex list and edge directory first
+        vertices = []
+        edge_dict = {}
+        for path in self.kpaths:
+            n1 = str(path['nodes'][0])+sep+str(path['nodes'][1])+sep+str(path['nodes'][2])
+            n1 = str(path['nodes'][1])+sep+str(path['nodes'][2])+sep+str(path['nodes'][3])
+            vertices.append(n1)
+            vertices.append(n2)
+            key = (n1, n2)
+            edge_dict[key] = edge_dict.get(key, 0.) + path['weight']
+
+        # remove duplicate vertices by building a set
+        vertices = list(set(vertices))
+        
+        # build 2nd order graph
+        self.g3 = igraph.Graph( n=len(vertices), directed=True )
+        self.g3.vs["name"] = vertices
+        
+        # add all edges in one go
+        self.g3.add_edges( edge_dict.keys() )
+        self.g3.es["weight"] = list(edge_dict.values())
+
+        Log.add('finished.')
+
+        return self.g3
     
     def igraphKthOrder(self):
         """Returns the kth-order time-aggregated network
