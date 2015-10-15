@@ -9,6 +9,8 @@ Created on Thu Sep 17 16:47:31 CEST 2015
 from collections import defaultdict    # default dictionaries
 import time as tm                      # timings
 import igraph as ig                    # graph construction & output
+from pyTempNet.Log import *            # logging infrastructure
+
 
 class HigherOrderNetwork:
     """A class representing higher order networks of a given temporal network 
@@ -30,8 +32,10 @@ class HigherOrderNetwork:
         (u,v;t) (v,w;t+1).
         """
         
-        assert order >= 1
-        assert maxTimeDiff >= 1
+        if( order < 1 ):
+            raise ValueError("order must be >= 1")
+        if( maxTimeDiff < 1 ):
+            raise ValueError("maxTimeDiff must be >= 1")
         
         self.tn    = tempNet
         self.k     = order
@@ -59,7 +63,7 @@ class HigherOrderNetwork:
         Log.add("Cache cleared.", Severity.INFO)
         
         
-    def setMaxTimeDiff(self, delta):
+    def setMaxTimeDiff(self, delta=1):
         """Sets the maximum time difference delta between consecutive links to
         be used for the extraction of time-respecting paths of length k, so 
         called k-paths.
@@ -74,10 +78,12 @@ class HigherOrderNetwork:
         (u,v)->(v,w) will be inferred for all delta >= 4, while no 
         time-respecting path will be inferred for all delta < 4.
         """
-        assert delta >= 1
+        if( delta < 1 ):
+            raise ValueError("maxTimeDiff must be >= 1")
+        
         if delta != self.delta:
             # Set new value and invalidate two-path structures
-            Log.add("Changing maximal time difference from " + str(self.data) 
+            Log.add("Changing maximal time difference from " + str(self.delta) 
                     + " to " + str(delta), Severity.INFO)
             self.delta = delta
             self.clearCache()
@@ -87,9 +93,9 @@ class HigherOrderNetwork:
            to be used for the extraction of time-respecting paths to the
            default value
         """
-        setMaxTimeDiff()
+        self.setMaxTimeDiff()
 
-    def setOrder(self, k):
+    def setOrder(self, k=1):
         """Changes the order of the aggregated temporal network and therefore 
         the length of time-respecting paths (k-paths).
         
@@ -98,11 +104,13 @@ class HigherOrderNetwork:
         order is different from the old one (for which k-path statistics have 
         been computed)
         """
-        assert k >= 1
+        if( k < 1 ):
+            raise ValueError("order must be >= 1")
+        
         if k != self.k:
             # Set new value and invalidate any cached data
             Log.add("Changeing order of aggregated network from " + str(self.k) 
-                    + " to " + k, Severity.k)
+                    + " to " + str(k), Severity.INFO)
             self.k = k
             self.clearCache()
 
@@ -132,7 +140,7 @@ class HigherOrderNetwork:
         return self.delta
     
     def Summary(self):
-        """ some meaning full docstring here... give a summary of the net"""
+        """returns a rather brief summary of the higher order network"""
         summary = ''
         summary += "Higher order network with the following params:"
         summary += "order: " + str(self.order())
