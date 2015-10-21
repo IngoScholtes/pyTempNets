@@ -216,19 +216,21 @@ class HigherOrderNetwork:
                     for i in range(self.delta):
                         new_edges.extend( tmpNet.sources[t+current_k+i].get(node, list()) )
                     #print("    new_edges", new_edges)
+                    len_new_edges = len(new_edges)
                     for e in new_edges:
                         src = e[0]
                         dst = e[1]
                         #print("      possible_path[src]", possible_path[src])
                         for path in possible_path[src]:
                             #print("        processing path:", path)
-                            new_path = list(path)
+                            
                             # NOTE: avoid self loops
-                            if len(new_path) > 0 and new_path[-1] == dst:
+                            if len(path) > 0 and path[-1] == dst:
                                 continue;
                             
                             # NOTE: you have to do this in two steps. you can
                             # NOTE: not directly append 'dst'
+                            new_path = list(path)
                             new_path.append( dst )
                             #print("      intended new path: ", new_path )
                             possible_path[dst].append( new_path )
@@ -237,7 +239,7 @@ class HigherOrderNetwork:
                             if( (current_k+1 == self.k) and (len(new_path) == self.k+1) ):
                                 # readd weights w again
                                 # TODO: make the next line more readable
-                                w = 1. / (len(new_edges) * len([i for i in possible_path[src] if len(i) == self.k]))
+                                w = 1. / (len_new_edges * len([i for i in possible_path[src] if len(i) == self.k]))
                                 #self.kpaths.append( {"nodes": new_path,
                                                      #"weight": w} )
                                 #print("        found new kpath! these are now all kpaths:", self.kpaths)
@@ -249,7 +251,7 @@ class HigherOrderNetwork:
                     
                     #print("    i should add update here ...")
                     for key, val in update.items():
-                        self.kpaths.append( { "nodes": tuple(key), "weight": val } )
+                        self.kpaths.append( { "nodes": key, "weight": val } )
                         #print(" kpaths:", { "nodes": list(key), "weight": val })
                         #print(" val:", val)
                                 
