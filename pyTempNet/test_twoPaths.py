@@ -29,7 +29,10 @@ class EasyTwoPathExample( unittest.TestCase ):
         
     def test_kpaths(self):
         kpaths   = self.h1.extractKPaths()
-        x = [{'nodes': ['a', 'c', 'e'], 'weight': 1.0}, {'nodes': ['b', 'c', 'd'], 'weight': 1.0}, {'nodes': ['b', 'c', 'e'], 'weight': 1.0}, {'nodes': ['a', 'c', 'd'], 'weight': 1.0}]
+        x = [{'nodes': ('a', 'c', 'e'), 'weight': 1.0},
+             {'nodes': ('b', 'c', 'd'), 'weight': 1.0},
+             {'nodes': ('b', 'c', 'e'), 'weight': 1.0},
+             {'nodes': ('a', 'c', 'd'), 'weight': 1.0}]
         self.assertEqual(x, kpaths)
         
 
@@ -89,12 +92,23 @@ class IngosTestCase(unittest.TestCase):
         
     def test_kpaths(self):
         kpaths = self.h.extractKPaths()
-        x = [{'nodes': ['c', 'e', 'f'], 'weight': 1.0}, {'nodes': ['a', 'e', 'g'], 'weight': 1.0}, {'nodes': ['c', 'e', 'f'], 'weight': 1.0}, {'nodes': ['a', 'e', 'g'], 'weight': 1.0}, {'nodes': ['c', 'e', 'f'], 'weight': 1.0}, {'nodes': ['e', 'f', 'e'], 'weight': 1.0}, {'nodes': ['f', 'e', 'b'], 'weight': 1.0}, {'nodes': ['g', 'e', 'f'], 'weight': 0.5}, {'nodes': ['c', 'e', 'f'], 'weight': 0.5}, {'nodes': ['b', 'e', 'g'], 'weight': 1.0}, {'nodes': ['c', 'e', 'f'], 'weight': 1.0}, {'nodes': ['c', 'e', 'f'], 'weight': 1.0}]
+        x = [{'nodes': ('c', 'e', 'f'), 'weight': 1.0},
+             {'nodes': ('a', 'e', 'g'), 'weight': 1.0},
+             {'nodes': ('c', 'e', 'f'), 'weight': 1.0},
+             {'nodes': ('a', 'e', 'g'), 'weight': 1.0}, 
+             {'nodes': ('c', 'e', 'f'), 'weight': 1.0},
+             {'nodes': ('e', 'f', 'e'), 'weight': 1.0}, 
+             {'nodes': ('f', 'e', 'b'), 'weight': 1.0},
+             {'nodes': ('g', 'e', 'f'), 'weight': 0.5}, 
+             {'nodes': ('c', 'e', 'f'), 'weight': 0.5},
+             {'nodes': ('b', 'e', 'g'), 'weight': 1.0},
+             {'nodes': ('c', 'e', 'f'), 'weight': 1.0}, 
+             {'nodes': ('c', 'e', 'f'), 'weight': 1.0}]
         #tp = self.t.extractTwoPaths()
         #x = list()
         #for i in tp:
             #x.append( {'nodes': [i[0], i[1], i[2]], 'weight': i[3]} )
-        self.assertEqual( x, kpaths )
+        self.assertListEqual( x, kpaths )
        
 
 # NOTE: use this to run it standalone as
