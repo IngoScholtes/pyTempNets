@@ -253,10 +253,36 @@ class HigherOrderNetwork:
            a kth-order Markov model reproducing both the link statistics and 
            (first-order) order correlations in the underlying temporal network.
            """
+        Log.add('Constructing k-th-order aggregate network ...')
+        assert( self.k > 1 )
 
-           # TODO
-           # self.gk = ...
-        return ig.Graph()
+        # extract k-paths if not already done
+        if( self.kpcount == -1 ):
+            self.extractKPaths()
+
+        # create vertex list and edge directory
+        vertices = list()
+        edges    = dict()
+        sep      = self.tn.separator
+        for path in self.kpaths:
+            n1 = sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i < self.k])
+            n2 = sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i > 0])
+            vertices.append(n1)
+            vertices.append(n2)
+            key = (n1, n2)
+            edges[key] = edges.get(key, 0) + path['weight']
+
+        # remove duplicate vertices by building a set
+        vertices = list(set(vertices))
+
+        # build graph and return
+        self.gn = ig.Graph( n = len(vertices), directed=True )
+        self.gn.vs['name'] = vertices
+        self.gn.add_edges( edges.keys() )
+        self.gn.es['weight'] = list( edges.values() )
+
+        Log.add('finished.')
+        return self.gn
 
 
     #def igraphKthOrderNull(self):
