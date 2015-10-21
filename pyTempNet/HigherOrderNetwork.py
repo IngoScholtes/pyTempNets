@@ -175,22 +175,22 @@ class HigherOrderNetwork:
         start = tm.clock()
         
         tmpNet = self.tn
+        dt     = self.delta
+        order  = self.k
         
         #loop over all time-steps (at which something is happening)
-        #print("ordered times:", tmpNet.ordered_times)
         next_valid_t = 0
         for t in tmpNet.ordered_times:
             if t < next_valid_t:
                 continue
             
-            next_valid_t = t + self.delta
+            next_valid_t = t + dt
             possible_path = defaultdict( lambda: list() )
             candidate_nodes = set()
-            #print("current t", t)
             
             # case k == 0
             current_edges = list()
-            for i in range(self.delta):
+            for i in range(dt):
                 current_edges.extend(tmpNet.time[t+i])
                 
             for e in current_edges:
@@ -199,31 +199,23 @@ class HigherOrderNetwork:
                     possible_path[e[1]].append( [e[0], e[1]] )
                     candidate_nodes.add(e[1])
             
-            #print("possible paths after k = 0", possible_path)
-            
             # 1 <= current_k < k
-            for current_k in range(1, self.k):
+            for current_k in range(1, order):
                 new_candidate_nodes = set()
-                #print("  current_k", current_k)
-                
-                #print("this are the candidate_nodes:", candidate_nodes)
+
                 for node in candidate_nodes:
-                    #print("    processing node", node)
                     update = dict()
                     
                     # all edges orginating from node at times t in [t+1, t+delta]
                     new_edges = list()
-                    for i in range(self.delta):
+                    for i in range(dt):
                         new_edges.extend( tmpNet.sources[t+current_k+i].get(node, list()) )
-                    #print("    new_edges", new_edges)
+
                     len_new_edges = len(new_edges)
                     for e in new_edges:
                         src = e[0]
                         dst = e[1]
-                        #print("      possible_path[src]", possible_path[src])
                         for path in possible_path[src]:
-                            #print("        processing path:", path)
-                            
                             # NOTE: avoid self loops
                             if len(path) > 0 and path[-1] == dst:
                                 continue;
@@ -232,29 +224,17 @@ class HigherOrderNetwork:
                             # NOTE: not directly append 'dst'
                             new_path = list(path)
                             new_path.append( dst )
-                            #print("      intended new path: ", new_path )
                             possible_path[dst].append( new_path )
-                            #print("        new possible paths:", possible_path)
                             new_candidate_nodes.add( dst )
-                            if( (current_k+1 == self.k) and (len(new_path) == self.k+1) ):
+                            if( (current_k+1 == order) and (len(new_path) == order+1) ):
                                 # readd weights w again
                                 # TODO: make the next line more readable
-                                w = 1. / (len_new_edges * len([i for i in possible_path[src] if len(i) == self.k]))
-                                #self.kpaths.append( {"nodes": new_path,
-                                                     #"weight": w} )
-                                #print("        found new kpath! these are now all kpaths:", self.kpaths)
-                                #print("        # new edges:", len(new_edges))
-                                #print("        # possible_paths[src]", len(possible_path[src]))
+                                w = 1. / (len_new_edges * len([i for i in possible_path[src] if len(i) == order]))
                                 key = tuple(new_path)
                                 update[key] = update.get(key, 0) + w
-                                #print("        update: ", update)
                     
-                    #print("    i should add update here ...")
                     for key, val in update.items():
                         self.kpaths.append( { "nodes": key, "weight": val } )
-                        #print(" kpaths:", { "nodes": list(key), "weight": val })
-                        #print(" val:", val)
-                                
                 
                 candidate_nodes = new_candidate_nodes
             
@@ -263,9 +243,7 @@ class HigherOrderNetwork:
             
         self.kpcount = len(self.kpaths)
         end = tm.clock()
-        
         print( 'time elapsed (kpaths):', (end-start))
-        #print( 'kpaths:', self.kpaths)
         return self.kpaths
     
     
