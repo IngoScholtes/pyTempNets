@@ -30,6 +30,7 @@ class Log:
     output_stream = sys.stdout
     min_severity  = Severity.INFO
 
+    @staticmethod
     def setMinSeverity(severity):
         """ Sets the minimum sveerity level a message 
         needs to have in order to be recorded in the output stream.
@@ -39,6 +40,7 @@ class Log:
         """
         Log.min_severity = severity
 
+    @staticmethod
     def setOutputStream(stream):
         """ Sets the output stream to which all messages will be 
             written. By default, this is sys.stdout, but it can be 
@@ -46,6 +48,7 @@ class Log:
         """
         output_stream = stream
 
+    @staticmethod
     def add(msg, severity=Severity.INFO):
         """ Adds a message with the given severity to the log. This message will be written 
             to the log output stream, which by default is sys.stdout. A newline character 
