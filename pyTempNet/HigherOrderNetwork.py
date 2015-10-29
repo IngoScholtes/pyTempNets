@@ -167,17 +167,76 @@ class HigherOrderNetwork:
         Once k-paths have been computed, they will be cached and reused until 
         the maximum time difference, delta, and/or the order k is changed.        
         """
-        
+        start = tm.clock()
+
+        self.kpaths = self.__extract_k_paths( self.tn, self.k, self.delta )
+        self.kpcount = len(self.kpaths)
+
+        end = tm.clock()
+        print( 'time elapsed (kpaths):', (end-start))
+        return self.kpaths
+
+
+    def igraphKthOrder(self):
+        """Returns the kth-order time-aggregated network
+           corresponding to this temporal network. This network corresponds to
+           a kth-order Markov model reproducing both the link statistics and
+           (first-order) order correlations in the underlying temporal network.
+           """
+        Log.add('Constructing k-th-order aggregate network ...')
+        assert( self.k > 1 )
+
+        # extract k-paths if not already done
+        if( self.kpcount == -1 ):
+            self.extractKPaths()
+
+        # create vertex list and edge directory
+        vertices = list()
+        edges    = dict()
+        sep      = self.tn.separator
+        for path in self.kpaths:
+            n1 = sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i < self.k])
+            n2 = sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i > 0])
+            vertices.append(n1)
+            vertices.append(n2)
+            key = (n1, n2)
+            edges[key] = edges.get(key, 0) + path['weight']
+
+        # remove duplicate vertices by building a set
+        vertices = list(set(vertices))
+
+        # build graph and return
+        self.gn = ig.Graph( n = len(vertices), directed=True )
+        self.gn.vs['name'] = vertices
+        self.gn.add_edges( edges.keys() )
+        self.gn.es['weight'] = list( edges.values() )
+
+        Log.add('finished.')
+        return self.gn
+
+
+    #def igraphKthOrderNull(self):
+        #"""Returns a kth-order null Markov model
+            #corresponding to the first-order aggregate network. This network
+            #is a kth-order representation of the weighted time-aggregated network.
+
+            #Note: In order to compute the null model, the strongly connected
+            #component of the kth-order network needs to have at least two nodes.
+            #"""
+            
+            ## TODO
+            ## self.gkn = ...
+            
+            ## NOTE: pay attention to the fact, that a null model only makes sense for k > 1.
+        #return ig.Graph()
+
+
+    def __extract_k_paths(self, tmpNet, order, dt):
         # TODO this is possibly not the best/fastest solution to the problem
         # TODO since foreach time-step all possible k-paths are generated
         # TODO again
-        
-        start = tm.clock()
-        
-        tmpNet = self.tn
-        dt     = self.delta
-        order  = self.k
-        
+
+        kpaths = list()
         #loop over all time-steps (at which something is happening)
         next_valid_t = 0
         for t in tmpNet.ordered_times:
@@ -234,68 +293,10 @@ class HigherOrderNetwork:
                                 update[key] = update.get(key, 0) + w
                     
                     for key, val in update.items():
-                        self.kpaths.append( { "nodes": key, "weight": val } )
+                        kpaths.append( { "nodes": key, "weight": val } )
                 
                 candidate_nodes = new_candidate_nodes
             
             # NOTE: possible_path will hold all k-paths for 1 <= k <= self.k and
             # this time-step at point in the program
-            
-        self.kpcount = len(self.kpaths)
-        end = tm.clock()
-        print( 'time elapsed (kpaths):', (end-start))
-        return self.kpaths
-    
-    
-    def igraphKthOrder(self):
-        """Returns the kth-order time-aggregated network
-           corresponding to this temporal network. This network corresponds to 
-           a kth-order Markov model reproducing both the link statistics and 
-           (first-order) order correlations in the underlying temporal network.
-           """
-        Log.add('Constructing k-th-order aggregate network ...')
-        assert( self.k > 1 )
-
-        # extract k-paths if not already done
-        if( self.kpcount == -1 ):
-            self.extractKPaths()
-
-        # create vertex list and edge directory
-        vertices = list()
-        edges    = dict()
-        sep      = self.tn.separator
-        for path in self.kpaths:
-            n1 = sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i < self.k])
-            n2 = sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i > 0])
-            vertices.append(n1)
-            vertices.append(n2)
-            key = (n1, n2)
-            edges[key] = edges.get(key, 0) + path['weight']
-
-        # remove duplicate vertices by building a set
-        vertices = list(set(vertices))
-
-        # build graph and return
-        self.gn = ig.Graph( n = len(vertices), directed=True )
-        self.gn.vs['name'] = vertices
-        self.gn.add_edges( edges.keys() )
-        self.gn.es['weight'] = list( edges.values() )
-
-        Log.add('finished.')
-        return self.gn
-
-
-    #def igraphKthOrderNull(self):
-        #"""Returns a kth-order null Markov model
-           #corresponding to the first-order aggregate network. This network
-           #is a kth-order representation of the weighted time-aggregated network.
-
-           #Note: In order to compute the null model, the strongly connected
-           #component of the kth-order network needs to have at least two nodes.
-           #"""
-           
-           ## TODO
-           ## self.gkn = ...
-           
-           ## NOTE: pay attention to the fact, that a null model only makes sense for k > 1.
-        #return ig.Graph()
+        return kpaths

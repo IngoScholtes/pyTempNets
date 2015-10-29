@@ -460,6 +460,8 @@ class TemporalNetwork:
            """
         if self.g2n != 0:
             return self.g2n
+        
+        Log.add('Constructing second-order null model of aggregated network ...')
 
         g2 = self.igraphSecondOrder().components(mode='STRONG').giant()
         n_vertices = len(g2.vs)
@@ -507,6 +509,7 @@ class TemporalNetwork:
         self.g2n.add_edges( edge_dict.keys() )
         self.g2n.es["weight"] = list(edge_dict.values())
         
+        Log.add('finished.')
         return self.g2n
 
 
