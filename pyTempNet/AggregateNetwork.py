@@ -112,32 +112,33 @@ class AggregateNetwork:
         self.sep   = tempNet.separator
         
         # time-respecting k-paths and their count
-        self.kpaths = self.__extract_k_paths( tempNet, self.k, self.delta )
-        self.kpcount = len(self.kpaths)
+        self.kp = self.__extract_k_paths( tempNet, self.k, self.delta )
+        self.kpcount = len(self.kp)
         
         # order k aggregated network
         self.gk  = 0
 
-
-    def KPathCount(self):
-        """Returns the total number of time-respecting paths of length k 
-        (so called k-paths) which have been extracted from the temporal 
-        network.
-        A count of -1 indicates that they have not yet been extracted.
-        """
-        return self.kpcount
-
-
     def order(self):
         """Returns the order, k, of the aggregated network"""
         return self.k
-
 
     def maxTimeDiff(self):
         """Returns the maximal time difference, delta, between consecutive 
         links in the temporal network"""
         return self.delta
 
+    def kPathCount(self):
+        """Returns the total number of time-respecting paths of length k 
+        (so called k-paths) which have been extracted from the temporal 
+        network.
+        """
+        return self.kpcount
+    
+    def kPaths(self):
+        """Returns all time-respecting paths of length k (k-paths) which
+        have been extracted from teh temporal network.
+        """
+        return self.kp
 
     def Summary(self):
         """returns a rather brief summary of the higher order network"""
@@ -149,7 +150,7 @@ class AggregateNetwork:
         summary += "kpaths"
         if self.KPathCount == -1:
             summary += "  count: " + self.KPathCount
-            summary += "  list of paths: " + self.kpaths
+            summary += "  list of paths: " + self.kp
         else:
             summary += "  not yet extracted."
             
@@ -164,12 +165,12 @@ class AggregateNetwork:
            """
         Log.add('Constructing k-th-order aggregate network ...')
         assert( self.k > 1 )
-        assert( self.kpaths > 0 )
+        assert( self.kp > 0 )
 
         # create vertex list and edge directory
         vertices = list()
         edges    = dict()
-        for path in self.kpaths:
+        for path in self.kp:
             n1 = self.sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i < self.k])
             n2 = self.sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i > 0])
             vertices.append(n1)

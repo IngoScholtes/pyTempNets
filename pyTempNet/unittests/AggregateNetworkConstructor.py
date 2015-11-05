@@ -18,14 +18,12 @@ class TrivialNetwork( unittest.TestCase ):
 
     def test_OrderValueErrorNull(self):
         self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, order=0)
-        
+
     def test_DeltaValueErrorNull(self):
         self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, 1, maxTimeDiff=0)
 
     def test_OrderValueErrorMinus(self):
         self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, order=-3)
-        
+
     def test_DeltaValueErrorMinus(self):
         self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, 1, maxTimeDiff=-3)
-
-
