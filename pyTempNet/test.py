@@ -127,4 +127,3 @@ print("Second-order null aggregate network has", len(g2n.vs), "nodes and", len(g
 print("Slow-down factor for diffusion is", tn.Measures.SlowDownFactor(t))
 
 print("Entropy growth rate ratio is", tn.Measures.EntropyGrowthRateRatio(t))
-
