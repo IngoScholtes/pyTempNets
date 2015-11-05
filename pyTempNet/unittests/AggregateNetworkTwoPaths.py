@@ -1,7 +1,6 @@
 import unittest
 import pyTempNet as tn
 
-
 class EasyTwoPathExample( unittest.TestCase ):
     def setUp(self):
         self.t1 = tn.TemporalNetwork()
@@ -19,16 +18,10 @@ class EasyTwoPathExample( unittest.TestCase ):
         self.t1.addEdge('a', 'c', 7)
         self.t1.addEdge('c', 'd', 8)
         
-        self.h1 = tn.HigherOrderNetwork(self.t1, 2)
-
-    def test_countTwopaths(self):
-        twopaths = self.t1.extractTwoPaths()
-        kpaths   = self.h1.extractKPaths()
-        # assert there are the same amount of paths found
-        self.assertEqual( len(twopaths), len(kpaths) )
+        self.h1 = tn.AggregateNetwork(self.t1, 2)
         
     def test_kpaths(self):
-        kpaths   = self.h1.extractKPaths()
+        kpaths   = self.h1.kPaths()
         x = [{'nodes': ('a', 'c', 'e'), 'weight': 1.0},
              {'nodes': ('b', 'c', 'd'), 'weight': 1.0},
              {'nodes': ('b', 'c', 'e'), 'weight': 1.0},
@@ -78,20 +71,20 @@ class IngosTestCase(unittest.TestCase):
         self.t.addEdge("c", "e", 20);
         self.t.addEdge("e", "f", 21);
         
-        self.h = tn.HigherOrderNetwork(self.t, self.order, self.delta)
-    
+        self.h = tn.AggregateNetwork(self.t, self.order, self.delta)
+
     def test_order(self):
         self.assertEqual( self.h.order(), self.order )
-        
+
     def test_delta(self):
         self.assertEqual( self.h.maxTimeDiff(), self.delta )
-    
+
     def test_kpathsCount(self):
-        kpaths = self.h.extractKPaths()
+        kpaths = self.h.kPaths()
         self.assertEqual( len(kpaths), 12 )
-        
+
     def test_kpaths(self):
-        kpaths = self.h.extractKPaths()
+        kpaths = self.h.kPaths()
         x = [{'nodes': ('c', 'e', 'f'), 'weight': 1.0},
              {'nodes': ('a', 'e', 'g'), 'weight': 1.0},
              {'nodes': ('c', 'e', 'f'), 'weight': 1.0},
@@ -104,12 +97,8 @@ class IngosTestCase(unittest.TestCase):
              {'nodes': ('b', 'e', 'g'), 'weight': 1.0},
              {'nodes': ('c', 'e', 'f'), 'weight': 1.0}, 
              {'nodes': ('c', 'e', 'f'), 'weight': 1.0}]
-        #tp = self.t.extractTwoPaths()
-        #x = list()
-        #for i in tp:
-            #x.append( {'nodes': [i[0], i[1], i[2]], 'weight': i[3]} )
         self.assertListEqual( x, kpaths )
-       
+
 
 # NOTE: use this to run it standalone as
 # NOTE:   python test_kpath.py

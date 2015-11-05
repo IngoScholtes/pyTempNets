@@ -10,11 +10,11 @@ class TrivialThreePath( unittest.TestCase ):
         self.t2.addEdge('b', 'd', 2)
         self.t2.addEdge('d', 'e', 3)
 
-        self.h2 = tn.HigherOrderNetwork(self.t2, self.order, self.delta)
+        self.h2 = tn.AggregateNetwork(self.t2, self.order, self.delta)
         
     def test_threePath(self):
-        kpaths = self.h2.extractKPaths()
-        solution = [{'nodes': ['a', 'b', 'd', 'e'], 'weight': 1.0}]
+        kpaths = self.h2.kPaths()
+        solution = [{'nodes': ('a', 'b', 'd', 'e'), 'weight': 1.0}]
         self.assertEqual(kpaths, solution)
 
 class ThreePathWithLargeDelta( unittest.TestCase ):
@@ -28,12 +28,12 @@ class ThreePathWithLargeDelta( unittest.TestCase ):
         self.t3.addEdge('d', 'e', 8)
         self.t3.addEdge('b', 'f', 24)
         self.t3.addEdge('f', 'g', 25)
-        self.h3 = tn.HigherOrderNetwork(self.t3, self.order, maxTimeDiff=self.delta)
+        self.h3 = tn.AggregateNetwork(self.t3, self.order, maxTimeDiff=self.delta)
         
     def test_threePath(self):
-        kpaths = self.h3.extractKPaths()
-        solution = [{'nodes': ['a', 'b', 'd', 'e'], 'weight': 1.0},
-                    {'nodes': ['a', 'b', 'f', 'g'], 'weight': 1.0}]
+        kpaths = self.h3.kPaths()
+        solution = [{'nodes': ('a', 'b', 'd', 'e'), 'weight': 1.0},
+                    {'nodes': ('a', 'b', 'f', 'g'), 'weight': 1.0}]
         self.assertEqual( kpaths, solution )
 
 class CrossingThreePaths( unittest.TestCase ):
@@ -48,14 +48,14 @@ class CrossingThreePaths( unittest.TestCase ):
         self.t4.addEdge('d', 'e', 5)
         self.t4.addEdge('d', 'f', 6)
 
-        self.h4 = tn.HigherOrderNetwork(self.t4, self.order, maxTimeDiff=self.delta)
+        self.h4 = tn.AggregateNetwork(self.t4, self.order, maxTimeDiff=self.delta)
         
     def test_threePath(self):
-        kpaths = self.h4.extractKPaths()
-        solution = [{'nodes': ['a', 'b', 'd', 'e'], 'weight': 0.25}, 
-                    {'nodes': ['a', 'b', 'd', 'f'], 'weight': 0.25}, 
-                    {'nodes': ['x', 'b', 'd', 'f'], 'weight': 0.25},
-                    {'nodes': ['x', 'b', 'd', 'e'], 'weight': 0.25}]
+        kpaths = self.h4.kPaths()
+        solution = [{'nodes': ('a', 'b', 'd', 'e'), 'weight': 0.25}, 
+                    {'nodes': ('a', 'b', 'd', 'f'), 'weight': 0.25}, 
+                    {'nodes': ('x', 'b', 'd', 'f'), 'weight': 0.25},
+                    {'nodes': ('x', 'b', 'd', 'e'), 'weight': 0.25}]
         self.assertEqual( kpaths, solution )
 
 
@@ -76,15 +76,14 @@ class WeightCummulationTest( unittest.TestCase ):
         self.t4.addEdge('d', 'e', 25)
         self.t4.addEdge('d', 'f', 26)
 
-        self.h4 = tn.HigherOrderNetwork(self.t4, self.order, maxTimeDiff=self.delta)
+        self.h4 = tn.AggregateNetwork(self.t4, self.order, maxTimeDiff=self.delta)
         
     def test_threePath(self):
-        kpaths = self.h4.extractKPaths()
-        # TODO find the solution for this test case by hand
-        solution = [{'nodes': ['a', 'b', 'd', 'f'], 'weight': 0.16666666666666666}, 
-                    {'nodes': ['x', 'z', 'd', 'e'], 'weight': 0.16666666666666666}, 
-                    {'nodes': ['x', 'b', 'd', 'f'], 'weight': 0.16666666666666666},
-                    {'nodes': ['a', 'b', 'd', 'e'], 'weight': 0.16666666666666666}, 
-                    {'nodes': ['x', 'z', 'd', 'f'], 'weight': 0.16666666666666666}, 
-                    {'nodes': ['x', 'b', 'd', 'e'], 'weight': 0.16666666666666666}]
+        kpaths = self.h4.kPaths()
+        solution = [{'nodes': ('a', 'b', 'd', 'f'), 'weight': 0.16666666666666666}, 
+                    {'nodes': ('x', 'z', 'd', 'e'), 'weight': 0.16666666666666666}, 
+                    {'nodes': ('x', 'b', 'd', 'f'), 'weight': 0.16666666666666666},
+                    {'nodes': ('a', 'b', 'd', 'e'), 'weight': 0.16666666666666666}, 
+                    {'nodes': ('x', 'z', 'd', 'f'), 'weight': 0.16666666666666666}, 
+                    {'nodes': ('x', 'b', 'd', 'e'), 'weight': 0.16666666666666666}]
         self.assertEqual( kpaths, solution )
