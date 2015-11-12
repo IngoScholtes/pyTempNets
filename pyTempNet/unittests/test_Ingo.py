@@ -14,7 +14,6 @@ class IngosTest( unittest.TestCase ):
         self.order = 2
         self.delta = 1
         
-        self.t = tn.TemporalNetwork()
         # Set up a canonical example network in order to make sure that everything 
         # is calculated correctly
         self.t = tn.TemporalNetwork()
@@ -54,8 +53,9 @@ class IngosTest( unittest.TestCase ):
         self.t.addEdge("c", "e", 20);
         self.t.addEdge("e", "f", 21);
         
+        # TODO first order networks
         # aggregate network of order 1
-        self.a1 = tn.AggregateNetwork( self.t, 1, self.delta )
+        #self.a1 = tn.AggregateNetwork( self.t, 1, self.delta )
         # aggregate network of order 2
         self.a2 = tn.AggregateNetwork( self.t, self.order, self.delta )
         

@@ -21,6 +21,7 @@ class AggregateNetwork:
 #############################################################################
 
     def __extract_k_paths(self, tmpNet, order, dt):
+        assert( order > 1 )
         # TODO this is possibly not the best/fastest solution to the problem
         # TODO since foreach time-step all possible k-paths are generated
         # TODO again

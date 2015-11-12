@@ -105,7 +105,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
 
     Log.add('finished.')
     if fformat == "TEDGE":        
-        return tn.TemporalNetwork(tedges = tedges, sep=sep)
+        return tn.TemporalNetwork(tedges, sep=sep)
     elif fformat =="TRIGRAM":           
         return tn.TemporalNetwork(twopaths = twopaths, sep=sep)
 
