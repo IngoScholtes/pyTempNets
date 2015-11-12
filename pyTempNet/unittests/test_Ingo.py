@@ -63,8 +63,3 @@ class IngosTest( unittest.TestCase ):
         count = self.a2.kPathCount()
         print("This network has", count, "two-paths]")
         self.assertEqual( count, 12 )
-
-    def test_FirstOrderBeweennessPreference( self ):
-        bw = self.a1.BetweennessPreference(v = 'e')
-        print("Betweenness pref. of node e =", bw)
-        self.assertEqual( bw, 1.2954618442383219 )
