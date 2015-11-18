@@ -26,3 +26,8 @@ class TrivialNetwork( unittest.TestCase ):
         self.delta = 2
         self.h2 = tn.AggregateNetwork( self.tempNet, order=2, maxTimeDiff=self.delta )
         self.assertEqual( self.h2.maxTimeDiff(), self.delta )
+
+    def test_firstOrder(self):
+        self.order = 1
+        self.h2 = tn.AggregateNetwork( self.tempNet, order=1 )
+        self.assertEqual(self.h2.kPathCount(), 0)

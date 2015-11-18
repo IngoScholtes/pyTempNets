@@ -61,5 +61,4 @@ class IngosTest( unittest.TestCase ):
         
     def test_TwoPathCount( self ):
         count = self.a2.kPathCount()
-        print("This network has", count, "two-paths]")
         self.assertEqual( count, 12 )

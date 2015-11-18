@@ -14,6 +14,5 @@ class TrivialThreePath( unittest.TestCase ):
         
     def test_threePath(self):
         kpaths = self.h2.kPaths()
-        print(kpaths)
         solution = [{'nodes': ('a', 'b', 'd', 'e'), 'weight': 1.0}]
         self.assertEqual(kpaths, solution)

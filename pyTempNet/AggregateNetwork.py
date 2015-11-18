@@ -10,6 +10,7 @@ from collections import defaultdict    # default dictionaries
 import time as tm                      # timings
 import igraph as ig                    # graph construction & output
 from pyTempNet.Log import *            # logging infrastructure
+import copy
 
 
 class AggregateNetwork:
@@ -121,7 +122,12 @@ class AggregateNetwork:
         self.sep   = tempNet.separator
         
         # time-respecting k-paths and their count
-        self.kp = self.__extract_k_paths( tempNet, self.k, self.delta )
+        if( order == 1 ):
+            # NOTE make a deep copy such that changed edges in the temporal 
+            # NOTE network do not propagate into independant aggregated negworks
+            self.kp = copy.deepcopy(tempNet.tedges)
+        else:
+            self.kp = self.__extract_k_paths( tempNet, self.k, self.delta )
         self.kpcount = len(self.kp)
         
         # order k aggregated network
@@ -157,11 +163,8 @@ class AggregateNetwork:
         summary += "delta: " + str(self.maxTimeDiff())
         
         summary += "kpaths"
-        if self.KPathCount == -1:
-            summary += "  count: " + self.KPathCount
-            summary += "  list of paths: " + self.kp
-        else:
-            summary += "  not yet extracted."
+        summary += "  count: " + self.KPathCount
+        summary += "  list of paths: " + self.kp
             
         return summary
 
@@ -177,25 +180,37 @@ class AggregateNetwork:
             return self.gk
         
         Log.add('Constructing k-th-order aggregate network ...')
-        assert( self.k > 1 )
         assert( self.kp > 0 )
 
         # create vertex list and edge directory
         vertices = list()
         edges    = dict()
-        for path in self.kp:
-            n1 = self.sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i < self.k])
-            n2 = self.sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i > 0])
-            vertices.append(n1)
-            vertices.append(n2)
-            key = (n1, n2)
-            edges[key] = edges.get(key, 0) + path['weight']
+
+        if( self.k == 1 ):
+            for edge in self.kp:
+                vertices.append(edge[0])
+                vertices.append(edge[1])
+                key = (edge[0], edge[1])
+                edges[key] = edges.get(key, 0) + 1
+        else:
+            for path in self.kp:
+                n1 = self.sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i < self.k])
+                n2 = self.sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i > 0])
+                vertices.append(n1)
+                vertices.append(n2)
+                key = (n1, n2)
+                edges[key] = edges.get(key, 0) + path['weight']
 
         # remove duplicate vertices by building a set
         vertices = list(set(vertices))
+        n = len(vertices)
+
+        # Sanity check
+        if n == 0:
+            Log.add('K-th order aggregate network has no nodes. Consider using a smaller value for k.', Severity.WARNING)
 
         # build graph and return
-        self.gk = ig.Graph( n = len(vertices), directed=True )
+        self.gk = ig.Graph( n, directed=True )
         self.gk.vs['name'] = vertices
         self.gk.add_edges( edges.keys() )
         self.gk.es['weight'] = list( edges.values() )
