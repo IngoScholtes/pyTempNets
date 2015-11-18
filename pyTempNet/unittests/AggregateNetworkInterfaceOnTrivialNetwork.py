@@ -3,27 +3,26 @@ import pyTempNet as tn
 
 class TrivialNetwork( unittest.TestCase ):
     def setUp(self):
-        self.order = 3
-        self.delta = 2
-        self.t2 = tn.TemporalNetwork()
-        self.t2.addEdge('a', 'b', 1)
-        self.t2.addEdge('b', 'd', 2)
-        self.t2.addEdge('d', 'e', 3)
+        self.tempNet = tn.TemporalNetwork()
 
-        self.h2 = tn.AggregateNetwork(self.t2, self.order, self.delta)
+    def test_OrderValueErrorNull(self):
+        self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, order=0)
+
+    def test_DeltaValueErrorNull(self):
+        self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, 1, maxTimeDiff=0)
+
+    def test_OrderValueErrorMinus(self):
+        self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, order=-3)
+
+    def test_DeltaValueErrorMinus(self):
+        self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, 1, maxTimeDiff=-3)
 
     def test_order(self):
+        self.order = 5
+        self.h2 = tn.AggregateNetwork( self.tempNet, order=self.order )
         self.assertEqual( self.h2.order(), self.order )
 
     def test_maxTimeDiff(self):
+        self.delta = 2
+        self.h2 = tn.AggregateNetwork( self.tempNet, order=2, maxTimeDiff=self.delta )
         self.assertEqual( self.h2.maxTimeDiff(), self.delta )
-
-    def test_kPath(self):
-        kpaths = self.h2.kPaths()
-        solution = [{'nodes': ('a', 'b', 'd', 'e'), 'weight': 1.0}]
-        self.assertEqual(kpaths, solution)
-
-    def test_kPathCount(self):
-        kpaths = self.h2.kPaths()
-        kPathCount = self.h2.kPathCount()
-        self.assertEqual( kPathCount, len(kpaths) )
