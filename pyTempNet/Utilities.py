@@ -133,46 +133,28 @@ def readNGramData(filename, sep=',', maxlines=sys.maxsize, skip=0):
     delta = 1
     
     with open(filename) as f:
-        header = f.readline()
-        header = header.split(sep)
-        # Support for arbitrary column ordering
-        source_ix = -1
-        mid_ix = -1
-        weight_ix = -1
-        target_ix = -1
-        for i in range(len(header)):
-            header[i] = header[i].strip()
-            if header[i] == 'node1' or header[i] == 'source':
-                source_ix = i                
-            elif header[i] == 'node2' or header[i] == 'mid':
-                mid_ix = i
-            elif header[i] == 'node3' or header[i] == 'target':
-                target_ix = i
-            elif header[i] == 'weight':
-                weight_ix = i    
-
-        assert( source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0 ), "Detected invalid header columns: %s" % header
-
         # Read time-stamped links
         Log.add('Reading time-stamped links ...')
 
         line = f.readline()
-        n = 0
-        counter = 0
+        n = 0         # line counter
+        counter = 0   # artificial time counter to mark time-respecting paths
         while not line.strip() == '' and n < maxlines+skip:
             if n >= skip:
                 fields = line.rstrip().split(sep)
-
-                source = fields[source_ix].strip('"')
-                mid = fields[mid_ix].strip('"')
-                target = fields[target_ix].strip('"')
-                weight = float(fields[weight_ix].strip('"'))
-                e1 = (source, mid, counter)
-                counter += delta
-                e2 = (mid, target, counter)
-                counter += (delta+1)
-                tedges.append(e1)
-                tedges.append(e2)
+                # there need to be at least 2 entries per line these are
+                # source and target to get a valid time-respecting link
+                if len(fields) < 2:
+                    Log.add('Ignoring malformed data in line ' + str(n+1) + ': "' +  line.strip() + '"', Severity.WARNING)
+                else:
+                    source = fields[0].strip('"')
+                    for i in range(1, len(fields)):
+                        target = fields[i].strip('"')
+                        tedges.append( (source, target, counter) )
+                        source = target
+                        counter += delta
+                    # NOTE this will end this lines' path
+                    counter += delta
 
             line = f.readline()
             n += 1
