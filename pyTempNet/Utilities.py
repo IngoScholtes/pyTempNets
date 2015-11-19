@@ -18,6 +18,76 @@ from pyTempNet.Log import *
 
 import sys
 
+def readTimeStampedEdges(filename, sep=',', timestampformat="%Y-%m-%d %H:%M",
+                         maxlines=sys.maxsize, skip=0):
+    """ Reads time-stamped edges from a file.
+
+        The file is expected to have one time-stamped link per line. Elements
+        of the link (source, target, timestamp) have to be given in a header
+        line indicating either 'source,target,timestamp' or 'node1,node2,time'
+        in arbitrary order.
+        A separator can be declared optionally, otherwise comma separated values
+        are assumed.
+        Timestamps can be integer numbers or string timestamps, in which case
+        the optinal timestampformat string is used for parsing.
+        The optional 'skip' set the number of lines to be skipped at the
+        beginning of the file (after the header line).
+        The maximal number of lines read can be limited by maxlines.
+    """
+
+    assert filename is not ""
+    tedges = list()
+
+    # NOTE with open(...) opens files by default read only mode
+    # NOTE plus files are automatically closed
+    with open(filename) as f:
+        header = f.readline()
+        header = header.split(sep)
+        # Support for arbitrary column ordering
+        time_ix = -1
+        source_ix = -1
+        target_ix = -1
+
+        for i in range(len(header)):
+            name = header[i].strip()
+            if name == 'node1' or name == 'source':
+                source_ix = i
+            elif name == 'node2' or name == 'target':
+                target_ix = i
+            elif name == 'time' or name == 'timestamp':
+                time_ix = i
+
+        assert( source_ix >= 0 and target_ix >= 0 and time_ix >=0 ), "Detected invalid header columns: %s" % header
+
+        # Read time-stamped links
+        Log.add('Reading time-stamped links ...')
+
+        line = f.readline()
+        n = 0
+        while not line.strip() == '' and n < maxlines+skip:
+            if n >= skip:
+                fields = line.rstrip().split(sep)
+                try:
+                    timestamp = fields[time_ix]
+                    if (timestamp.isdigit()):
+                        t = int(timestamp)
+                    else:
+                        x = dt.datetime.strptime(timestamp, timestampformat)
+                        t = int(time.mktime(x.timetuple()))
+
+                    if t>=0:
+                        tedge = (fields[source_ix], fields[target_ix], t)
+                        tedges.append(tedge)
+                    else:
+                        Log.add('Ignoring link with negative timestamp in line ' + str(n+1) + ': "' + line.strip() + '"', Severity.WARNING)
+                except (IndexError, ValueError):
+                    Log.add('Ignoring malformed data in line ' + str(n+1) + ': "' +  line.strip() + '"', Severity.WARNING)
+            line = f.readline()
+            n += 1
+
+    Log.add('finished.')
+    return tn.TemporalNetwork(tedges, sep=sep)
+
 def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=sys.maxsize):
     """ Reads time-stamped edges from TEDGE or TRIGRAM file. If fformat is TEDGES,
         the file is expected to contain lines in the format 'v,w,t' each line 

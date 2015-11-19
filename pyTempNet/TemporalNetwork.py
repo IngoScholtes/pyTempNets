@@ -36,9 +36,9 @@ class TemporalNetwork:
             order nodes v-w
         """
         
-        self.tedges = []
+        self.tedges = list()
         nodes_seen = defaultdict( lambda:False )
-        self.nodes = []
+        self.nodes = list()
 
         # Generate index structures which help to efficiently extract time-respecting paths
 
@@ -46,10 +46,10 @@ class TemporalNetwork:
         self.time = defaultdict( lambda: list() )
 
         # A dictionary storing all time-stamped links, indexed by time and target node
-        self.targets = defaultdict( lambda: dict() )
+        self.targets = defaultdict( lambda: defaultdict(list) )
 
         # A dictionary storing all time-stamped links, indexed by time and source node 
-        self.sources = defaultdict( lambda: dict() )
+        self.sources = defaultdict( lambda: defaultdict(list) )
 
         # A dictionary storing time stamps at which links (v,*;t) originate from node v
         self.activities = defaultdict( lambda: list() )
@@ -62,28 +62,30 @@ class TemporalNetwork:
         # An ordered list of time-stamps
         self.ordered_times = []
 
-        if tedges is not None:
-            Log.add('Building index data structures ...')
+        # NOTE building index data structures can take some time for large data
+        # NOTE sets. Consider merging this loop with the one from eiter
+        # NOTE  - Utilities.readTimeStampedData()
+        # NOTE  - Utilities.readNGramData()
+        Log.add('Building index data structures ...')
+        for e in tedges:
+            self.activities_sets[e[0]].add(e[2])
+            self.time[e[2]].append(e)
+            self.targets[e[2]][e[1]].append(e)
+            self.sources[e[2]][e[0]].append(e)
+            if not nodes_seen[e[0]]:
+                nodes_seen[e[0]] = True
+            if not nodes_seen[e[1]]:
+                nodes_seen[e[1]] = True
+        self.tedges = tedges
+        self.nodes = list(nodes_seen.keys())
+        Log.add('finished.')
 
-            for e in tedges:
-                self.activities_sets[e[0]].add(e[2])
-                self.time[e[2]].append(e)
-                self.targets[e[2]].setdefault(e[1], []).append(e)
-                self.sources[e[2]].setdefault(e[0], []).append(e)
-                if not nodes_seen[e[0]]:
-                    nodes_seen[e[0]] = True
-                if not nodes_seen[e[1]]:
-                    nodes_seen[e[1]] = True
-            self.tedges = tedges
-            self.nodes = list(nodes_seen.keys())
-            Log.add('finished.')
+        Log.add('Sorting time stamps ...')
 
-            Log.add('Sorting time stamps ...')
-
-            self.ordered_times = sorted(self.time.keys())
-            for v in self.nodes:
-                self.activities[v] = sorted(self.activities_sets[v])
-            Log.add('finished.')
+        self.ordered_times = sorted(self.time.keys())
+        for v in self.nodes:
+            self.activities[v] = sorted(self.activities_sets[v])
+        Log.add('finished.')
 
         """The separator character to be used to generate higher-order nodes"""
         self.separator = sep
