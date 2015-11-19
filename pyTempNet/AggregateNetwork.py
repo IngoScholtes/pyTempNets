@@ -96,29 +96,19 @@ class AggregateNetwork:
 # public API
 #############################################################################
     
-    def __init__(self, tempNet, order, maxTimeDiff=1):
+    def __init__(self, tempNet, order):
         """Constructs an aggregated temporal network of order k
         
         @param tn:          a temporal network instance
         @param order:       order of the aggregated network, length of time 
                             respecting paths.
-        @param maxTimeDiff: maximal temporal distance up to which time-stamped 
-                            links will be considered to contribute to a time-
-                            respecting path. Default: 1
-        
-        Note: If the max time diff is not set specifically, the default value of 
-        delta=1 will be used, meaning that a time-respecting path u -> v will 
-        only be inferred if there are *directly consecutive* time-stamped links
-        (u,v;t) (v,w;t+1).
         """
         
         if( order < 1 ):
             raise ValueError("order must be >= 1")
-        if( maxTimeDiff < 1 ):
-            raise ValueError("maxTimeDiff must be >= 1")
         
         self.k     = order
-        self.delta = maxTimeDiff
+        self.delta = tempNet.delta
         self.sep   = tempNet.separator
         
         # time-respecting k-paths and their count

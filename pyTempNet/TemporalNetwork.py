@@ -27,15 +27,23 @@ class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of 
     time-stamped edges"""
     
-    def __init__(self, tedges=list(), sep=','):
+    def __init__(self, tedges, delta, sep):
         """Constructor generating a temporal network instance
         
         @param tedges: a (possibly empty) list of (possibly unordered time-stamped) links from 
             which to construct a temporal network instance
         @param sep: a separator character to be used for the naming of higher-
             order nodes v-w
-        """
+        @param delta: maximal temporal distance up to which time-stamped
+                      links will be considered to contribute to a time-
+                      respecting path. Default: 1
         
+        Note: If the max time diff is not set specifically, the default value of
+        delta=1 will be used, meaning that a time-respecting path u -> v will
+        only be inferred if there are *directly consecutive* time-stamped links
+        (u,v;t) (v,w;t+1).
+        """
+        self.delta = delta
         self.tedges = list()
         nodes_seen = defaultdict( lambda:False )
         self.nodes = list()
@@ -202,6 +210,7 @@ class TemporalNetwork:
         summary += 'Nodes:\t\t\t' +  str(self.vcount()) + '\n'
         summary += 'Time-stamped links:\t' + str(self.ecount()) + '\n'
         summary += 'Links/Nodes:\t\t' + str(self.ecount()/self.vcount()) + '\n'
+        summary += 'Delta:\t\t\t' + str(self.delta) + '\n'
         summary += 'Observation period:\t[' + str(min(self.ordered_times)) + ', ' + str(max(self.ordered_times)) + ']\n'
         summary += 'Observation length:\t' + str(max(self.ordered_times) - min(self.ordered_times)) + '\n'
         summary += 'Time stamps:\t\t' + str(len(self.ordered_times)) + '\n'
