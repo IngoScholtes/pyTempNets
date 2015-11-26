@@ -99,7 +99,7 @@ class AggregateNetwork:
     def __init__(self, tempNet, order):
         """Constructs an aggregated temporal network of order k
         
-        @param tn:          a temporal network instance
+        @param tempNet:     temporal network instance
         @param order:       order of the aggregated network, length of time 
                             respecting paths.
         """
@@ -120,8 +120,10 @@ class AggregateNetwork:
             self.kp = self.__extract_k_paths( tempNet, self.k, self.delta )
         self.kpcount = len(self.kp)
         
-        # order k aggregated network
+        # igraph representation of order k aggregated network
         self.gk = 0
+        # igraph representation of order k null model
+        self.gk_null = 0
 
     def order(self):
         """Returns the order, k, of the aggregated network"""
@@ -207,6 +209,23 @@ class AggregateNetwork:
 
         Log.add('finished.')
         return self.gk
+    
+    def igraph_null_model(self):
+        """Returns null model of order k"""
+
+        assert( k > 1 )
+        # get all k-1 paths
+        
+        # for each k-1 path (p1)
+            # for each other k-1 path (p2)
+                # if( p1 == p2 ) continue
+                
+                # check, if last part of p1 is identical to first part of p2
+                # if so:
+                    # calculate weight:
+                    # ( weight(p1) * weight(p2) ) / ( weighted intput degree (middle node) * weighted output degree(middle node) )
+        
+        
 
 #############################################################################
 ## Measures
