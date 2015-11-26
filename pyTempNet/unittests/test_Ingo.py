@@ -57,7 +57,7 @@ class IngosTest( unittest.TestCase ):
         # aggregate network of order 1
         #self.a1 = tn.AggregateNetwork( self.t, 1, self.delta )
         # aggregate network of order 2
-        self.a2 = tn.AggregateNetwork( self.t, self.order, self.delta )
+        self.a2 = tn.AggregateNetwork( self.t, self.order )
         
     def test_TwoPathCount( self ):
         count = self.a2.kPathCount()

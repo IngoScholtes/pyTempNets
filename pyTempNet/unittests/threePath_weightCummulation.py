@@ -5,7 +5,7 @@ class WeightCummulationTest( unittest.TestCase ):
     def setUp( self ):
         self.order = 3
         self.delta = 25
-        self.t5 = tn.TemporalNetwork()
+        self.t5 = tn.TemporalNetwork( maxTimeDiff = self.delta )
         self.t5.addEdge('a', 'b', 1)
         self.t5.addEdge('x', 'b', 2)
         self.t5.addEdge('b', 'c', 3)
@@ -18,7 +18,7 @@ class WeightCummulationTest( unittest.TestCase ):
         self.t5.addEdge('d', 'e', 25)
         self.t5.addEdge('d', 'f', 26)
 
-        self.h5 = tn.AggregateNetwork(self.t5, self.order, maxTimeDiff=self.delta)
+        self.h5 = tn.AggregateNetwork(self.t5, self.order)
         
     def test_threePath(self):
         kpaths = self.h5.kPaths()

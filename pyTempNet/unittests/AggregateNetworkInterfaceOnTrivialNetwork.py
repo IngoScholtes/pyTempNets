@@ -8,14 +8,8 @@ class TrivialNetwork( unittest.TestCase ):
     def test_OrderValueErrorNull(self):
         self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, order=0)
 
-    def test_DeltaValueErrorNull(self):
-        self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, 1, maxTimeDiff=0)
-
     def test_OrderValueErrorMinus(self):
         self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, order=-3)
-
-    def test_DeltaValueErrorMinus(self):
-        self.assertRaises(ValueError, tn.AggregateNetwork, self.tempNet, 1, maxTimeDiff=-3)
 
     def test_order(self):
         self.order = 5
@@ -24,7 +18,8 @@ class TrivialNetwork( unittest.TestCase ):
 
     def test_maxTimeDiff(self):
         self.delta = 2
-        self.h2 = tn.AggregateNetwork( self.tempNet, order=2, maxTimeDiff=self.delta )
+        myTempNet = tn.TemporalNetwork( maxTimeDiff = self.delta )
+        self.h2 = tn.AggregateNetwork( myTempNet, order=2 )
         self.assertEqual( self.h2.maxTimeDiff(), self.delta )
 
     def test_firstOrder(self):

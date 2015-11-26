@@ -27,7 +27,7 @@ class TemporalNetwork:
     """A class representing a temporal network consisting of a sequence of 
     time-stamped edges"""
     
-    def __init__(self, tedges, delta, sep):
+    def __init__(self, tedges=list(), maxTimeDiff=1, sep=","):
         """Constructor generating a temporal network instance
         
         @param tedges: a (possibly empty) list of (possibly unordered time-stamped) links from 
@@ -43,7 +43,11 @@ class TemporalNetwork:
         only be inferred if there are *directly consecutive* time-stamped links
         (u,v;t) (v,w;t+1).
         """
-        self.delta = delta
+        
+        if( maxTimeDiff < 1 ):
+            raise ValueError("maximal temporal difference for consequtive links (maxTimeDiff) must be >= 1")
+        
+        self.delta = maxTimeDiff
         self.tedges = list()
         nodes_seen = defaultdict( lambda:False )
         self.nodes = list()
@@ -210,7 +214,7 @@ class TemporalNetwork:
         summary += 'Nodes:\t\t\t' +  str(self.vcount()) + '\n'
         summary += 'Time-stamped links:\t' + str(self.ecount()) + '\n'
         summary += 'Links/Nodes:\t\t' + str(self.ecount()/self.vcount()) + '\n'
-        summary += 'Delta:\t\t\t' + str(self.delta) + '\n'
+        summary += 'maxTimeDiff:\t\t\t' + str(self.delta) + '\n'
         summary += 'Observation period:\t[' + str(min(self.ordered_times)) + ', ' + str(max(self.ordered_times)) + ']\n'
         summary += 'Observation length:\t' + str(max(self.ordered_times) - min(self.ordered_times)) + '\n'
         summary += 'Time stamps:\t\t' + str(len(self.ordered_times)) + '\n'

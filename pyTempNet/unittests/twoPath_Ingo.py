@@ -6,7 +6,7 @@ class IngosTestCase(unittest.TestCase):
         self.order = 2
         self.delta = 1
         
-        self.t = tn.TemporalNetwork()
+        self.t = tn.TemporalNetwork( maxTimeDiff = self.delta )
         self.t.addEdge("c", "e", 1);
         self.t.addEdge("e", "f", 2);
 
@@ -43,7 +43,7 @@ class IngosTestCase(unittest.TestCase):
         self.t.addEdge("c", "e", 20);
         self.t.addEdge("e", "f", 21);
         
-        self.h = tn.AggregateNetwork(self.t, self.order, self.delta)
+        self.h = tn.AggregateNetwork(self.t, self.order)
 
     def test_kpaths(self):
         kpaths = self.h.kPaths()

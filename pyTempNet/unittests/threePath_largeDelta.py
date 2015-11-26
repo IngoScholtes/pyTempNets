@@ -5,14 +5,14 @@ class ThreePathWithLargeDelta( unittest.TestCase ):
     def setUp( self ):
         self.order = 3
         self.delta = 25
-        self.t3 = tn.TemporalNetwork()
+        self.t3 = tn.TemporalNetwork( maxTimeDiff = self.delta )
         self.t3.addEdge('a', 'b', 1)
         self.t3.addEdge('b', 'c', 2)
         self.t3.addEdge('b', 'd', 3)
         self.t3.addEdge('d', 'e', 8)
         self.t3.addEdge('b', 'f', 24)
         self.t3.addEdge('f', 'g', 25)
-        self.h3 = tn.AggregateNetwork(self.t3, self.order, maxTimeDiff=self.delta)
+        self.h3 = tn.AggregateNetwork(self.t3, self.order)
         
     def test_threePath(self):
         kpaths = self.h3.kPaths()
