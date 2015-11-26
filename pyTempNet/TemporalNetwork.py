@@ -32,7 +32,7 @@ class TemporalNetwork:
         
         @param tedges: a (possibly empty) list of (possibly unordered time-stamped) links from 
             which to construct a temporal network instance
-        @param sep: a separator character to be used for the naming of higher-
+        @param sep: separator character to be used for the naming of higher-
             order nodes v-w
         @param delta: maximal temporal distance up to which time-stamped
                       links will be considered to contribute to a time-
@@ -48,8 +48,8 @@ class TemporalNetwork:
             raise ValueError("maximal temporal difference for consequtive links (maxTimeDiff) must be >= 1")
         
         self.delta = maxTimeDiff
+        self.separator = sep
         self.tedges = list()
-        nodes_seen = defaultdict( lambda:False )
         self.nodes = list()
 
         # Generate index structures which help to efficiently extract time-respecting paths
@@ -71,14 +71,12 @@ class TemporalNetwork:
         # an element already exists in a list!
         self.activities_sets = defaultdict( lambda: set() )
 
-        # An ordered list of time-stamps
-        self.ordered_times = []
-
         # NOTE building index data structures can take some time for large data
         # NOTE sets. Consider merging this loop with the one from eiter
         # NOTE  - Utilities.readTimeStampedData()
         # NOTE  - Utilities.readNGramData()
         Log.add('Building index data structures ...')
+        nodes_seen = defaultdict( lambda:False )
         for e in tedges:
             self.activities_sets[e[0]].add(e[2])
             self.time[e[2]].append(e)
@@ -93,14 +91,159 @@ class TemporalNetwork:
         Log.add('finished.')
 
         Log.add('Sorting time stamps ...')
-
+        # An ordered list of time-stamps
+        self.ordered_times = list()
         self.ordered_times = sorted(self.time.keys())
         for v in self.nodes:
             self.activities[v] = sorted(self.activities_sets[v])
         Log.add('finished.')
 
-        """The separator character to be used to generate higher-order nodes"""
-        self.separator = sep
+
+    @classmethod
+    def fromTimeStampedData(cls, filename, sep=',', timestampformat="%Y-%m-%d %H:%M",
+                         delta=1, maxlines=sys.maxsize, skip=0):
+        """ Reads time-stamped edges from a file.
+
+            The file is expected to have one time-stamped link per line. Elements
+            of the link (source, target, timestamp) have to be given in a header
+            line indicating either 'source,target,timestamp' or 'node1,node2,time'
+            in arbitrary order.
+            @param filename: path to file. Only read permissions are necessary
+            @param sep: optional separator. Default: comma separated values
+            @param teimestapformat: Timestamps can be integer numbers or string
+            timestamps, in which case this string is used for parsing.
+            @param skip: number of lines to be skipped at the
+            beginning of the file, after the header line. optional
+            @param maxlines: maximal number of lines to be read
+            @param delta: maximal temporal distance up to which time-stamped
+                        links will be considered to contribute to a time-
+                        respecting path. Default: 1
+
+            Note: If the max time diff is not set specifically, the default value of
+            delta=1 will be used, meaning that a time-respecting path u -> v will
+            only be inferred if there are *directly consecutive* time-stamped links
+            (u,v;t) (v,w;t+1).
+        """
+
+        assert filename is not ""
+        tedges = list()
+
+        # NOTE with open(...) opens files by default read only mode
+        # NOTE plus files are automatically closed
+        with open(filename) as f:
+            header = f.readline()
+            header = header.split(sep)
+            # Support for arbitrary column ordering
+            time_ix = -1
+            source_ix = -1
+            target_ix = -1
+
+            for i in range(len(header)):
+                name = header[i].strip()
+                if name == 'node1' or name == 'source':
+                    source_ix = i
+                elif name == 'node2' or name == 'target':
+                    target_ix = i
+                elif name == 'time' or name == 'timestamp':
+                    time_ix = i
+
+            assert( source_ix >= 0 and target_ix >= 0 and time_ix >=0 ), "Detected invalid header columns: %s" % header
+
+            # Read time-stamped links
+            Log.add('Reading time-stamped links ...')
+
+            line = f.readline()
+            n = 0
+            while not line.strip() == '' and n < maxlines+skip:
+                if n >= skip:
+                    fields = line.rstrip().split(sep)
+                    try:
+                        timestamp = fields[time_ix]
+                        if (timestamp.isdigit()):
+                            t = int(timestamp)
+                        else:
+                            x = dt.datetime.strptime(timestamp, timestampformat)
+                            t = int(time.mktime(x.timetuple()))
+
+                        if t>=0:
+                            tedge = (fields[source_ix], fields[target_ix], t)
+                            tedges.append(tedge)
+                        else:
+                            Log.add('Ignoring link with negative timestamp in line ' + str(n+1) + ': "' + line.strip() + '"', Severity.WARNING)
+                    except (IndexError, ValueError):
+                        Log.add('Ignoring malformed data in line ' + str(n+1) + ': "' +  line.strip() + '"', Severity.WARNING)
+                line = f.readline()
+                n += 1
+
+        Log.add('finished.')
+        return cls(tedges, delta, sep)
+
+    @classmethod
+    def fromNGramData(cls, filename, sep=',', maxlines=sys.maxsize, skip=0):
+        """ Reads weighted time-respecting paths from a TRIGRAM file, where each
+            line describes a weighted twopath (source,mid,taret,weight).
+
+            A header line is assumed marking the ordering of the columns using the
+            keywords: {source,node1}, {mid,node2}, {target,node3}, weight
+
+            @param filename: path to file. Only read permissions are necessary
+            @param sep: optional separator. Default: comma separated values
+            @param maxlines: maximal number of lines to be read. optional.
+            @param skip: number of lines to be skipped at the
+            beginning of the file, after the header line. optional.
+        """
+
+        # more general docstring for nGRAM files (to be done)
+        #""" Reads weighted paths from a general nGRAM file. nGRAM files are gene-
+            #ralized TRIGRAM files, where each line describes an arbitrary long
+            #weighted time-respecting path.
+
+            #As a consequence of the possibly changing path length, no header line
+            #is assumed as the format is fixed to
+                #n1,n2,n3,...,weight
+            #denoting a time-respecting path n1->n2->n3->... with corresponding
+            #weight in the last row.
+
+            #@param filename: path to file. Only read permissions are necessary
+            #@param sep: optional separator. Default: comma separated values
+            #@param maxlines: maximal number of lines to be read. optional.
+            #@param skip: number of lines to be skipped at the
+            #beginning of the file, after the header line. optional.
+        #"""
+
+        assert filename is not ""
+        tedges = list()
+        delta = 1
+
+        with open(filename) as f:
+            # Read time-stamped links
+            Log.add('Reading time-stamped links ...')
+
+            line = f.readline()
+            n = 0         # line counter
+            counter = 0   # artificial time counter to mark time-respecting paths
+            while not line.strip() == '' and n < maxlines+skip:
+                if n >= skip:
+                    fields = line.rstrip().split(sep)
+                    # there need to be at least 2 entries per line these are
+                    # source and target to get a valid time-respecting link
+                    if len(fields) < 2:
+                        Log.add('Ignoring malformed data in line ' + str(n+1) + ': "' +  line.strip() + '"', Severity.WARNING)
+                    else:
+                        source = fields[0].strip('"')
+                        for i in range(1, len(fields)):
+                            target = fields[i].strip('"')
+                            tedges.append( (source, target, counter) )
+                            source = target
+                            counter += delta
+                        # NOTE this will end this lines' path
+                        counter += delta
+
+                line = f.readline()
+                n += 1
+
+        Log.add('finished.')
+        return cls(tedges, delta, sep)
       
     def filterEdges(self, edge_filter):
         """Allows to filter time-stamped edges according to a given filter 
