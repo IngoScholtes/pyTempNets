@@ -125,15 +125,17 @@ class TemporalNetwork:
             (u,v;t) (v,w;t+1).
         """
 
-        assert filename is not ""
+        if( filename == "" ):
+            raise ValueError( "Filename can not be empty string" )
         tedges = list()
 
         # NOTE with open(...) opens files by default read only mode
         # NOTE plus files are automatically closed
         with open(filename) as f:
+            # Read header first to support arbitrary column ordering
             header = f.readline()
             header = header.split(sep)
-            # Support for arbitrary column ordering
+            
             time_ix = -1
             source_ix = -1
             target_ix = -1
@@ -174,18 +176,19 @@ class TemporalNetwork:
                         Log.add('Ignoring malformed data in line ' + str(n+1) + ': "' +  line.strip() + '"', Severity.WARNING)
                 line = f.readline()
                 n += 1
+            Log.add('finished.') # reading time-stamped links
 
-        Log.add('finished.')
         return cls(tedges, delta, sep)
 
     @classmethod
     def fromNGramData(cls, filename, sep=',', maxlines=sys.maxsize, skip=0):
-        """ Reads weighted time-respecting paths from a TRIGRAM file, where each
-            line describes a weighted twopath (source,mid,taret,weight).
-
-            A header line is assumed marking the ordering of the columns using the
-            keywords: {source,node1}, {mid,node2}, {target,node3}, weight
-
+        """ Reads weighted time-respecting paths from a nGRAM file, where each
+            line describes an arbitrary long time-respecting path. Note: paths
+            are allowed to have different length. No header line is assumed as
+            the ordering of columns is given as
+                node1, node2, node3, ... nodeN
+            denoting a time-respecting path n1->n2->n3->...->nN
+            
             @param filename: path to file. Only read permissions are necessary
             @param sep: optional separator. Default: comma separated values
             @param maxlines: maximal number of lines to be read. optional.
@@ -193,30 +196,14 @@ class TemporalNetwork:
             beginning of the file, after the header line. optional.
         """
 
-        # more general docstring for nGRAM files (to be done)
-        #""" Reads weighted paths from a general nGRAM file. nGRAM files are gene-
-            #ralized TRIGRAM files, where each line describes an arbitrary long
-            #weighted time-respecting path.
+        if( filename == "" ):
+            raise ValueError( "Filename can not be empty string" )
 
-            #As a consequence of the possibly changing path length, no header line
-            #is assumed as the format is fixed to
-                #n1,n2,n3,...,weight
-            #denoting a time-respecting path n1->n2->n3->... with corresponding
-            #weight in the last row.
-
-            #@param filename: path to file. Only read permissions are necessary
-            #@param sep: optional separator. Default: comma separated values
-            #@param maxlines: maximal number of lines to be read. optional.
-            #@param skip: number of lines to be skipped at the
-            #beginning of the file, after the header line. optional.
-        #"""
-
-        assert filename is not ""
         tedges = list()
-        delta = 1
+        delta  = 1
 
+        # Read time-stamped links
         with open(filename) as f:
-            # Read time-stamped links
             Log.add('Reading time-stamped links ...')
 
             line = f.readline()
@@ -241,8 +228,8 @@ class TemporalNetwork:
 
                 line = f.readline()
                 n += 1
+            Log.add('finished.') # reading time-stamped links
 
-        Log.add('finished.')
         return cls(tedges, delta, sep)
       
     def filterEdges(self, edge_filter):
