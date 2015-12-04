@@ -28,6 +28,7 @@ class AggregateNetwork:
         # TODO again
 
         kpaths = list()
+        k1_paths = list()
         #loop over all time-steps (at which something is happening)
         next_valid_t = 0
         for t in tmpNet.ordered_times:
@@ -55,6 +56,7 @@ class AggregateNetwork:
 
                 for node in candidate_nodes:
                     update = dict()
+                    k1_update = dict()
                     
                     # all edges orginating from node at times t in [t+1, t+delta]
                     new_edges = list()
@@ -76,21 +78,29 @@ class AggregateNetwork:
                             new_path.append( dst )
                             possible_path[dst].append( new_path )
                             new_candidate_nodes.add( dst )
+                            # these are (k-1)-paths
+                            if( (current_k == order) and (len(new_path) == order) ):
+                                weight = 1. / (len_new_edges * len([i for i in possible_path[src] if len(i) == (order-1)]))
+                                k1_key = tuple(new_path)
+                                k1_update[key] = update.get(key, 0) + weight
+                            # these are k-paths
                             if( (current_k+1 == order) and (len(new_path) == order+1) ):
                                 # readd weights w again
                                 # TODO: make the next line more readable
-                                w = 1. / (len_new_edges * len([i for i in possible_path[src] if len(i) == order]))
+                                weight = 1. / (len_new_edges * len([i for i in possible_path[src] if len(i) == order]))
                                 key = tuple(new_path)
-                                update[key] = update.get(key, 0) + w
+                                update[key] = update.get(key, 0) + weight
                     
                     for key, val in update.items():
                         kpaths.append( { "nodes": key, "weight": val } )
+                    for key, val in k1_update.items():
+                        k1_paths.append( {"nodes": key, "weight": val} )
                 
                 candidate_nodes = new_candidate_nodes
             
             # NOTE: possible_path will hold all k-paths for 1 <= k <= self.k and
             # this time-step at point in the program
-        return kpaths
+        return (kpaths, k1_paths)
     
 #############################################################################
 # public API
@@ -117,7 +127,7 @@ class AggregateNetwork:
             # NOTE network do not propagate into independant aggregated negworks
             self.kp = copy.deepcopy(tempNet.tedges)
         else:
-            self.kp = self.__extract_k_paths( tempNet, self.k, self.delta )
+            self.kp, self.k1_p = self.__extract_k_paths( tempNet, self.k, self.delta )
         self.kpcount = len(self.kp)
         
         # igraph representation of order k aggregated network
@@ -214,7 +224,7 @@ class AggregateNetwork:
         """Returns null model of order k"""
 
         assert( k > 1 )
-        # get all k-1 paths
+        # get all k-1 paths -> these are saved in k1_p
         
         # for each k-1 path (p1)
             # for each other k-1 path (p2)
