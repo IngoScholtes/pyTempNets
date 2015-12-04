@@ -117,56 +117,56 @@ class AggregateNetwork:
         if( order < 1 ):
             raise ValueError("order must be >= 1")
         
-        self.k     = order
-        self.delta = tempNet.delta
-        self.sep   = tempNet.separator
+        self._k     = order
+        self._delta = tempNet.delta
+        self._sep   = tempNet.separator
         
         # time-respecting k-paths and their count
         if( order == 1 ):
             # NOTE make a deep copy such that changed edges in the temporal 
             # NOTE network do not propagate into independant aggregated negworks
-            self.kp = copy.deepcopy(tempNet.tedges)
+            self._kp = copy.deepcopy(tempNet.tedges)
         else:
-            self.kp, self.k1_p = self.__extract_k_paths( tempNet, self.k, self.delta )
-        self.kpcount = len(self.kp)
+            self._kp, self._k1_p = self.__extract_k_paths( tempNet, self._k, self._delta )
+        self._kpcount = len(self._kp)
         
         # igraph representation of order k aggregated network
-        self.gk = 0
+        self._gk = 0
         # igraph representation of order k null model
-        self.gk_null = 0
+        self._gk_null = 0
 
     def order(self):
         """Returns the order, k, of the aggregated network"""
-        return self.k
+        return self._k
 
     def maxTimeDiff(self):
         """Returns the maximal time difference, delta, between consecutive 
         links in the temporal network"""
-        return self.delta
+        return self._delta
 
     def kPathCount(self):
         """Returns the total number of time-respecting paths of length k 
         (so called k-paths) which have been extracted from the temporal 
         network.
         """
-        return self.kpcount
+        return self._kpcount
     
     def kPaths(self):
         """Returns all time-respecting paths of length k (k-paths) which
         have been extracted from teh temporal network.
         """
-        return self.kp
+        return self._kp
 
     def Summary(self):
         """returns a rather brief summary of the higher order network"""
         summary = ''
         summary += "Higher order network with the following params:"
-        summary += "order: " + str(self.order())
-        summary += "delta: " + str(self.maxTimeDiff())
+        summary += "order: " + str(self._order())
+        summary += "delta: " + str(self._maxTimeDiff())
         
         summary += "kpaths"
-        summary += "  count: " + self.KPathCount
-        summary += "  list of paths: " + self.kp
+        summary += "  count: " + self._kpcount
+        summary += "  list of paths: " + self._kp
             
         return summary
 
@@ -177,27 +177,27 @@ class AggregateNetwork:
            a kth-order Markov model reproducing both the link statistics and
            (first-order) order correlations in the underlying temporal network.
            """
-        if self.gk != 0:
+        if self._gk != 0:
             Log.add('Delivering cached version of k-th-order aggregate network')
-            return self.gk
+            return self._gk
         
         Log.add('Constructing k-th-order aggregate network ...')
-        assert( self.kp > 0 )
+        assert( self._kp > 0 )
 
         # create vertex list and edge directory
         vertices = list()
         edges    = dict()
 
-        if( self.k == 1 ):
-            for edge in self.kp:
+        if( self._k == 1 ):
+            for edge in self._kp:
                 vertices.append(edge[0])
                 vertices.append(edge[1])
                 key = (edge[0], edge[1])
                 edges[key] = edges.get(key, 0) + 1
         else:
-            for path in self.kp:
-                n1 = self.sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i < self.k])
-                n2 = self.sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i > 0])
+            for path in self._kp:
+                n1 = self._sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i < self._k])
+                n2 = self._sep.join([str(n) for (i,n) in enumerate(path['nodes']) if i > 0])
                 vertices.append(n1)
                 vertices.append(n2)
                 key = (n1, n2)
@@ -212,13 +212,13 @@ class AggregateNetwork:
             Log.add('K-th order aggregate network has no nodes. Consider using a smaller value for k.', Severity.WARNING)
 
         # build graph and return
-        self.gk = ig.Graph( n, directed=True )
-        self.gk.vs['name'] = vertices
-        self.gk.add_edges( edges.keys() )
-        self.gk.es['weight'] = list( edges.values() )
+        self._gk = ig.Graph( n, directed=True )
+        self._gk.vs['name'] = vertices
+        self._gk.add_edges( edges.keys() )
+        self._gk.es['weight'] = list( edges.values() )
 
         Log.add('finished.')
-        return self.gk
+        return self._gk
     
     def igraph_null_model(self):
         """Returns null model of order k"""
