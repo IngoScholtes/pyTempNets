@@ -79,10 +79,12 @@ class AggregateNetwork:
                             possible_path[dst].append( new_path )
                             new_candidate_nodes.add( dst )
                             # these are (k-1)-paths
-                            if( (current_k == order) and (len(new_path) == order) ):
+                            #print('    ', current_k, new_path, len(new_path))
+                            if( (current_k+1 == order) and (len(new_path) == order) ):
+                                print('found k-1 path:', new_path)
                                 weight = 1. / (len_new_edges * len([i for i in possible_path[src] if len(i) == (order-1)]))
                                 k1_key = tuple(new_path)
-                                k1_update[key] = update.get(key, 0) + weight
+                                k1_update[k1_key] = k1_update.get(k1_key, 0) + weight
                             # these are k-paths
                             if( (current_k+1 == order) and (len(new_path) == order+1) ):
                                 # readd weights w again
@@ -90,7 +92,7 @@ class AggregateNetwork:
                                 weight = 1. / (len_new_edges * len([i for i in possible_path[src] if len(i) == order]))
                                 key = tuple(new_path)
                                 update[key] = update.get(key, 0) + weight
-                    
+                    #print(k1_update)
                     for key, val in update.items():
                         kpaths.append( { "nodes": key, "weight": val } )
                     for key, val in k1_update.items():
@@ -101,6 +103,12 @@ class AggregateNetwork:
             # NOTE: possible_path will hold all k-paths for 1 <= k <= self.k and
             # this time-step at point in the program
         return (kpaths, k1_paths)
+    
+    def __convert_tedges_to_path( self, tedges ):
+        paths = list()
+        for e in tedges:
+            paths.append( {"nodes": (e[0], e[1]), "weight": 1} )
+        return paths
     
 #############################################################################
 # public API
@@ -126,14 +134,18 @@ class AggregateNetwork:
             # NOTE make a deep copy such that changed edges in the temporal 
             # NOTE network do not propagate into independant aggregated negworks
             self._kp = copy.deepcopy(tempNet.tedges)
+            self._k1_p = None
+        elif( order == 2 ):
+            self._kp = self.__extract_k_paths( tempNet, self._k, self._delta )
+            self._k1_p = self.__convert_tedges_to_path( tempNet.tedges )
         else:
             self._kp, self._k1_p = self.__extract_k_paths( tempNet, self._k, self._delta )
         self._kpcount = len(self._kp)
         
         # igraph representation of order k aggregated network
-        self._gk = 0
+        self._gk = None
         # igraph representation of order k null model
-        self._gk_null = 0
+        self._gk_null = None
 
     def order(self):
         """Returns the order, k, of the aggregated network"""
@@ -177,7 +189,7 @@ class AggregateNetwork:
            a kth-order Markov model reproducing both the link statistics and
            (first-order) order correlations in the underlying temporal network.
            """
-        if self._gk != 0:
+        if self._gk != None:
             Log.add('Delivering cached version of k-th-order aggregate network')
             return self._gk
         
@@ -223,18 +235,52 @@ class AggregateNetwork:
     def igraph_null_model(self):
         """Returns null model of order k"""
 
-        assert( k > 1 )
+        assert( self._k > 1 )
+        # TODO add logging notes
+        
+        #if self._gk == None:
+            #Log.add("Constructing k-th order aggregate network for consistency  ...")
+            #self.igraphKthOrder()
+        
         # get all k-1 paths -> these are saved in k1_p
+        edges = dict()
+        self._gk_null = ig.Graph( directed=True )
+        
+        #print(self._k1_p)
         
         # for each k-1 path (p1)
+        for p1 in self._k1_p:
             # for each other k-1 path (p2)
+            for p2 in self._k1_p:
                 # if( p1 == p2 ) continue
-                
-                # check, if last part of p1 is identical to first part of p2
-                # if so:
-                    # calculate weight:
-                    # ( weight(p1) * weight(p2) ) / ( weighted intput degree (middle node) * weighted output degree(middle node) )
+                if p1 != p2:
+                    #print(p1)
+                    # check, if last part of p1 is identical to first part of p2
+                    n1 = p1["nodes"][:-1] # all but the last
+                    n2 = p2["nodes"][1:]  # all but the first
+                    self._gk_null.add_vertex( self._sep.join(p1["nodes"]) )
+                    self._gk_null.add_vertex( self._sep.join(p2["nodes"]) )
+                    #print(n1)
+                    #print(n2)
+                    if n1 == n2:
+                        weight = 1
+                        edges[(self._sep.join(p1["nodes"]), self._sep.join(p2["nodes"]))] = weight
+                        #print( 'adding edge:', (self._sep.join(p1["nodes"]), self._sep.join(p2["nodes"])) )
+                    # if so:
+                        # calculate weight:
+                        # ( weight(p1) * weight(p2) ) / ( weighted intput degree (middle node) * weighted output degree(middle node) )
+
+        # Ensure that vertices are ordered as in the empirical k-th order network
         
+        #if self._gk != None:
+            ## the other network is already available, be consistent
+            #for v in self._gk.vs():
+                #self._gk_null.add_vertex( name=v["name"] )
+        # add edges and edge-weights
+        self._gk_null.add_edges( edges.keys() )
+        self._gk_null.es["weight"] = list(edges.values())
+        
+        return self._gk_null
         
 
 #############################################################################
