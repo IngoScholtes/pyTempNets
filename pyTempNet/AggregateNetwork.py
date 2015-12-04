@@ -236,7 +236,7 @@ class AggregateNetwork:
         """Returns null model of order k"""
 
         assert( self._k > 1 )
-        # TODO add logging notes
+        Log.add("Constructing null model of k-th order aggregate network ...")
         
         #if self._gk == None:
             #Log.add("Constructing k-th order aggregate network for consistency  ...")
@@ -280,6 +280,7 @@ class AggregateNetwork:
         self._gk_null.add_edges( edges.keys() )
         self._gk_null.es["weight"] = list(edges.values())
         
+        Log.add("done.")
         return self._gk_null
         
 

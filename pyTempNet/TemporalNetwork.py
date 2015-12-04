@@ -343,8 +343,8 @@ class TemporalNetwork:
 
         summary += 'Nodes:\t\t\t' +  str(self.vcount()) + '\n'
         summary += 'Time-stamped links:\t' + str(self.ecount()) + '\n'
-        summary += 'Links/Nodes:\t\t' + str(self.ecount()/self.vcount()) + '\n'
-        summary += 'maxTimeDiff:\t\t\t' + str(self.delta) + '\n'
+        summary += 'Links/Nodes:\t\t' + str(float(self.ecount())/self.vcount()) + '\n'
+        summary += 'maxTimeDiff:\t\t' + str(self.delta) + '\n'
         summary += 'Observation period:\t[' + str(min(self.ordered_times)) + ', ' + str(max(self.ordered_times)) + ']\n'
         summary += 'Observation length:\t' + str(max(self.ordered_times) - min(self.ordered_times)) + '\n'
         summary += 'Time stamps:\t\t' + str(len(self.ordered_times)) + '\n'
