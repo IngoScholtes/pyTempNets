@@ -71,6 +71,9 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=['python-igraph', 'numpy', 'scipy'],
+    
+    if sys.version_info < (3,4):
+        install_requires.append('enum34')
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these

@@ -88,14 +88,14 @@ visual_style["edge_arrow_size"] = 0.5
 visual_style["edge_label"] = g1.es["weight"]
 igraph.plot(g1, **visual_style)
 
-g2 = t.iGraphSecondOrder()
+g2 = t.igraphSecondOrder()
 visual_style["edge_label"] = str(g2.es["weight"])
 visual_style["layout"] = g2.layout_auto()
 visual_style["vertex_label"] = g2.vs["name"]
 visual_style["edge_label"] = g2.es["weight"]
 igraph.plot(g2, **visual_style)
 
-g2n = t.iGraphSecondOrderNull()
+g2n = t.igraphSecondOrderNull()
 visual_style["edge_label"] = str(g2n.es["weight"])
 visual_style["layout"] = g2n.layout_auto()
 visual_style["vertex_label"] = g2n.vs["name"]

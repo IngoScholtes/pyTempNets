@@ -341,18 +341,19 @@ class TemporalNetwork:
                         for e_out in srcs[future_t][v]:
                             s = e_in[0]
                             d = e_out[1]
-                            indeg_v = len(tgts[t][v])
-                            outdeg_v = len(srcs[future_t][v])                                    
+                            if s != v and v != d:
+                                indeg_v = len(tgts[t][v])
+                                outdeg_v = len(srcs[future_t][v])
 
-                            # Create a weighted two-path tuple
-                            # (s, v, d, weight)
-                            two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
+                                # Create a weighted two-path tuple
+                                # (s, v, d, weight)
+                                two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
 
-                            # TODO: Add support for time-stamped links which have link weights w by themselves, i.e. (u,v;t;w)
+                                # TODO: Add support for time-stamped links which have link weights w by themselves, i.e. (u,v;t;w)
 
-                            tpappend(two_path)
-                            self.twopathsByNode[v].setdefault(t, []).append(two_path)
-                            self.twopathsByTime[t].setdefault(v, []).append(two_path)
+                                tpappend(two_path)
+                                self.twopathsByNode[v].setdefault(t, []).append(two_path)
+                                self.twopathsByTime[t].setdefault(v, []).append(two_path)
         
         self.tpcount = len(self.twopaths)
 
@@ -550,7 +551,7 @@ class TemporalNetwork:
             # Pick random link
             edge = self.tedges[np.random.randint(0, len(self.tedges))]
             # Pick random time stamp
-            time = self.tedges[np.random.randint(0, len(self.ordered_times))]
+            time = self.ordered_times[np.random.randint(0, len(self.ordered_times))]
             # Generate new time-stamped link
             tedges.append( (edge[0], edge[1], time) )
 
