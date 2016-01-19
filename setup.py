@@ -17,7 +17,7 @@ with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as f:
 
 required = ['python-igraph', 'numpy', 'scipy']
 
-if sys.version_info < (3,4):
+if (sys.version_info.major, sys.version_info.minor) < (3,4):
         required.append('enum34')
 
 setup(
