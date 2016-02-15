@@ -74,7 +74,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
 
     line = f.readline()
     n = 1 
-    while not line.strip() == '' and n <= maxlines:
+    while line and n <= maxlines:
         fields = line.rstrip().split(sep)
         if fformat =="TEDGE":
             try:

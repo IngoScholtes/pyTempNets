@@ -14,6 +14,7 @@ import os
 
 from subprocess import call
 
+import pyTempNet as tn
 from pyTempNet import Utilities
 from pyTempNet.Log import *
     
@@ -89,27 +90,27 @@ def exportDiffusionMovieFrames(g, file_prefix='diffusion', visual_style = None, 
         x = (T.dot(x.transpose())).transpose()
 
 
-def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, fps=10):
+def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, fps=10, dynamic=False, NWframesPerRWStep=5):
     """Exports an mp4 file containing a side-by-side comparison of a diffusion process in a Markovian (left) and a non-Markovian temporal network"""
     prefix_1 = str(np.random.randint(0, 10000))
     prefix_2 = str(np.random.randint(0, 10000))
     prefix_3 = str(np.random.randint(0, 10000))
 
     Log.add('Calculating diffusion dynamics in non-Markovian temporal network')
-    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix_1, visual_style=visual_style, steps=steps, initial_index=initial_index, model='SECOND')
+    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix_1, visual_style=visual_style, steps=steps, initial_index=initial_index, model='SECOND', dynamic=dynamic, NWframesPerRWStep=NWframesPerRWStep)
     Log.add('finished.')
 
     Log.add('Calculating diffusion dynamics in Markovian temporal network ...')
-    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix_2, visual_style=visual_style, steps=steps, initial_index=initial_index, model='NULL')
+    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix_2, visual_style=visual_style, steps=steps, initial_index=initial_index, model='NULL', dynamic=dynamic, NWframesPerRWStep=NWframesPerRWStep)
     Log.add('finished.')
 
     Log.add('Stitching video frames ...')
-    for i in range(200):
-        x = call("convert frames" + os.sep + prefix_1 + "_frame_" + str(i).zfill(5)+ ".png frames" + os.sep + prefix_2+"_frame_" + str(i).zfill(5) + ".png +append " + "frames" + os.sep + prefix_3+"_frame_" + str(i).zfill(5) + ".png", shell=True) 
+    for i in range(steps):
+        x = call("convert frames" + os.sep + prefix_1 + "_frame_" + str(i).zfill(5)+ ".png frames" + os.sep + prefix_2+"_frame_" + str(i).zfill(5) + ".png +append " + "frames" + os.sep + prefix_3+"_stitched_" + str(i).zfill(5) + ".png", shell=True) 
     Log.add('finished.')
     
     Log.add('Encoding video ...')
-    x = call("ffmpeg -nostdin -framerate " + str(fps) + " -i frames" + os.sep + prefix_3 + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)    
+    x = call("ffmpeg -nostdin -framerate " + str(fps) + " -i frames" + os.sep + prefix_3 + "_stitched_%05d.png -c:v libx264 -pix_fmt yuv420p " + output_file, shell=True)    
     Log.add('finished.')
 
 
@@ -124,11 +125,11 @@ def exportDiffusionVideo(t, output_file, visual_style = None, steps = 100, initi
     Log.add('finished.')
 
     Log.add('Encoding video ...')
-    x = call("ffmpeg -nostdin -framerate " + str(fps) + " -i frames" + os.sep + prefix + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)    
+    x = call("ffmpeg -nostdin -framerate " + str(fps) + " -i frames" + os.sep + prefix + "_frame_%05d.png -c:v libx264 -pix_fmt yuv420p " + output_file, shell=True)    
     Log.add('finished.')
 
 
-def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_style = None, steps=100, initial_index=-1, model='SECOND'):
+def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_style = None, steps=100, initial_index=-1, model='SECOND', dynamic=False, NWframesPerRWStep=5):
     """Exports an animation showing the evolution of a diffusion
            process on the first-order aggregate network, where random walk dynamics 
            either follows a first-order (mode='NULL') or second-order (model='SECOND') Markov 
@@ -139,8 +140,10 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
 
     if model == 'SECOND':
         g2 = t.igraphSecondOrder()
+        temporal = tn.TemporalNetwork.ShuffleTwoPaths(t)
     elif model == 'NULL':
         g2 = t.igraphSecondOrderNull()
+        temporal = tn.TemporalNetwork.ShuffleEdges(t) 
 
     T = Utilities.RWTransitionMatrix(g2)
 
@@ -155,6 +158,8 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
     # Initial state of random walker
     if initial_index<0:
         initial_index = np.random.randint(0, len(g2.vs()))
+
+    exp = 1.0/1.3
 
     x = np.zeros(len(g2.vs()))
     x[initial_index] = 1
@@ -179,9 +184,6 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
 
     scale = np.mean(np.abs(x-pi))
 
-    # Plot first-order aggregate network (particularly useful as poster frame of video)
-    igraph.plot(g1, file_prefix + "_network.pdf", **visual_style)
-
     # lambda expression for the coloring of nodes according to some quantity p \in [0,1]
     # p = 1 ==> color red 
     # p = 0 ==> color white
@@ -198,15 +200,60 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
         # to nodes in the *first-order* network
         for j in range(len(x)):
             if x[j] > 0:
-                x_firstorder[map_2_to_1[j]] = x_firstorder[map_2_to_1[j]] + x[j]
+                x_firstorder[map_2_to_1[j]] = x_firstorder[map_2_to_1[j]] + x[j]            
+        
+        # Perform some reasonable color scaling
+        visual_style["vertex_color"] = [color_p(np.power((p-min(x))/(max(x)-min(x)),exp)) for p in x_firstorder]
 
-        visual_style["vertex_color"] = [color_p(np.power((p-min(x))/(max(x)-min(x)),1/1.3)) for p in x_firstorder]
-        igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
+        # Visualize illustrative network dynamics
+        if dynamic == True:
+            #slice = igraph.Graph(n=len(g1.vs()))
+            #slice.vs["name"] = g1.vs["name"]
+            L = len(temporal.ordered_times)
+            visual_style["edge_color"] = ["darkgrey"]*g1.ecount()
+            visual_style["edge_width"] = [.5]*g1.ecount()
+            for e in temporal.time[temporal.ordered_times[i%L]]:
+                e_id = g1.get_eid(e[0], e[1])
+                visual_style["edge_width"][e_id] = 5
+                visual_style["edge_color"][e_id] = "black"
+                #slice.add_edge(e[0], e[1])
+            igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
+        else:
+            igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
+
+        # Plot first-order aggregate network after 30 RW steps (particularly useful as poster frame of video)
+        if i == 30:
+            visual_style["edge_color"] = "black"
+            visual_style["edge_width"] = 1
+            igraph.plot(g1, file_prefix + "_network.pdf", **visual_style)
+
         if i % 50 == 0:
-            Log.add('Step ' + str(i) + '\tTVD = ' + str(Utilities.TVD(x,pi)))
-        # NOTE x * T = (T^T * x^T)^T
-        # NOTE T is already transposed to get the left EV
-        x = (T.dot(x.transpose())).transpose()
+            Log.add('Frame ' + str(i) + '\tTVD = ' + str(Utilities.TVD(x,pi)))
+        
+        # every NWframesPerRWStep frames, perform one random walk step
+        if i % NWframesPerRWStep == 0:
+            # NOTE x * T = (T^T * x^T)^T
+            # NOTE T is already transposed to get the left EV
+            x = (T.dot(x.transpose())).transpose()
+
+
+def exportSIVideoStatic(g, output_file, visual_style = None, steps = 100, initial_index=0, fps=1):
+    """Exports an mp4 file containing a side-by-side comparison of an SI process in a Markovian (left) and a non-Markovian temporal network"""
+    
+    r = np.random.randint(0, 10000)
+    prefix = str(r)
+
+    Log.add('Simulating SI process on network ...')
+    exportSIMovieFramesStatic(g, file_prefix='frames' + os.sep + prefix, visual_style=visual_style, steps=steps, initial_index=initial_index)
+    Log.add('finished.')    
+    
+    Log.add('Encoding video ...')
+    x = call("ffmpeg -nostdin -framerate " + str(fps) + " -i " + " frames" + os.sep + prefix + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True) 
+    Log.add('finished.')
+
+    # Alternatively, we could have used the convert frontend of imagemagick, but this is known to generate a "delegate" error on Windows machines when the number of frames is too large
+    # x = call("convert -delay " + str(delay) +" frames\\"+prefix_3+"_frame_* "+output_file, shell=True) 
+
 
 
 def exportSIComparisonVideo(t, output_file, visual_style = None, steps = 700, initial_index=0, delay=0):
@@ -236,6 +283,59 @@ def exportSIComparisonVideo(t, output_file, visual_style = None, steps = 700, in
 
     # Alternatively, we could have used the convert frontend of imagemagick, but this is known to generate a "delegate" error on Windows machines when the number of frames is too large
     # x = call("convert -delay " + str(delay) +" frames\\"+prefix_3+"_frame_* "+output_file, shell=True) 
+
+
+def exportSIMovieFramesStatic(g, file_prefix='SI', visual_style = None, steps=100, initial_index=-1):
+    """Exports an animation showing the evolution of an SI epidemic
+           process on a static network"""    
+
+
+    # default visual style
+    if visual_style == None:
+            visual_style = {}
+            visual_style["vertex_color"] = "lightblue"
+            # visual_style["vertex_label"] = g1.vs["name"]
+            visual_style["layout"] = g.layout_auto()
+            visual_style["edge_curved"] = .5
+            visual_style["vertex_size"] = 30
+    
+
+    # Plot first-order aggregate network (particularly useful as poster frame of video)
+    igraph.plot(g, file_prefix + "_network.pdf", **visual_style)
+
+    # Initially infected node
+    if initial_index<0:
+        initial_index = np.random.randint(0, len(g.vs()))
+
+    # zero entries: not infected, one entries: infected
+    infected = np.zeros(len(g.vs()))
+    infected_list = [] 
+    infected[initial_index] = 1
+    infected_list.append(initial_index)
+
+    # lambda expression for the coloring of nodes according to infection status
+    # x = 1 ==> color red 
+    # x = 0 ==> color white
+    color_infected = lambda x: "rgb(255,"+str(int((1-x)*255))+","+str(int((1-x)*255))+")"
+
+    # Create video frames
+    for i in range(0,steps):
+
+        visual_style["vertex_color"] = [color_infected(x) for x in infected]
+        igraph.plot(g, file_prefix + '_frame_' + str(i).zfill(5) + '.png', **visual_style)
+
+        for v in infected_list:
+            for w in g.neighbors(v, mode='out'):
+                infected[w] = 1
+        infected_list = []
+        for j in range(len(infected)):
+            if infected[j] == 1:
+                infected_list.append(j)        
+        
+        c = Counter(infected)
+
+        if i % 10 == 0:
+            Log.add('Step ' +str(i) + ' infected = ' + str(c[1]))
 
 
 

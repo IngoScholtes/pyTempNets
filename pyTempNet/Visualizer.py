@@ -42,7 +42,7 @@ def exportTikzUnfolded(t, filename):
 
     last = ''
             
-    for n in t.nodes:
+    for n in np.sort(t.nodes):
         if last == '':
             output.append("\\node[lbl]                     (" + n + "-0)   {$" + n + "$};\n")
         else:
@@ -55,9 +55,9 @@ def exportTikzUnfolded(t, filename):
     output.append("\\addtocounter{a}{-1}\n")
     output.append("\\pgfmathparse{\\thea}\n")
         
-    for n in t.nodes:
+    for n in  np.sort(t.nodes):
         output.append("\\node[v,below=0.3cm of " + n + "-\\pgfmathresult]     (" + n + "-\\number) {};\n")
-    output.append("\\node[lbl,left=0.5cm of " + t.nodes[0] + "-\\number]    (col-\\pgfmathresult) {$t=$\\number};\n")
+    output.append("\\node[lbl,left=0.5cm of " + np.sort(t.nodes)[0] + "-\\number]    (col-\\pgfmathresult) {$t=$\\number};\n")
     output.append("}\n")
     output.append("\\path[->,thick]\n")
     i = 1
@@ -152,7 +152,7 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, maxSt
 
     for ts in t_range:
         i += 1
-        slice = igraph.Graph(n=len(g.vs()), directed=True)
+        slice = igraph.Graph(n=len(g.vs()), directed=False)
         slice.vs["name"] = g.vs["name"]
 
         for e in t.time[ts]:
