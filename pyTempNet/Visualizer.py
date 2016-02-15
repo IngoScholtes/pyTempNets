@@ -82,7 +82,7 @@ def exportTikzUnfolded(t, filename):
                     
 
 
-def exportMovie(t, output_file, visual_style = None, realtime = True, maxSteps=-1, fps=10):
+def exportMovie(t, output_file, visual_style = None, realtime = True, directed = True, maxSteps=-1, fps=10):
     """Exports a video showing the evolution of the temporal network.
         
     @param output_file: the filename of the mp4 video to be generated
@@ -98,8 +98,8 @@ def exportMovie(t, output_file, visual_style = None, realtime = True, maxSteps=-
     prefix = str(np.random.randint(0,10000))
         
     # TODO: Make sure that frames directory exists
-    exportMovieFrames(t, 'frames' + os.sep + prefix, visual_style = visual_style, realtime = realtime, maxSteps=maxSteps)
-            
+    exportMovieFrames(t, 'frames' + os.sep + prefix, visual_style = visual_style, realtime = realtime, directed = directed, maxSteps=maxSteps)
+    os.remove(output_file)        
 
     Log.add('Encoding video ...')
     x = call("ffmpeg -nostdin -framerate " + str(fps) + " -i frames" + os.sep + prefix + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)
@@ -108,7 +108,7 @@ def exportMovie(t, output_file, visual_style = None, realtime = True, maxSteps=-
 
 
 
-def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, maxSteps=-1):
+def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, directed = True, maxSteps=-1):
     """Exports a sequence of numbered images showing the evolution of the temporal network. The resulting frames can be encoded into 
     custm video formats, for instance using ffmpeg. 
         
@@ -152,7 +152,7 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, maxSt
 
     for ts in t_range:
         i += 1
-        slice = igraph.Graph(n=len(g.vs()), directed=True)
+        slice = igraph.Graph(n=len(g.vs()), directed=directed)
         slice.vs["name"] = g.vs["name"]
 
         for e in t.time[ts]:
