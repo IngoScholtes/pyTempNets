@@ -98,7 +98,8 @@ def exportMovie(t, output_file, visual_style = None, realtime = True, directed =
     prefix = str(np.random.randint(0,10000))        
     
     exportMovieFrames(t, 'frames' + os.sep + prefix, visual_style = visual_style, realtime = realtime, directed = directed, maxSteps=maxSteps, showAggregate=showAggregate)
-    os.remove(output_file)
+    if os.path.exists(output_file):
+        os.remove(output_file)
             
     Log.add('Encoding video ...')
     x = call("ffmpeg -nostdin -framerate " + str(fps) + " -i frames" + os.sep + prefix + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)
