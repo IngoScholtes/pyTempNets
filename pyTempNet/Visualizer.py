@@ -122,7 +122,9 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, direc
         will be exported.
     """
 
-    g = t.igraphFirstOrder()        
+    g = t.igraphFirstOrder()     
+    if directed == False:
+        g = g.as_undirected()   
 
     if visual_style == None:
         Log.add('No visual style specified, setting to defaults', Severity.WARNING)
