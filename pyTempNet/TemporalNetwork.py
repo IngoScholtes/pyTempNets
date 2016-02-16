@@ -341,6 +341,7 @@ class TemporalNetwork:
                         for e_out in srcs[future_t][v]:
                             s = e_in[0]
                             d = e_out[1]
+                            if s != v and v != d:
                             indeg_v = len(tgts[t][v])
                             outdeg_v = len(srcs[future_t][v])                                    
 
@@ -543,7 +544,7 @@ class TemporalNetwork:
         
         if self.tpcount == -1:
             self.extractTwoPaths()
-
+        
         timestamps = [e[2] for e in self.tedges]
         edges = list(self.tedges)
         
@@ -552,14 +553,14 @@ class TemporalNetwork:
         for i in range(l):
             
             if with_replacement:
-                # Pick random link
+            # Pick random link
                 edge = edges[np.random.randint(0, len(edges))]
                 # Pick random time stamp
                 #time = timestamps[np.random.randint(0, len(timestamps))]
             else:
                 # Pick random link
                 edge = edges.pop(np.random.randint(0, len(edges)))
-                # Pick random time stamp
+            # Pick random time stamp
                 #time = timestamps.pop(np.random.randint(0, len(timestamps)))            
             
             # Generate new time-stamped link
