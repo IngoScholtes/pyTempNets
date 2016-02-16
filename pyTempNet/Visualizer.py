@@ -82,7 +82,7 @@ def exportTikzUnfolded(t, filename):
                     
 
 
-def exportMovie(t, output_file, visual_style = None, realtime = True, directed = True, maxSteps=-1, fps=10):
+def exportMovie(t, output_file, visual_style = None, realtime = True, directed = True, showAggregate = False, maxSteps=-1, fps=10):
     """Exports a video showing the evolution of the temporal network.
         
     @param output_file: the filename of the mp4 video to be generated
@@ -95,11 +95,10 @@ def exportMovie(t, output_file, visual_style = None, realtime = True, directed =
         will be exported.
     @param delay: The delay in ms after each frame in the video. For the default value of 10, the framerate of the generated video will be 100 fps. 
     """
-    prefix = str(np.random.randint(0,10000))
-        
-    # TODO: Make sure that frames directory exists
-    exportMovieFrames(t, 'frames' + os.sep + prefix, visual_style = visual_style, realtime = realtime, directed = directed, maxSteps=maxSteps)
-    os.remove(output_file)        
+    prefix = str(np.random.randint(0,10000))        
+    
+    exportMovieFrames(t, 'frames' + os.sep + prefix, visual_style = visual_style, realtime = realtime, directed = directed, maxSteps=maxSteps, showAggregate=showAggregate)
+    os.remove(output_file)
             
     Log.add('Encoding video ...')
     x = call("ffmpeg -nostdin -framerate " + str(fps) + " -i frames" + os.sep + prefix + "_frame_%05d.png -c:v libx264 -r 30 -pix_fmt yuv420p " + output_file, shell=True)
@@ -108,7 +107,7 @@ def exportMovie(t, output_file, visual_style = None, realtime = True, directed =
 
 
 
-def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, directed = True, maxSteps=-1):
+def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, directed = True, maxSteps=-1, showAggregate=False):
     """Exports a sequence of numbered images showing the evolution of the temporal network. The resulting frames can be encoded into 
     custm video formats, for instance using ffmpeg. 
         
@@ -152,11 +151,24 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, direc
 
     for ts in t_range:
         i += 1
-        slice = igraph.Graph(n=len(g.vs()), directed=directed)
-        slice.vs["name"] = g.vs["name"]
 
-        for e in t.time[ts]:
-            slice.add_edge(e[0], e[1])
-        igraph.plot(slice, fileprefix + '_frame_' + str(ts).zfill(5) + '.png', **visual_style)
+        if showAggregate:
+            visual_style["edge_color"] = ["darkgrey"]*g.ecount()
+            visual_style["edge_width"] = [.5]*g.ecount()
+            visual_style["edge_arrow_size"] = [.5]*g.ecount()
+            for e in t.time[ts]:
+                e_id = g.get_eid(e[0], e[1])
+                visual_style["edge_width"][e_id] = 5
+                visual_style["edge_color"][e_id] = "black"
+                visual_style["edge_arrow_size"][e_id] = 1
+                #slice.add_edge(e[0], e[1])
+            igraph.plot(g, fileprefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
+        else:
+            slice = igraph.Graph(n=len(g.vs()), directed=directed)
+            slice.vs["name"] = g.vs["name"]
+            for e in t.time[ts]:
+                slice.add_edge(e[0], e[1])        
+            igraph.plot(slice, fileprefix + '_frame_' + str(ts).zfill(5) + '.png', **visual_style)
+
         if i % 100 == 0:
             Log.add('Wrote movie frame ' + str(i) + ' of ' + str(len(t_range)))

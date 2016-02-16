@@ -613,3 +613,52 @@ def WeightedKCore( t, alpha, beta ):
     result = zip( resultName, list(np.amax(resultShell) - resultShell[resultShell.argsort().argsort()]) )
     
     return result
+
+
+def DetectTemporalCommunities( t, projection="TARGET", method="INFOMAP"):
+    """ Uses the second-order network to detect communities, and 
+        projects the result back to the first-order network. This method 
+        returns a membership vector c in which entry c[i] contains the community label of 
+        the i-th node in the vertex sequence of the first-order aggregate network of t
+
+    @param t: the temporal network instance for which temporal communities should be detected 
+    @param method: The community detection algorithm to use. At present, only the the method INFOMAP is supported
+    @param projection: determines how the projection from second- to first-order communities should be done.
+        For projection SOURCE, the community of a node v will be determined based on the community memberships of 
+        second-order nodes u;v corresponding to links (u,v). For projection TARGET, the community of a node will be 
+        determined based on community memberships of second-order nodes v;w corresponding to links (v,w)    
+    """
+
+    assert projection == "SOURCE" or projection == "TARGET"
+
+    # Calculate first- and second-order aggregate networks
+    first = t.igraphFirstOrder()
+    second = t.igraphSecondOrder()
+
+    membership_counts = defaultdict(lambda: defaultdict( lambda: 0))
+
+    # Initialize membership vector 
+    membership_1 = [0]*first.vcount()
+    
+    if method == "INFOMAP":
+        clusters = second.community_infomap(edge_weights="weight")    
+    else:
+        raise Exception("Unsupported community detection method")
+    
+    for i in range(second.vcount()):
+        v_2 = second.vs[i]['name'].split(t.separator)
+        v_1_id = first.vs.find(name=v_2[0]).index
+        w_1_id = first.vs.find(name=v_2[1]).index
+        if projection == "SOURCE":
+            membership_counts[v_1_id][clusters.membership[i]] = membership_counts[v_1_id][clusters.membership[i]] + 1
+            #membership_1[v_1_id] = clusters.membership[i]
+        else:
+            membership_counts[w_1_id][clusters.membership[i]] = membership_counts[w_1_id][clusters.membership[i]] + 1
+            #membership_1[w_1_id] = clusters.membership[i]
+
+    for i in range(first.vcount()):
+        counts = list(membership_counts[i].values())        
+        communities = list(membership_counts[i].keys())
+        membership_1[i] = communities[counts.index(max(counts))]            
+
+    return membership_1

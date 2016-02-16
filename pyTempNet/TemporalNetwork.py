@@ -3,7 +3,7 @@
 Created on Thu Feb 19 11:49:39 2015
 @author: Ingo Scholtes, Roman Cattaneo
 
-(c) Copyright ETH Zürich, Chair of Systems Design, 2015
+(c) Copyright ETH Zürich, Chair of Systems Design, 2015-2016
 """
 
 import igraph
@@ -342,8 +342,8 @@ class TemporalNetwork:
                             s = e_in[0]
                             d = e_out[1]
                             if s != v and v != d:
-                            indeg_v = len(tgts[t][v])
-                            outdeg_v = len(srcs[future_t][v])                                    
+                                indeg_v = len(tgts[t][v])
+                                outdeg_v = len(srcs[future_t][v])                                    
 
                             # Create a weighted two-path tuple
                             # (s, v, d, weight)
