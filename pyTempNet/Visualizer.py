@@ -178,12 +178,13 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, direc
             Log.add('Wrote movie frame ' + str(i) + ' of ' + str(len(t_range)))
 
 
-def temporalCommunityLayout(tempNet, iterations=50, temperature=1):
+def temporalCommunityLayout(tempNet, iterations=50, temperature=1, use_weights=True):
     """Returns a special representation of the first-order aggregated
        network which groups temporal communities based on the second-
        order network.
        
        @param tempNet:  The temporal network instance to plot
+       @param use_weights: whether or not to use link weights in the layout algorithm
        """
 
     Log.add("Layouting first-order aggregate network with temporal communities ...")
@@ -234,6 +235,9 @@ def temporalCommunityLayout(tempNet, iterations=50, temperature=1):
             dx = xpos[source] - xpos[target]
             dy = ypos[source] - ypos[target]
             dist = np.sqrt(dx*dx + dy*dy)
+            
+            if use_weights and g1.is_weighted():
+                dist *= e["weight"]
             
             dplx[source] = dplx[source] - dx*dist
             dply[source] = dply[source] - dy*dist
