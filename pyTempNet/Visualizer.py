@@ -191,7 +191,10 @@ def temporalCommunityLayout(tempNet, iterations=50, temperature=1, use_weights=T
 
     ## get first-order network and two-paths (build them if necessary)
     g1 = tempNet.igraphFirstOrder()
-    tp = tempNet.extractTwoPaths()
+    if tempNet.tpcount == -1:
+        tempNet.extractTwoPaths()
+    
+    #print(tempNet.twopathsBySource)
 
     # now calculate the layout based on this information
     # NOTE true division is assumed (as imported from __future__ in __init__.py
@@ -208,6 +211,8 @@ def temporalCommunityLayout(tempNet, iterations=50, temperature=1, use_weights=T
         # clear displacement vectors
         dplx = np.zeros( nodes )
         dply = np.zeros( nodes )
+        
+        #tpd = np.zeros( edges, 3 )
         
         # repulsive forces
         for i in range(nodes):
@@ -229,20 +234,51 @@ def temporalCommunityLayout(tempNet, iterations=50, temperature=1, use_weights=T
                 dply[j] = dply[j] - dy/dist
         
         # attractive forces
-        for e in igraph.EdgeSeq(g1):
+        for i,e in enumerate(igraph.EdgeSeq(g1)):
             source,target = e.tuple
+            tp_factor = 0
+            weight_factor = (use_weights and g1.is_weighted())
             
             dx = xpos[source] - xpos[target]
             dy = ypos[source] - ypos[target]
             dist = np.sqrt(dx*dx + dy*dy)
             
+            # use also weights to layout the graph
             if use_weights and g1.is_weighted():
-                dist *= e["weight"]
+                weight_factor *= e["weight"]
+            
+            # use information from two-paths to layout the graph
+            # is there a two-path s -> ?? -> t ?
+            #print(e)
+            #print(g1.vs[source]["name"])
+            name = g1.vs[source]["name"]
+            #print("source", name)
+            #print("target", g1.vs[target]["name"])
+            #print( tempNet.twopathsBySource[name] )
+            for time,tp in tempNet.twopathsBySource[name].iteritems():
+                #print(" tm", time)
+                #print(" tp", tp)
+                for path in tp:
+                    #print("   ", path[2])
+                    #print("   ", g1.vs[target]["name"])
+                    # NOTE: path = tuple( source, mid, target, weight )
+                    if path[2] == g1.vs[target]["name"]:
+                        tp_factor += path[3]
+                        #print("  two path exists! we should add weight to this edge")
+            
+            dist *= (1. + tp_factor + weight_factor)
+            #tpd[i,0] = dx
+            #tpd[i,1] = dy
+            #tpd[i,2] = dist
             
             dplx[source] = dplx[source] - dx*dist
             dply[source] = dply[source] - dy*dist
             dplx[target] = dplx[target] + dx*dist
             dply[target] = dply[target] + dy*dist
+        
+        ## use information from the second order network
+        #for path in tempNet.twopaths:
+            
         
         # update the positions
         for i in range(nodes):
