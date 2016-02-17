@@ -3,7 +3,7 @@
 Created on Thu Feb 19 11:49:39 2015
 @author: Ingo Scholtes, Roman Cattaneo
 
-(c) Copyright ETH Zürich, Chair of Systems Design, 2015
+(c) Copyright ETH Zürich, Chair of Systems Design, 2015-2016
 """
 
 import igraph
@@ -343,17 +343,17 @@ class TemporalNetwork:
                             d = e_out[1]
                             if s != v and v != d:
                                 indeg_v = len(tgts[t][v])
-                                outdeg_v = len(srcs[future_t][v])
+                                outdeg_v = len(srcs[future_t][v])                                    
 
-                                # Create a weighted two-path tuple
-                                # (s, v, d, weight)
-                                two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
+                            # Create a weighted two-path tuple
+                            # (s, v, d, weight)
+                            two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
 
-                                # TODO: Add support for time-stamped links which have link weights w by themselves, i.e. (u,v;t;w)
+                            # TODO: Add support for time-stamped links which have link weights w by themselves, i.e. (u,v;t;w)
 
-                                tpappend(two_path)
-                                self.twopathsByNode[v].setdefault(t, []).append(two_path)
-                                self.twopathsByTime[t].setdefault(v, []).append(two_path)
+                            tpappend(two_path)
+                            self.twopathsByNode[v].setdefault(t, []).append(two_path)
+                            self.twopathsByTime[t].setdefault(v, []).append(two_path)
         
         self.tpcount = len(self.twopaths)
 
@@ -531,7 +531,7 @@ class TemporalNetwork:
         return self.g2n
 
 
-    def ShuffleEdges(self, l=0):        
+    def ShuffleEdges(self, l=0, with_replacement=True):        
         """Generates a shuffled version of the temporal network in which edge statistics (i.e.
         the frequencies of time-stamped edges) are preserved, while all order correlations are 
         destroyed. The shuffling procedure randomly reshuffles the time-stamps of links.
@@ -545,15 +545,26 @@ class TemporalNetwork:
         if self.tpcount == -1:
             self.extractTwoPaths()
         
+        timestamps = [e[2] for e in self.tedges]
+        edges = list(self.tedges)
+        
         if l==0:
-            l = 2*int(len(self.tedges)/2)
+            l = len(self.tedges)
         for i in range(l):
+            
+            if with_replacement:
             # Pick random link
-            edge = self.tedges[np.random.randint(0, len(self.tedges))]
+                edge = edges[np.random.randint(0, len(edges))]
+                # Pick random time stamp
+                #time = timestamps[np.random.randint(0, len(timestamps))]
+            else:
+                # Pick random link
+                edge = edges.pop(np.random.randint(0, len(edges)))
             # Pick random time stamp
-            time = self.ordered_times[np.random.randint(0, len(self.ordered_times))]
+                #time = timestamps.pop(np.random.randint(0, len(timestamps)))            
+            
             # Generate new time-stamped link
-            tedges.append( (edge[0], edge[1], time) )
+            tedges.append( (edge[0], edge[1], i) )
 
         # Generate temporal network
         t = TemporalNetwork(sep=self.separator, tedges=tedges)

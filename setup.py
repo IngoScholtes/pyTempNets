@@ -8,12 +8,18 @@ from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
 from os import path
+import sys
 
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the relevant file
 with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as f:
     long_description = f.read()
+
+required = ['python-igraph', 'numpy', 'scipy']
+
+if (sys.version_info.major, sys.version_info.minor) < (3,4):
+        required.append('enum34')
 
 setup(
     name='pyTempNet',
@@ -70,10 +76,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['python-igraph', 'numpy', 'scipy'],
-    
-    if sys.version_info < (3,4):
-        install_requires.append('enum34')
+    install_requires=required,    
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these

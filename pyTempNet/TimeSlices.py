@@ -10,6 +10,7 @@ import igraph
 import pyTempNet as tn
 import numpy as np
 from pyTempNet.Log import *
+from collections import defaultdict
 
 class TimeSlices:
     def __init__(self, tempnet, start=0, end=0, window=1, delta=1):

@@ -66,24 +66,30 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
             elif header[i] == 'weight':
                 weight_ix = i    
 
-    assert( (source_ix >= 0 and target_ix >= 0 and time_ix >=0) or
+    assert( (source_ix >= 0 and target_ix >= 0) or
             (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0)), "Detected invalid header columns: %s" % header
+
+    if time_ix<0:
+        Log.add('No time stamps found in data, assuming consecutive links', Severity.WARNING)
     
     # Read time-stamped links
     Log.add('Reading time-stamped links ...')
 
     line = f.readline()
     n = 1 
-    while not line.strip() == '' and n <= maxlines:
+    while line and n <= maxlines:
         fields = line.rstrip().split(sep)
         if fformat =="TEDGE":
             try:
-                timestamp = fields[time_ix]            
-                if (timestamp.isdigit()):
-                    t = int(timestamp)
+                if time_ix >=0:
+                    timestamp = fields[time_ix]            
+                    if timestamp.isdigit():
+                        t = int(timestamp)
+                    else:
+                        x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
+                        t = int(time.mktime(x.timetuple()))
                 else:
-                    x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
-                    t = int(time.mktime(x.timetuple()))
+                    t = n                
                 if t>=0:
                     tedge = (fields[source_ix], fields[target_ix], t)
                     tedges.append(tedge)
