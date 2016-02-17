@@ -178,7 +178,7 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, direc
             Log.add('Wrote movie frame ' + str(i) + ' of ' + str(len(t_range)))
 
 
-def temporalCommunityLayout(tempNet, iterations=5, temperature=1):
+def temporalCommunityLayout(tempNet, iterations=50, temperature=1):
     """Returns a special representation of the first-order aggregated
        network which groups temporal communities based on the second-
        order network.
