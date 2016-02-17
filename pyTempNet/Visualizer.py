@@ -178,7 +178,7 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, direc
             Log.add('Wrote movie frame ' + str(i) + ' of ' + str(len(t_range)))
 
 
-def temporalCommunityLayout(tempNet, iterations=500, temperature=1):
+def temporalCommunityLayout(tempNet, iterations=5, temperature=1):
     """Returns a special representation of the first-order aggregated
        network which groups temporal communities based on the second-
        order network.
@@ -215,8 +215,8 @@ def temporalCommunityLayout(tempNet, iterations=500, temperature=1):
                 dy = ypos[i] - ypos[j]
                 dist = dx*dx + dy*dy
                 
-                # avoid division by zero
-                if( dist == 0. ):
+                # avoid division by (nearly) zero
+                if( dist < 1e-9 ):
                     dx = np.random.rand() * 1e-9
                     dy = np.random.rand() * 1e-9
                     dist = float(dx*dx + dy*dy)
@@ -228,23 +228,23 @@ def temporalCommunityLayout(tempNet, iterations=500, temperature=1):
                 dply[j] = dply[j] - dy/dist
         
         # attractive forces
-        for e in g1.es:
-            source, target = e.tuple
+        for e in igraph.EdgeSeq(g1):
+            source,target = e.tuple
             
             dx = xpos[source] - xpos[target]
             dy = ypos[source] - ypos[target]
-            dist = dx*dx + dy*dy
+            dist = np.sqrt(dx*dx + dy*dy)
             
             dplx[source] = dplx[source] - dx*dist
             dply[source] = dply[source] - dy*dist
             dplx[target] = dplx[target] + dx*dist
-            dply[target] = dply[tareget + dy*dist
+            dply[target] = dply[target] + dy*dist
         
         # update the positions
         for i in range(nodes):
             dx = dplx[i] + np.random.rand() * 1e-9
             dy = dply[i] + np.random.rand() * 1e-9
-            dist = float(dx*dx + dy*dy)
+            dist = float(np.sqrt(dx*dx + dy*dy))
             
             real_dx = dx if np.absolute(dx) < temperature else temperature
             real_dy = dy if np.absolute(dy) < temperature else temperature
