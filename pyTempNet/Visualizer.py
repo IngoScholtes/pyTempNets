@@ -178,7 +178,7 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, direc
             Log.add('Wrote movie frame ' + str(i) + ' of ' + str(len(t_range)))
 
 
-def temporalCommunityLayout(tempNet):
+def temporalCommunityLayout(tempNet, iterations=500, temperature=1):
     """Returns a special representation of the first-order aggregated
        network which groups temporal communities based on the second-
        order network.
@@ -193,8 +193,69 @@ def temporalCommunityLayout(tempNet):
     tp = tempNet.extractTwoPaths()
 
     # now calculate the layout based on this information
-    xpos = np.random.rand( g1.vcount() )
-    ypos = np.random.rand( g1.vcount() )
+    # NOTE true division is assumed (as imported from __future__ in __init__.py
+    difftemp = temperature / iterations
+    
+    # first: assign random positions
+    nodes = g1.vcount()
+    sqrt_nodes = np.sqrt( nodes )
+    xpos = sqrt_nodes * np.random.rand( nodes ) - sqrt_nodes / 2
+    ypos = sqrt_nodes * np.random.rand( nodes ) - sqrt_nodes / 2
+    
+    # second: iteration
+    for t in range(iterations):
+        # clear displacement vectors
+        dplx = np.zeros( nodes )
+        dply = np.zeros( nodes )
+        
+        # repulsive forces
+        for i in range(nodes):
+            for j in range(i+1, nodes):
+                dx = xpos[i] - xpos[j]
+                dy = ypos[i] - ypos[j]
+                dist = dx*dx + dy*dy
+                
+                # avoid division by zero
+                if( dist == 0. ):
+                    dx = np.random.rand() * 1e-9
+                    dy = np.random.rand() * 1e-9
+                    dist = dx*dx + dy*dy
+                
+                # update displacement vectors
+                dplx[i] = dplx[i] + dx/dist
+                dply[i] = dply[i] + dy/dist
+                dplx[j] = dplx[j] - dx/dist
+                dply[j] = dply[j] - dy/dist
+        
+        # attractive forces
+        for e in g1.edges():
+            (source, target) = e.tuple()
+            
+            dx = xpos[source] - xpos[target]
+            dy = ypos[source] - ypos[target]
+            dist = dx*dx + dy*dy
+            
+            dplx[source] = dplx[source] - dx*dist
+            dply[source] = dply[source] - dy*dist
+            dplx[target] = dplx[target] + dx*dist
+            dply[target] = dply[tareget + dy*dist
+        
+        # update the positions
+        for i in range(nodes):
+            dx = dplx[i] + np.random.rand() * 1e-9
+            dy = dply[i] + np.random.rand() * 1e-9
+            dist = dx*dx + dy*dy
+            
+            real_dx = dx if np.absolute(dx) < temperature else temperature
+            real_dy = dy if np.absolute(dy) < temperature else temperature
+            
+            # avoid division by zero
+            if dist > 0:
+                xpos[i] = xpos[i] + (dx/dist) * real_dx
+                ypos[i] = ypos[i] + (dy/dist) * real_dy
+        
+        temperature = temperature - difftemp
+    # end of iteration loop
     
     Log.add("finished")
     
