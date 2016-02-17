@@ -17,8 +17,9 @@ from pyTempNet.Log import *
 
 def exportTikzUnfolded(t, filename):
     """Generates a tikz file that can be compiled to obtain a time-unfolded 
-        representation of the temporal network.
-            
+       representation of the temporal network.
+
+    @param t: the temporal network to be unfolded
     @param filename: the name of the tex file to be generated."""    
         
     output = []
@@ -67,7 +68,8 @@ def exportTikzUnfolded(t, filename):
             output.append("(" + edge[0] + "-" + str(ts) + ") edge (" + edge[1] + "-" + str(ts + 1) + ")\n")
             i += 1                                
     output.append(";\n")
-    output.append("""\end{tikzpicture}
+    output.append(
+"""\end{tikzpicture}
 \end{center}
 \end{document}""")
         
@@ -75,10 +77,9 @@ def exportTikzUnfolded(t, filename):
     directory = os.path.dirname( filename )
     if not os.path.exists( directory ):
         os.makedirs( directory )
-        
-    text_file = open(filename, "w")
-    text_file.write(''.join(output))
-    text_file.close()
+
+    with open(filename, "w") as tex_file:
+        tex_file.write(''.join(output))
                     
 
 
@@ -175,3 +176,117 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, direc
 
         if i % 100 == 0:
             Log.add('Wrote movie frame ' + str(i) + ' of ' + str(len(t_range)))
+
+
+def temporalCommunityLayout(tempNet, use_weights=True, iterations=None, temperature=1):
+    """Returns a special representation of the first-order aggregated
+       network which groups temporal communities based on the second-
+       order network.
+       
+       @param tempNet:  The temporal network instance to plot
+       @param use_weights: whether or not to use link weights(of the first-order
+       model) in the layout algorithm. If the given temporal network is not 
+       weighted, this will be ignored.
+       @param iterations: number of iterations to use for the fruchterman-
+       reingold layout algorithm. Falls back to number of vertices in tempNet
+       in case of None (default)
+       @param temperature: parameter for the fruchterman-reingold layout algo
+       """
+
+    Log.add("Layouting first-order aggregate network with temporal communities ...")
+
+    ## get first-order network and two-paths (build them if necessary)
+    g1 = tempNet.igraphFirstOrder()
+    if tempNet.tpcount == -1:
+        tempNet.extractTwoPaths()
+
+    # now calculate the layout based on this information
+
+    # first: assign random positions
+    nodes = g1.vcount()
+    sqrt_nodes = np.sqrt( nodes )
+    xpos = sqrt_nodes * np.random.rand( nodes ) - sqrt_nodes / 2.
+    ypos = sqrt_nodes * np.random.rand( nodes ) - sqrt_nodes / 2.
+    
+    if iterations is None:
+        iterations = nodes
+    difftemp = temperature / float(iterations)  # enforce true division in python2
+    
+    # second: iteration
+    for t in range(iterations):
+        # clear displacement vectors
+        dplx = np.zeros( nodes )
+        dply = np.zeros( nodes )
+        
+        # repulsive forces
+        for i in range(nodes):
+            for j in range(i+1, nodes):
+                dx = xpos[i] - xpos[j]
+                dy = ypos[i] - ypos[j]
+                dist = dx*dx + dy*dy
+                
+                # avoid division by (nearly) zero
+                if( dist < 1e-9 ):
+                    dx = np.random.rand() * 1e-9
+                    dy = np.random.rand() * 1e-9
+                    dist = float(dx*dx + dy*dy)
+                
+                # update displacement vectors
+                dplx[i] += dx/dist
+                dply[i] += dy/dist
+                dplx[j] -= dx/dist
+                dply[j] -= dy/dist
+        
+        # attractive forces
+        for e in igraph.EdgeSeq(g1):
+            source,target = e.tuple
+            tp_factor = 0
+            weight_factor = (use_weights and g1.is_weighted())
+            
+            dx = xpos[source] - xpos[target]
+            dy = ypos[source] - ypos[target]
+            dist = np.sqrt(dx*dx + dy*dy)
+            
+            # use also weights to layout the graph
+            if use_weights and g1.is_weighted():
+                weight_factor *= e["weight"]
+            
+            # use information from two-paths to layout the graph
+            # is there a two-path s -> ?? -> t ?
+            src_name = g1.vs[source]["name"]
+            trg_name = g1.vs[target]["name"]
+            for time,tp in tempNet.twopathsBySource[src_name].iteritems():
+                for path in tp:
+                    # NOTE: path = tuple( source, mid, target, weight )
+                    if path[2] == trg_name:
+                        tp_factor += path[3]
+            
+            # scale with edge / two-paths / weight factor
+            dist *= (1. + tp_factor + weight_factor)
+            
+            dplx[source] -= dx*dist
+            dply[source] -= dy*dist
+            dplx[target] += dx*dist
+            dply[target] += dy*dist
+        
+        # update the positions
+        for i in range(nodes):
+            dx = dplx[i] + np.random.rand() * 1e-9
+            dy = dply[i] + np.random.rand() * 1e-9
+            dist = float(np.sqrt(dx*dx + dy*dy))
+            
+            real_dx = dx if np.absolute(dx) < temperature else temperature
+            real_dy = dy if np.absolute(dy) < temperature else temperature
+            
+            # avoid division by zero
+            if dist > 0:
+                xpos[i] += (dx/dist) * real_dx
+                ypos[i] += (dy/dist) * real_dy
+        
+        temperature = temperature - difftemp
+    # end of iteration loop
+    
+    Log.add("finished")
+    
+    # finally plot the first-order network with this special layout
+    return igraph.Layout( tuple(zip(xpos, ypos)) )

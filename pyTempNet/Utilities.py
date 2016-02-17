@@ -35,95 +35,96 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
     assert filename is not ""
     assert (fformat is "TEDGE") or (fformat is "TRIGRAM")
     
-    f = open(filename, 'r')
-    tedges = []
-    twopaths = []
-    
-    header = f.readline()
-    header = header.split(sep)
+    with open(filename, 'r') as f:
+        tedges = []
+        twopaths = []
+        
+        header = f.readline()
+        header = header.split(sep)
 
-    # We support arbitrary column ordering, if header columns are included
-    time_ix = -1
-    source_ix = -1
-    mid_ix = -1
-    weight_ix = -1
-    target_ix = -1
-    if fformat =="TEDGE":
-        for i in range(len(header)):
-            header[i] = header[i].strip()
-            if header[i] == 'node1' or header[i] == 'source':
-                source_ix = i
-            elif header[i] == 'node2' or header[i] == 'target':
-                target_ix = i
-            elif header[i] == 'time' or header[i] == 'timestamp':
-                time_ix = i
-    elif fformat =="TRIGRAM":
-        # For trigram files, we assume a default of (unweighted) trigrams in the form source;mid;target
-        # Any other ordering, as well as the additional inclusion of weights requires the definition of 
-        # column headers in the data file!
-        source_ix = 0
-        mid_ix = 1
-        target_ix = 2
-        for i in range(len(header)):
-            header[i] = header[i].strip()
-            if header[i] == 'node1' or header[i] == 'source':
-                source_ix = i                
-            elif header[i] == 'node2' or header[i] == 'mid':
-                mid_ix = i
-            elif header[i] == 'node3' or header[i] == 'target':
-                target_ix = i
-            elif header[i] == 'weight':
-                weight_ix = i    
-
-    assert( (source_ix >= 0 and target_ix >= 0) or
-            (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0)), "Detected invalid header columns: %s" % header
-
-    if time_ix<0:
-        Log.add('No time stamps found in data, assuming consecutive links', Severity.WARNING)
-    
-    # Read time-stamped links
-    if fformat == "TEDGES":
-        Log.add('Reading time-stamped links ...')
-    else:
-        Log.add('Reading trigram data ...')
-
-    line = f.readline()
-    n = 1 
-    while line and n <= maxlines:
-        fields = line.rstrip().split(sep)
+        # We support arbitrary column ordering, if header columns are included
+        time_ix = -1
+        source_ix = -1
+        mid_ix = -1
+        weight_ix = -1
+        target_ix = -1
         if fformat =="TEDGE":
-            try:
-                if time_ix >=0:
-                    timestamp = fields[time_ix]            
-                    if timestamp.isdigit():
-                        t = int(timestamp)
-                    else:
-                        x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
-                        t = int(time.mktime(x.timetuple()))
-                else:
-                    t = n                
-                if t>=0:
-                    tedge = (fields[source_ix], fields[target_ix], t)
-                    tedges.append(tedge)
-                else:
-                    Log.add('Ignoring negative timestamp in line ' + str(n+1) + ': "' + line.strip() + '"', Severity.WARNING)
-            except (IndexError, ValueError):
-                Log.add('Ignoring malformed data in line ' + str(n+1) + ': "' +  line.strip() + '"', Severity.WARNING)
-
+            for i in range(len(header)):
+                header[i] = header[i].strip()
+                if header[i] == 'node1' or header[i] == 'source':
+                    source_ix = i
+                elif header[i] == 'node2' or header[i] == 'target':
+                    target_ix = i
+                elif header[i] == 'time' or header[i] == 'timestamp':
+                    time_ix = i
         elif fformat =="TRIGRAM":
-            source = fields[source_ix].strip('"')
-            mid = fields[mid_ix].strip('"')
-            target = fields[target_ix].strip('"')
-            if weight_ix >=0: 
-                weight = float(fields[weight_ix].strip('"'))
-            else:
-                weight = 1
-            tp = (source, mid, target, weight)
-            twopaths.append(tp)
+            # For trigram files, we assume a default of (unweighted) trigrams in the form source;mid;target
+            # Any other ordering, as well as the additional inclusion of weights requires the definition of 
+            # column headers in the data file!
+            source_ix = 0
+            mid_ix = 1
+            target_ix = 2
+            for i in range(len(header)):
+                header[i] = header[i].strip()
+                if header[i] == 'node1' or header[i] == 'source':
+                    source_ix = i                
+                elif header[i] == 'node2' or header[i] == 'mid':
+                    mid_ix = i
+                elif header[i] == 'node3' or header[i] == 'target':
+                    target_ix = i
+                elif header[i] == 'weight':
+                    weight_ix = i    
+
+        assert( (source_ix >= 0 and target_ix >= 0) or
+                (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0)), "Detected invalid header columns: %s" % header
+
+        if time_ix<0:
+            Log.add('No time stamps found in data, assuming consecutive links', Severity.WARNING)
+        
+        # Read time-stamped links
+        if fformat == "TEDGES":
+            Log.add('Reading time-stamped links ...')
+        else:
+            Log.add('Reading trigram data ...')
 
         line = f.readline()
-        n += 1
+        n = 1 
+        while line and n <= maxlines:
+            fields = line.rstrip().split(sep)
+            if fformat =="TEDGE":
+                try:
+                    if time_ix >=0:
+                        timestamp = fields[time_ix]            
+                        if timestamp.isdigit():
+                            t = int(timestamp)
+                        else:
+                            x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
+                            t = int(time.mktime(x.timetuple()))
+                    else:
+                        t = n                
+                    if t>=0:
+                        tedge = (fields[source_ix], fields[target_ix], t)
+                        tedges.append(tedge)
+                    else:
+                        Log.add('Ignoring negative timestamp in line ' + str(n+1) + ': "' + line.strip() + '"', Severity.WARNING)
+                except (IndexError, ValueError):
+                    Log.add('Ignoring malformed data in line ' + str(n+1) + ': "' +  line.strip() + '"', Severity.WARNING)
 
+            elif fformat =="TRIGRAM":
+                source = fields[source_ix].strip('"')
+                mid = fields[mid_ix].strip('"')
+                target = fields[target_ix].strip('"')
+                if weight_ix >=0: 
+                    weight = float(fields[weight_ix].strip('"'))
+                else:
+                    weight = 1
+                tp = (source, mid, target, weight)
+                twopaths.append(tp)
+
+            line = f.readline()
+            n += 1
+    # end of with open()
+    
     Log.add('finished.')
     if fformat == "TEDGE":        
         return tn.TemporalNetwork(tedges = tedges, sep=sep)
