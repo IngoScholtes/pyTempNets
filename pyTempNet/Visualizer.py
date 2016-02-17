@@ -176,3 +176,27 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, direc
 
         if i % 100 == 0:
             Log.add('Wrote movie frame ' + str(i) + ' of ' + str(len(t_range)))
+
+
+def temporalCommunityLayout(tempNet):
+    """Returns a special representation of the first-order aggregated
+       network which groups temporal communities based on the second-
+       order network.
+       
+       @param tempNet:  The temporal network instance to plot
+       """
+
+    Log.add("Layouting first-order aggregate network with temporal communities ...")
+
+    ## get first-order network and two-paths (build them if necessary)
+    g1 = tempNet.igraphFirstOrder()
+    tp = tempNet.extractTwoPaths()
+
+    # now calculate the layout based on this information
+    xpos = np.random.rand( g1.vcount() )
+    ypos = np.random.rand( g1.vcount() )
+    
+    Log.add("finished")
+    
+    # finally plot the first-order network with this special layout
+    return igraph.Layout( tuple(zip(xpos, ypos)) )
