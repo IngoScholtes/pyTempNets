@@ -129,7 +129,7 @@ class TemporalNetwork:
     def filterEdges(self, edge_filter):
         """Allows to filter time-stamped edges according to a given filter expression. 
 
-        @param edge_filter: an arbitrary (lambda) expression of the form filter_func(v, w, time) that 
+        @param edge_filter: an arbitraryfilter function of the form filter_func(v, w, time) that 
             returns True for time-stamped edges that shall pass the filter, and False for all edges that shall be filtered out.
             Note that for the purpose of filtering, data structures such as the activities dictionary, the first- or the second-
            order aggregate networks of the TemporalNetwork instance can be used. 
@@ -144,7 +144,28 @@ class TemporalNetwork:
 
         Log.add('finished. Filtered out ' + str(self.ecount() - len(new_t_edges)) + ' time-stamped edges.', Severity.INFO)
 
-        return TemporalNetwork(self.separator, new_t_edges, None)
+        return TemporalNetwork(sep=self.separator, tedges=new_t_edges)
+
+
+    def filterTwoPaths(self, twopath_filter):
+        """Allows to filter two paths according to a given filter function. 
+
+        @param twopath_filter: an arbitrary filter function of the form filter_func(s, v, d) that 
+            returns True for two paths that shall pass the filter, and False for all two paths that shall be filtered out.
+            Note that for the purpose of filtering, the first- or the second-order aggregate networks of the TemporalNetwork 
+            instance can be used. 
+        """
+
+        Log.add('Starting filtering ...', Severity.INFO)
+        new_twopaths = []
+
+        for (s,v,d,w) in self.twopaths:
+            if twopath_filter(s,v,d,w):
+                new_twopaths.append((s,v,d,w))
+
+        Log.add('finished. Filtered out ' + str(self.tpcount - len(new_twopaths)) + ' two paths.', Severity.INFO)
+
+        return TemporalNetwork(sep=self.separator, twopaths=new_twopaths)
 
 
     def addEdge(self, source, target, ts):

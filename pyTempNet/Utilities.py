@@ -11,6 +11,8 @@ import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
+from collections import defaultdict
+
 import pyTempNet as tn
 import datetime as dt
 
@@ -36,10 +38,11 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
     with open(filename, 'r') as f:
         tedges = []
         twopaths = []
-
+        
         header = f.readline()
         header = header.split(sep)
-        # Support for arbitrary column ordering
+
+        # We support arbitrary column ordering, if header columns are included
         time_ix = -1
         source_ix = -1
         mid_ix = -1
@@ -55,41 +58,50 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
                 elif header[i] == 'time' or header[i] == 'timestamp':
                     time_ix = i
         elif fformat =="TRIGRAM":
+            # For trigram files, we assume a default of (unweighted) trigrams in the form source;mid;target
+            # Any other ordering, as well as the additional inclusion of weights requires the definition of 
+            # column headers in the data file!
+            source_ix = 0
+            mid_ix = 1
+            target_ix = 2
             for i in range(len(header)):
                 header[i] = header[i].strip()
                 if header[i] == 'node1' or header[i] == 'source':
-                    source_ix = i
+                    source_ix = i                
                 elif header[i] == 'node2' or header[i] == 'mid':
                     mid_ix = i
                 elif header[i] == 'node3' or header[i] == 'target':
                     target_ix = i
                 elif header[i] == 'weight':
-                    weight_ix = i
+                    weight_ix = i    
 
         assert( (source_ix >= 0 and target_ix >= 0) or
                 (source_ix >= 0 and mid_ix >= 0 and target_ix >= 0 and weight_ix >= 0)), "Detected invalid header columns: %s" % header
 
         if time_ix<0:
             Log.add('No time stamps found in data, assuming consecutive links', Severity.WARNING)
-
+        
         # Read time-stamped links
-        Log.add('Reading time-stamped links ...')
+        if fformat == "TEDGES":
+            Log.add('Reading time-stamped links ...')
+        else:
+            Log.add('Reading trigram data ...')
 
         line = f.readline()
-        n = 1
+        n = 1 
         while line and n <= maxlines:
             fields = line.rstrip().split(sep)
             if fformat =="TEDGE":
                 try:
                     if time_ix >=0:
-                        timestamp = fields[time_ix]
+                        timestamp = fields[time_ix]            
                         if timestamp.isdigit():
                             t = int(timestamp)
                         else:
                             x = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
                             t = int(time.mktime(x.timetuple()))
                     else:
-                        t = n
+                        t = n                
                     if t>=0:
                         tedge = (fields[source_ix], fields[target_ix], t)
                         tedges.append(tedge)
@@ -102,17 +114,33 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
                 source = fields[source_ix].strip('"')
                 mid = fields[mid_ix].strip('"')
                 target = fields[target_ix].strip('"')
-                weight = float(fields[weight_ix].strip('"'))
+                if weight_ix >=0: 
+                    weight = float(fields[weight_ix].strip('"'))
+                else:
+                    weight = 1
                 tp = (source, mid, target, weight)
                 twopaths.append(tp)
 
             line = f.readline()
             n += 1
-
+    # end of with open()
+    
     Log.add('finished.')
     if fformat == "TEDGE":        
         return tn.TemporalNetwork(tedges = tedges, sep=sep)
-    elif fformat =="TRIGRAM":           
+    elif fformat =="TRIGRAM":
+        # If trigram data did not contain a weight column, we aggregate
+        # multiple occurrences to weighted trigrams
+        if weight_ix < 0:            
+            Log.add('Calculating trigram weights ...')
+            tp_dict = defaultdict( lambda: 0)
+            for trigram in twopaths:
+                tp = (trigram[0], trigram[1], trigram[2])
+                tp_dict[tp] = tp_dict[tp] + trigram[3]
+            twopaths = []
+            for tp in tp_dict.keys():
+                twopaths.append((tp[0], tp[1], tp[2], tp_dict[tp]))
+            Log.add('finished.')
         return tn.TemporalNetwork(twopaths = twopaths, sep=sep)
 
 
