@@ -194,13 +194,13 @@ def temporalCommunityLayout(tempNet, iterations=500, temperature=1):
 
     # now calculate the layout based on this information
     # NOTE true division is assumed (as imported from __future__ in __init__.py
-    difftemp = temperature / iterations
+    difftemp = temperature / float(iterations)
     
     # first: assign random positions
     nodes = g1.vcount()
     sqrt_nodes = np.sqrt( nodes )
-    xpos = sqrt_nodes * np.random.rand( nodes ) - sqrt_nodes / 2
-    ypos = sqrt_nodes * np.random.rand( nodes ) - sqrt_nodes / 2
+    xpos = sqrt_nodes * np.random.rand( nodes ) - sqrt_nodes / 2.
+    ypos = sqrt_nodes * np.random.rand( nodes ) - sqrt_nodes / 2.
     
     # second: iteration
     for t in range(iterations):
@@ -219,7 +219,7 @@ def temporalCommunityLayout(tempNet, iterations=500, temperature=1):
                 if( dist == 0. ):
                     dx = np.random.rand() * 1e-9
                     dy = np.random.rand() * 1e-9
-                    dist = dx*dx + dy*dy
+                    dist = float(dx*dx + dy*dy)
                 
                 # update displacement vectors
                 dplx[i] = dplx[i] + dx/dist
@@ -228,8 +228,8 @@ def temporalCommunityLayout(tempNet, iterations=500, temperature=1):
                 dply[j] = dply[j] - dy/dist
         
         # attractive forces
-        for e in g1.edges():
-            (source, target) = e.tuple()
+        for e in g1.es:
+            source, target = e.tuple
             
             dx = xpos[source] - xpos[target]
             dy = ypos[source] - ypos[target]
@@ -244,7 +244,7 @@ def temporalCommunityLayout(tempNet, iterations=500, temperature=1):
         for i in range(nodes):
             dx = dplx[i] + np.random.rand() * 1e-9
             dy = dply[i] + np.random.rand() * 1e-9
-            dist = dx*dx + dy*dy
+            dist = float(dx*dx + dy*dy)
             
             real_dx = dx if np.absolute(dx) < temperature else temperature
             real_dy = dy if np.absolute(dy) < temperature else temperature
