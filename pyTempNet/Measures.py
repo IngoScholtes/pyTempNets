@@ -641,7 +641,7 @@ def DetectTemporalCommunities( t, projection="TARGET", method="INFOMAP"):
     membership_1 = [0]*first.vcount()
     
     if method == "INFOMAP":
-        clusters = second.community_infomap(edge_weights="weight")    
+        clusters = second.community_infomap(edge_weights="weight")
     else:
         raise Exception("Unsupported community detection method")
     
@@ -657,7 +657,7 @@ def DetectTemporalCommunities( t, projection="TARGET", method="INFOMAP"):
             #membership_1[w_1_id] = clusters.membership[i]
 
     for i in range(first.vcount()):
-        counts = list(membership_counts[i].values())        
+        counts = list(membership_counts[i].values())
         communities = list(membership_counts[i].keys())
         membership_1[i] = communities[counts.index(max(counts))]            
 
