@@ -17,8 +17,9 @@ from pyTempNet.Log import *
 
 def exportTikzUnfolded(t, filename):
     """Generates a tikz file that can be compiled to obtain a time-unfolded 
-        representation of the temporal network.
-            
+       representation of the temporal network.
+
+    @param t: the temporal network to be unfolded
     @param filename: the name of the tex file to be generated."""    
         
     output = []
@@ -67,7 +68,8 @@ def exportTikzUnfolded(t, filename):
             output.append("(" + edge[0] + "-" + str(ts) + ") edge (" + edge[1] + "-" + str(ts + 1) + ")\n")
             i += 1                                
     output.append(";\n")
-    output.append("""\end{tikzpicture}
+    output.append(
+"""\end{tikzpicture}
 \end{center}
 \end{document}""")
         
@@ -75,10 +77,9 @@ def exportTikzUnfolded(t, filename):
     directory = os.path.dirname( filename )
     if not os.path.exists( directory ):
         os.makedirs( directory )
-        
-    text_file = open(filename, "w")
-    text_file.write(''.join(output))
-    text_file.close()
+
+    with open(filename, "w") as tex_file:
+        tex_file.write(''.join(output))
                     
 
 
