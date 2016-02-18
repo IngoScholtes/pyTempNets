@@ -255,7 +255,7 @@ def temporalCommunityLayout(tempNet, use_weights=True, iterations=None, temperat
             # is there a two-path s -> ?? -> t ?
             src_name = g1.vs[source]["name"]
             trg_name = g1.vs[target]["name"]
-            for time,tp in tempNet.twopathsBySource[src_name].iteritems():
+            for time,tp in tempNet.twopathsBySource[src_name].items():
                 for path in tp:
                     # NOTE: path = tuple( source, mid, target, weight )
                     if path[2] == trg_name:

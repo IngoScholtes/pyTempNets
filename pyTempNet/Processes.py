@@ -270,7 +270,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
     if initial_index<0:
         initial_index = np.random.randint(0, len(g2.vs()))
 
-    exp = 1.0/1.0
+    exp = 1.0/.75
 
     x = np.zeros(len(g2.vs()))
     x[initial_index] = 1
