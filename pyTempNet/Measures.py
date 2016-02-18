@@ -103,8 +103,7 @@ def FiedlerVectorDense(temporalnet, model="SECOND"):
     @param model: either C{"SECOND"} or C{"NULL"}, where C{"SECOND"} is the 
       the default value.
     """
-    if (model is "SECOND" or "NULL") == False:
-        raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
+    assert model is "SECOND" or model is "NULL"
     
     # NOTE: The Laplacian is transposed for the sparse case to get the left
     # NOTE: eigenvalue.
@@ -125,8 +124,7 @@ def AlgebraicConn(temporalnet, model="SECOND"):
       the default value.
     """
     
-    if (model is "SECOND" or "NULL") == False:
-        raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
+    assert model is "SECOND" or model is "NULL"
     
     Log.add('Calculating algebraic connectivity ... ', Severity.INFO)
 
@@ -268,6 +266,41 @@ def SlowDownFactor(t):
     return np.log(np.abs(evals2n_sorted[1]))/np.log(np.abs(evals2_sorted[1]))
 
 
+def EigenValueGap(t):
+    """Returns the eigenvalue gap in the second-order transition matrix of a 
+    temporal network, as well as in the corresponding null model. Returns 
+    the tuple (lambda(T2), lambda(T2_null))
+    
+    @param t: The temporalnetwork instance to work on
+    """
+    
+    #NOTE to myself: most of the time goes for construction of the 2nd order
+    #NOTE            null graph, then for the 2nd order null transition matrix
+    
+    g2 = t.igraphSecondOrder().components(mode="STRONG").giant()
+    g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
+    
+    Log.add('Calculating eigenvalue gap ... ', Severity.INFO)
+
+    # Build transition matrices
+    T2 = Utilities.RWTransitionMatrix(g2)
+    T2n = Utilities.RWTransitionMatrix(g2n)
+    
+    # Compute eigenvector sequences
+    # NOTE: ncv=13 sets additional auxiliary eigenvectors that are computed
+    # NOTE: in order to be more confident to find the one with the largest
+    # NOTE: magnitude, see
+    # NOTE: https://github.com/scipy/scipy/issues/4987
+    w2 = sla.eigs(T2, which="LM", k=2, ncv=13, return_eigenvectors=False)
+    evals2_sorted = np.sort(-np.absolute(w2))
+
+    w2n = sla.eigs(T2n, which="LM", k=2, ncv=13, return_eigenvectors=False)
+    evals2n_sorted = np.sort(-np.absolute(w2n))
+
+    Log.add('finished.', Severity.INFO)
+    
+    return (np.abs(evals2_sorted[1]), np.abs(evals2n_sorted[1]))
+
 def GetStaticEigenvectorCentrality(t, model='SECOND'):
     """Computes eigenvector centralities of nodes in the second-order aggregate network, 
     and aggregates eigenvector centralities to obtain the eigenvector centrality of nodes in the 
@@ -302,7 +335,7 @@ def GetStaticEigenvectorCentrality(t, model='SECOND'):
     return np.real(evcent_1/sum(evcent_1))
 
 
-def GetStaticPageRank(t, model='SECOND'):
+def GetStaticPageRank(t, model='SECOND', projection='TARGET', normalization=False):
     """Computes PageRank of nodes based on the second-order aggregate network, 
     and aggregates PageRank values to obtain the PageRank of nodes in the
     first-order network.
@@ -312,8 +345,8 @@ def GetStaticPageRank(t, model='SECOND'):
       the default value.
     """
 
-    if (model is "SECOND" or "NULL") == False:
-        raise ValueError("model must be one of \"SECOND\" or \"NULL\"")
+    assert model is "SECOND" or model is "NULL"
+    assert projection is 'TARGET' or projection is 'SOURCE'
 
     name_map = Utilities.firstOrderNameMap( t )
 
@@ -322,18 +355,28 @@ def GetStaticPageRank(t, model='SECOND'):
     else:
         g2 = t.igraphSecondOrderNull()    
 
-    # Compute betweenness centrality in second-order network
+    # Compute pagerank centrality in second-order network
     pagerank_2 = np.array(g2.pagerank(weights=g2.es()['weight'], directed=True))
     
-    # Aggregate to obtain first-order eigenvector centrality
+    # Aggregate to obtain first-order pagerank centrality
     pagerank_1 = np.zeros(len(name_map))
+    counts = np.array([1]*len(name_map))
     sep = t.separator
     for i in range(len(pagerank_2)):
-        # Get name of target node
-        target = g2.vs()[i]["name"].split(sep)[1]
-        pagerank_1[name_map[target]] += pagerank_2[i]
+        # Get name of target node        
+        if projection == 'TARGET':
+            target = g2.vs()[i]["name"].split(sep)[1]
+            pagerank_1[name_map[target]] += pagerank_2[i]
+            counts[name_map[target]] +=1 
+        else:
+            source = g2.vs()[i]["name"].split(sep)[0]
+            pagerank_1[name_map[source]] += pagerank_2[i]
+            counts[name_map[source]] +=1 
     
-    return pagerank_1/sum(pagerank_1)
+    if normalization == True:
+        pagerank_1 = pagerank_1 / counts
+    
+    return pagerank_1
 
 
 
