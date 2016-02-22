@@ -116,14 +116,14 @@ def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 
     Log.add('finished.')
 
 
-def exportRandomWalkVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, fps=10, model='SECOND', dynamic=False, NWframesPerRWStep=5, restart_every=-1):
+def exportRandomWalkVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, fps=10, model='SECOND', dynamic=False, NWframesPerRWStep=5, restart_every=-1, size_scaling=1, g1_plot=None):
     prefix = str(np.random.randint(0, 10000))
 
     if model == 'SECOND':
         Log.add('Calculating random walk in non-Markovian temporal network ...')
     else:
         Log.add('Calculating random walk in Markovian temporal network ...')
-    exportRandomWalkMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix, visual_style=visual_style, steps=steps, initial_index=initial_index, model=model, dynamic=dynamic, NWframesPerRWStep=NWframesPerRWStep, restart_every=restart_every)
+    exportRandomWalkMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix, visual_style=visual_style, steps=steps, initial_index=initial_index, model=model, dynamic=dynamic, NWframesPerRWStep=NWframesPerRWStep, restart_every=restart_every, size_scaling=size_scaling, g1_plot=g1_plot)
     Log.add('finished.')
 
     if os.path.exists(output_file):
@@ -134,7 +134,7 @@ def exportRandomWalkVideo(t, output_file, visual_style = None, steps = 100, init
     Log.add('finished.')
 
 
-def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_style = None, steps=100, initial_index=-1, model='SECOND', dynamic=False, NWframesPerRWStep=5, restart_every=-1):
+def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_style = None, steps=100, initial_index=-1, model='SECOND', dynamic=False, NWframesPerRWStep=5, restart_every=-1, size_scaling=1, g1_plot=None):
     """Exports an animation showing a random walk
            process on the first-order aggregate network, where random walk dynamics 
            either follows a first-order (mode='NULL') or second-order (model='SECOND') Markov 
@@ -142,6 +142,9 @@ def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_s
     assert model == 'SECOND' or model =='NULL'
 
     g1 = t.igraphFirstOrder()
+
+    if g1_plot == None:
+        g1_plot = g1    
 
     if model == 'SECOND':
         g2 = t.igraphSecondOrder().components(mode='STRONG').giant()
@@ -157,8 +160,11 @@ def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_s
             visual_style = {}
             visual_style["vertex_color"] = ["lightblue"]*g1.vcount()
             visual_style["vertex_label"] = g1.vs["name"]
-            visual_style["edge_curved"] = .5
+            visual_style["edge_curved"] = .5            
             visual_style["vertex_size"] = 30
+
+    if not 'edge_color' in visual_style.keys() or type(visual_style["edge_color"]) == str:
+       visual_style["edge_color"] = ['darkgrey']*g1.vcount()
 
     if type(visual_style["vertex_color"]) == str:
         visual_style["vertex_color"] = [visual_style["vertex_color"]]*g1.vcount()
@@ -191,17 +197,24 @@ def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_s
     restart_ctr=0
     last_edge = -1
 
+    base_size = visual_style["vertex_size"]
+    sizes = [visual_style["vertex_size"] for x in g1.vs()]
+    visit_counts = [0]*len(g1.vs())
+    visit_counts[map_2_to_1[rw_position]] = 1
+
     # Create video frames
     for i in range(0,steps):            
         
         # highlight current position of random walker 
         visual_style["vertex_color"][map_2_to_1[rw_position]] = color_wheel[restart_ctr%len(color_wheel)]
 
-
         # highlight last link
         if last_edge >=0:
             visual_style["edge_color"][last_edge] = "black"
-            visual_style["edge_width"][last_edge] = 5
+            visual_style["edge_width"][last_edge] = 7
+        if size_scaling !=1:            
+            scaled = [np.power(x/sum(visit_counts), 1.7) for x in visit_counts]
+            visual_style["vertex_size"] = [ base_size + base_size*(size_scaling-1) * x/max(scaled) for x in scaled]
 
         # Visualize illustrative network dynamics
         if dynamic == True:
@@ -216,7 +229,7 @@ def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_s
                 visual_style["edge_color"][e_id] = "black"
             igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
         else:
-            igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
+            igraph.plot(g1_plot, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
 
         # restore colors 
         visual_style["vertex_color"] = list(vertex_colors)
@@ -240,6 +253,7 @@ def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_s
                 edge = g2.vs()[new]["name"].split(t.separator)
                 last_edge = g1.get_eid(g1.vs.find(edge[0]), g1.vs.find(edge[1]))
                 rw_position = new
+            visit_counts[map_2_to_1[rw_position]] = visit_counts[map_2_to_1[rw_position]]+1
 
 
 def exportDiffusionVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, fps=10, model='SECOND'):

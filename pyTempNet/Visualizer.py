@@ -170,6 +170,7 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, direc
         else:
             slice = igraph.Graph(n=len(g.vs()), directed=directed)
             slice.vs["name"] = g.vs["name"]
+            visual_style["edge_width"] = 5
             for e in t.time[ts]:
                 slice.add_edge(e[0], e[1])        
             igraph.plot(slice, fileprefix + '_frame_' + str(ts).zfill(5) + '.png', **visual_style)
