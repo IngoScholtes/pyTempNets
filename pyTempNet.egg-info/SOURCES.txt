@@ -1,9 +1,12 @@
 README.rst
+pyTempNet/Log.py
 pyTempNet/Measures.py
+pyTempNet/Paths.py
 pyTempNet/Processes.py
 pyTempNet/TemporalNetwork.py
 pyTempNet/TimeSlices.py
 pyTempNet/Utilities.py
+pyTempNet/Visualizer.py
 pyTempNet/__init__.py
 pyTempNet/test.py
 pyTempNet.egg-info/PKG-INFO

@@ -101,7 +101,7 @@ def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 
     Log.add('finished.')
 
     Log.add('Calculating diffusion dynamics in Markovian temporal network ...')
-    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix_2, visual_style=visual_style, steps=steps, initial_index=initial_index, model='NULL', dynamic=dynamic, NWframesPerRWStep=NWframesPerRWStep)
+    exportDiffusionMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix_2, visual_style=visual_style, steps=steps, initial_index=initial_index, model='NULL', dynamic=False, NWframesPerRWStep=NWframesPerRWStep)
     Log.add('finished.')
 
     Log.add('Stitching video frames ...')
@@ -116,14 +116,14 @@ def exportDiffusionComparisonVideo(t, output_file, visual_style = None, steps = 
     Log.add('finished.')
 
 
-def exportRandomWalkVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, fps=10, model='SECOND', dynamic=False, NWframesPerRWStep=5):
+def exportRandomWalkVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, fps=10, model='SECOND', dynamic=False, NWframesPerRWStep=5, restart_every=-1, size_scaling=1, g1_plot=None):
     prefix = str(np.random.randint(0, 10000))
 
     if model == 'SECOND':
         Log.add('Calculating random walk in non-Markovian temporal network ...')
     else:
         Log.add('Calculating random walk in Markovian temporal network ...')
-    exportRandomWalkMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix, visual_style=visual_style, steps=steps, initial_index=initial_index, model=model, dynamic=dynamic, NWframesPerRWStep=NWframesPerRWStep)
+    exportRandomWalkMovieFramesFirstOrder(t, file_prefix='frames' + os.sep + prefix, visual_style=visual_style, steps=steps, initial_index=initial_index, model=model, dynamic=dynamic, NWframesPerRWStep=NWframesPerRWStep, restart_every=restart_every, size_scaling=size_scaling, g1_plot=g1_plot)
     Log.add('finished.')
 
     if os.path.exists(output_file):
@@ -134,7 +134,7 @@ def exportRandomWalkVideo(t, output_file, visual_style = None, steps = 100, init
     Log.add('finished.')
 
 
-def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_style = None, steps=100, initial_index=-1, model='SECOND', dynamic=False, NWframesPerRWStep=5):
+def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_style = None, steps=100, initial_index=-1, model='SECOND', dynamic=False, NWframesPerRWStep=5, restart_every=-1, size_scaling=1, g1_plot=None):
     """Exports an animation showing a random walk
            process on the first-order aggregate network, where random walk dynamics 
            either follows a first-order (mode='NULL') or second-order (model='SECOND') Markov 
@@ -142,6 +142,9 @@ def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_s
     assert model == 'SECOND' or model =='NULL'
 
     g1 = t.igraphFirstOrder()
+
+    if g1_plot == None:
+        g1_plot = g1    
 
     if model == 'SECOND':
         g2 = t.igraphSecondOrder().components(mode='STRONG').giant()
@@ -157,17 +160,21 @@ def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_s
             visual_style = {}
             visual_style["vertex_color"] = ["lightblue"]*g1.vcount()
             visual_style["vertex_label"] = g1.vs["name"]
-            visual_style["edge_curved"] = .5
+            visual_style["edge_curved"] = .5            
             visual_style["vertex_size"] = 30
+
+    if not 'edge_color' in visual_style.keys() or type(visual_style["edge_color"]) == str:
+       visual_style["edge_color"] = ['darkgrey']*g1.vcount()
 
     if type(visual_style["vertex_color"]) == str:
         visual_style["vertex_color"] = [visual_style["vertex_color"]]*g1.vcount()
 
     vertex_colors = list(visual_style["vertex_color"])
+    edge_colors = list(visual_style["edge_color"])
 
     # Initial state of random walker in SECOND_ORDER network
     if initial_index<0:
-        initial_index = np.random.randint(0, len(g2.vs()))    
+        initial_index = np.random.randint(0, len(g2.vs()))
 
     rw_position = initial_index
 
@@ -186,40 +193,67 @@ def exportRandomWalkMovieFramesFirstOrder(t, file_prefix='random_walk', visual_s
         # we map the target of second-order node j to the index of the *first-order* node
         map_2_to_1[j] = map_name_to_id[node]   
 
+    color_wheel=['green', 'red', 'orange','tomato']
+    restart_ctr=0
+    last_edge = -1
+
+    base_size = visual_style["vertex_size"]
+    sizes = [visual_style["vertex_size"] for x in g1.vs()]
+    visit_counts = [0]*len(g1.vs())
+    visit_counts[map_2_to_1[rw_position]] = 1
 
     # Create video frames
     for i in range(0,steps):            
         
         # highlight current position of random walker 
-        visual_style["vertex_color"][map_2_to_1[rw_position]] = "green"
+        visual_style["vertex_color"][map_2_to_1[rw_position]] = color_wheel[restart_ctr%len(color_wheel)]
+
+        # highlight last link
+        if last_edge >=0:
+            visual_style["edge_color"][last_edge] = "black"
+            visual_style["edge_width"][last_edge] = 7
+        if size_scaling !=1:            
+            scaled = [np.power(x/sum(visit_counts), 1.7) for x in visit_counts]
+            visual_style["vertex_size"] = [ base_size + base_size*(size_scaling-1) * x/max(scaled) for x in scaled]
 
         # Visualize illustrative network dynamics
         if dynamic == True:
             #slice = igraph.Graph(n=len(g1.vs()))
             #slice.vs["name"] = g1.vs["name"]
             L = len(temporal.ordered_times)
-            visual_style["edge_color"] = ["darkgrey"]*g1.ecount()
-            visual_style["edge_width"] = [.5]*g1.ecount()
+            #visual_style["edge_color"] = ["darkgrey"]*g1.ecount()
+            #visual_style["edge_width"] = [.5]*g1.ecount()
             for e in temporal.time[temporal.ordered_times[i%L]]:
                 e_id = g1.get_eid(e[0], e[1])
                 visual_style["edge_width"][e_id] = 5
                 visual_style["edge_color"][e_id] = "black"
             igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
         else:
-            igraph.plot(g1, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
+            igraph.plot(g1_plot, file_prefix + "_frame_" + str(i).zfill(5) +".png", **visual_style)
 
         # restore colors 
         visual_style["vertex_color"] = list(vertex_colors)
+        visual_style["edge_color"] = ["darkgrey"]*g1.ecount()
+        visual_style["edge_width"] = [.5]*g1.ecount()
 
         if i % 50 == 0:
             Log.add('Frame ' + str(i))
         
-        # every NWframesPerRWStep frames, perform one random walk step
+        # every NWframesPerRWStep frames, perform one random walk step in the second order network
         if i % NWframesPerRWStep == 0:
-            successors = g2.successors(rw_position)
-            probs = [g2.es()[g2.get_eid(rw_position, s)]["weight"] for s in successors]
-            probs = probs/np.sum(probs)
-            rw_position = np.random.choice(a=successors, p=probs)
+            if restart_every >= 0 and i%restart_every == 0:
+                rw_position = np.random.randint(0, len(g2.vs()))
+                last_edge = -1
+                restart_ctr += 1
+            else:
+                successors = g2.successors(rw_position)
+                probs = [g2.es()[g2.get_eid(rw_position, s)]["weight"] for s in successors]
+                probs = probs/np.sum(probs)
+                new = np.random.choice(a=successors, p=probs)
+                edge = g2.vs()[new]["name"].split(t.separator)
+                last_edge = g1.get_eid(g1.vs.find(edge[0]), g1.vs.find(edge[1]))
+                rw_position = new
+            visit_counts[map_2_to_1[rw_position]] = visit_counts[map_2_to_1[rw_position]]+1
 
 
 def exportDiffusionVideo(t, output_file, visual_style = None, steps = 100, initial_index=-1, fps=10, model='SECOND'):
@@ -265,12 +299,14 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
             visual_style["vertex_label"] = g1.vs["name"]
             visual_style["edge_curved"] = .5
             visual_style["vertex_size"] = 30
+            visual_style["edge_color"] = ["darkgrey"]*g1.ecount()
+            visual_style["edge_width"] = [.5]*g1.ecount()
 
     # Initial state of random walker
     if initial_index<0:
         initial_index = np.random.randint(0, len(g2.vs()))
 
-    exp = 1.0/1.3
+    exp = 1.0/.75
 
     x = np.zeros(len(g2.vs()))
     x[initial_index] = 1
@@ -300,6 +336,9 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
     # p = 0 ==> color white
     color_p = lambda p: "rgb(255,"+str(int((1-p)*255))+","+str(int((1-p)*255))+")"
 
+    visual_style["edge_color"] = ["darkgrey"]*g1.ecount()
+    visual_style["edge_width"] = [.5]*g1.ecount()
+
     # Create video frames
     for i in range(0,steps):
         # based on visitation probabilities in *second-order* aggregate network, 
@@ -320,9 +359,7 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
         if dynamic == True:
             #slice = igraph.Graph(n=len(g1.vs()))
             #slice.vs["name"] = g1.vs["name"]
-            L = len(temporal.ordered_times)
-            visual_style["edge_color"] = ["darkgrey"]*g1.ecount()
-            visual_style["edge_width"] = [.5]*g1.ecount()
+            L = len(temporal.ordered_times)           
             for e in temporal.time[temporal.ordered_times[i%L]]:
                 e_id = g1.get_eid(e[0], e[1])
                 visual_style["edge_width"][e_id] = 5
@@ -337,6 +374,10 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
             visual_style["edge_color"] = "black"
             visual_style["edge_width"] = 1
             igraph.plot(g1, file_prefix + "_network.pdf", **visual_style)
+
+        # Reset edge color and width
+        visual_style["edge_color"] = ["darkgrey"]*g1.ecount()
+        visual_style["edge_width"] = [.5]*g1.ecount()
 
         if i % 50 == 0:
             Log.add('Frame ' + str(i) + '\tTVD = ' + str(Utilities.TVD(x,pi)))

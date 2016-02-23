@@ -170,6 +170,7 @@ def exportMovieFrames(t, fileprefix, visual_style = None, realtime = True, direc
         else:
             slice = igraph.Graph(n=len(g.vs()), directed=directed)
             slice.vs["name"] = g.vs["name"]
+            visual_style["edge_width"] = 5
             for e in t.time[ts]:
                 slice.add_edge(e[0], e[1])        
             igraph.plot(slice, fileprefix + '_frame_' + str(ts).zfill(5) + '.png', **visual_style)
@@ -255,7 +256,7 @@ def temporalCommunityLayout(tempNet, use_weights=True, iterations=None, temperat
             # is there a two-path s -> ?? -> t ?
             src_name = g1.vs[source]["name"]
             trg_name = g1.vs[target]["name"]
-            for time,tp in tempNet.twopathsBySource[src_name].iteritems():
+            for time,tp in tempNet.twopathsBySource[src_name].items():
                 for path in tp:
                     # NOTE: path = tuple( source, mid, target, weight )
                     if path[2] == trg_name:
