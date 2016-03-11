@@ -368,18 +368,18 @@ class TemporalNetwork:
                             d = e_out[1]
                             if s != v and v != d:
                                 indeg_v = len(tgts[t][v])
-                                outdeg_v = len(srcs[future_t][v])                                    
+                                outdeg_v = len(srcs[future_t][v])
 
-                            # Create a weighted two-path tuple
-                            # (s, v, d, weight)
-                            two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
+                                # Create a weighted two-path tuple
+                                # (s, v, d, weight)
+                                two_path = (s,v,d, float(1)/(indeg_v*outdeg_v))
 
-                            # TODO: Add support for time-stamped links which have link weights w by themselves, i.e. (u,v;t;w)
+                                # TODO: Add support for time-stamped links which have link weights w by themselves, i.e. (u,v;t;w)
 
-                            tpappend(two_path)
-                            self.twopathsByNode[v].setdefault(t, []).append(two_path)
-                            self.twopathsByTime[t].setdefault(v, []).append(two_path)
-                            self.twopathsBySource[s].setdefault(t, []).append(two_path)
+                                tpappend(two_path)
+                                self.twopathsByNode[v].setdefault(t, []).append(two_path)
+                                self.twopathsByTime[t].setdefault(v, []).append(two_path)
+                                self.twopathsBySource[s].setdefault(t, []).append(two_path)
         
         self.tpcount = len(self.twopaths)
 
