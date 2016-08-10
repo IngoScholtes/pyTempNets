@@ -247,44 +247,28 @@ def EntropyGrowthRate(T):
     # NOTE: eigenvector anyway
     return -np.sum( T * pi )
 
+
+def Entropy_Miller( prob, K, N ): 
+    """ Computes a Miller-corrected MLE estimation of the entropy
+    @param prob: the observed probabilities (i.e. relative frequencies) 
+    @param K: the number of possible outcomes, i.e. outcomes with non-zero probability
+    @param N: size of the sample based on which entropy is computed
+    """
+    
+    if N == 0:
+        return 0
+    else:
+        idx = np.nonzero(prob)
+        return -np.inner( np.log2(prob[idx]), prob[idx] ) + (K-1)/(2*N)
+
+
 def Entropy( prob ):
+    """ Computes a naive MLE estimation of the entropy
+    @param prob: the observed probabilities (i.e. relative frequencies)    
+    """
+
     idx = np.nonzero(prob)
     return -np.inner( np.log2(prob[idx]), prob[idx] )
-
-
-def BWPrefMatrix(t, v):
-    """Computes a betweenness preference matrix for a node v in a temporal network t
-    
-    @param t: The temporalnetwork instance to work on
-    @param v: Name of the node to compute its BetweennessPreference
-    """
-    g = t.igraphFirstOrder()
-    # NOTE: this might raise a ValueError if vertex v is not found
-    v_vertex = g.vs.find(name=v)
-    indeg = v_vertex.degree(mode="IN")        
-    outdeg = v_vertex.degree(mode="OUT")
-    index_succ = {}
-    index_pred = {}
-    
-    B_v = np.zeros(shape=(indeg, outdeg))
-        
-    # Create an index-to-node mapping for predecessors and successors
-    i = 0
-    for u in v_vertex.predecessors():
-        index_pred[u["name"]] = i
-        i = i+1
-    
-    i = 0
-    for w in v_vertex.successors():
-        index_succ[w["name"]] = i
-        i = i+1
-
-    # Calculate entries of betweenness preference matrix
-    for time in t.twopathsByNode[v]:
-        for tp in t.twopathsByNode[v][time]:
-            B_v[index_pred[tp[0]], index_succ[tp[2]]] += (1. / float(len(t.twopathsByNode[v][time])))
-    
-    return B_v
   
   
 def TVD(p1, p2):

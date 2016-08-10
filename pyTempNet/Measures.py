@@ -174,28 +174,67 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
     return H2/H2n
 
 
-def BetweennessPreferences(t, normalized=False):
+def BWPrefMatrix(t, v):
+    """Computes a betweenness preference matrix for a node v in a temporal network t
+    
+    @param t: The temporalnetwork instance to work on
+    @param v: Name of the node to compute its BetweennessPreference
+    """
+    g = t.igraphFirstOrder()
+    # NOTE: this might raise a ValueError if vertex v is not found
+    v_vertex = g.vs.find(name=v)
+    indeg = v_vertex.degree(mode="IN")        
+    outdeg = v_vertex.degree(mode="OUT")
+    index_succ = {}
+    index_pred = {}
+    
+    B_v = np.zeros(shape=(indeg, outdeg))
+        
+    # Create an index-to-node mapping for predecessors and successors
+    i = 0
+    for u in v_vertex.predecessors():
+        index_pred[u["name"]] = i
+        i = i+1
+    
+    i = 0
+    for w in v_vertex.successors():
+        index_succ[w["name"]] = i
+        i = i+1
+
+    # Calculate entries of betweenness preference matrix
+    for time in t.twopathsByNode[v]:
+        for tp in t.twopathsByNode[v][time]:
+            B_v[index_pred[tp[0]], index_succ[tp[2]]] += (1. / float(len(t.twopathsByNode[v][time])))
+    
+    return B_v
+
+
+def BetweennessPreferences(t, normalized=False, method = 'MLE'):
     bwp = []
     for v in t.igraphFirstOrder().vs()["name"]:
-        bwp.append(BetweennessPreference(t, v, normalized))
+        bwp.append(BetweennessPreference(t, v, normalized, method))
     return np.array(bwp)
 
 
-def BetweennessPreference(t, v, normalized = False):
+def BetweennessPreference(t, v, normalized = False, method = 'MLE'):
     """Computes the betweenness preference of a node v in a temporal network t
     
     @param t: The temporalnetwork instance to work on
     @param v: Name of the node to compute its BetweennessPreference
     @param normalized: whether or not (default) to normalize
+    @param method: which entropy estimation method to use. The method supports 
+        'Miller' for Miller-corrected MLE or 'MLE' for a naive MLE estimation. 
     """
     g = t.igraphFirstOrder()
+
+    assert method == 'MLE' or method =='Miller'
     
     # If the network is empty, just return zero
     if len(g.vs) == 0:
         return 0.0
 
     # First create the betweenness preference matrix (equation (2) of the paper)
-    B_v = Utilities.BWPrefMatrix(t, v)
+    B_v = BWPrefMatrix(t, v)
     
     # Normalize matrix (equation (3) of the paper)
     # NOTE: P_v has the same shape as B_v
@@ -210,21 +249,53 @@ def BetweennessPreference(t, v, normalized = False):
     marginal_d = np.sum(P_v, axis=0)
 
     ## Marginal probabilities P^v_s = \sum_d'{P_{sd'}}
-    marginal_s = np.sum(P_v, axis=1)
+    marginal_s = np.sum(P_v, axis=1)        
+
+    if method=='Miller':
+        # To apply the Miller correction, we need to know 
+        # the number of samples (i.e. observed two-paths) 
+        # and the number of possible two-paths
+        v_vertex = g.vs.find(name=v)                        
+        N = len(t.twopathsByNode[v])
+        #print('N = ', N)
+        #print('P = ', P_v)
+        #print('marginal_s = ', marginal_s)
+        #print('marginal_d = ', marginal_d)
+
+        H_s = Utilities.Entropy_Miller(marginal_s, len(marginal_s), N)
+        H_d = Utilities.Entropy_Miller(marginal_d, len(marginal_d), N)
+        H_ds = 0 
+        for s in range(len(marginal_s)):
+            # an array containing probabilties of all destinations d, given the source s
+            p_ds = P_v[s,:]/np.sum(P_v[s,:])            
+            #print(p_ds)
+            #print('N_s = ', N*np.sum(P_v[s,:]))
+            #print('K_s = ', len(p_ds))
+            # marginal_s[s] is the probability to observe a source s
+            H_ds += marginal_s[s] * Utilities.Entropy_Miller(p_ds, len(p_ds), N*np.sum(P_v[s,:]))        
+    else: 
+        # apply naive MLE estimation
+        H_s = Utilities.Entropy(marginal_s)
+        H_d = Utilities.Entropy(marginal_d)
+        H_ds = 0 
+        for s in range(len(marginal_s)):
+            p_ds = P_v[s,:]/np.sum(P_v[s,:])            
+            #print(p_ds)
+            H_ds += marginal_s[s] * Utilities.Entropy(p_ds)
+        
+        # Alternative calculation (without explicit entropies)
+
+        # build mask for non-zero elements
+        # row, col = np.nonzero(P_v)
+        # pv = P_v[(row,col)]
+        # marginal = np.outer(marginal_s, marginal_d)
+        # log_argument = np.divide( pv, marginal[(row,col)] )    
+        # I = np.dot( pv, np.log2(log_argument) )
     
-    H_s = Utilities.Entropy(marginal_s)
-    H_d = Utilities.Entropy(marginal_d)
-    
-    # build mask for non-zero elements
-    row, col = np.nonzero(P_v)
-    pv = P_v[(row,col)]
-    marginal = np.outer(marginal_s, marginal_d)
-    log_argument = np.divide( pv, marginal[(row,col)] )
-    
-    I = np.dot( pv, np.log2(log_argument) )
+    I = H_d - H_ds
     
     if normalized:
-        I =  I/np.min([H_s,H_d])
+        I =  I/np.min([H_s, H_d])
 
     return I
 
