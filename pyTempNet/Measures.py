@@ -181,24 +181,38 @@ def BWPrefMatrix(t, v):
     @param v: Name of the node to compute its BetweennessPreference
     """
     g = t.igraphFirstOrder()
+
     # NOTE: this might raise a ValueError if vertex v is not found
     v_vertex = g.vs.find(name=v)
-    indeg = v_vertex.degree(mode="IN")        
-    outdeg = v_vertex.degree(mode="OUT")
+
+    # get all distinct predecessors of two paths through v
+    tp_preds = [] 
+    for time in t.twopathsByNode[v]:
+        for tp in t.twopathsByNode[v][time]:
+            tp_preds.append(tp[0])
+    tp_preds = set(tp_preds)
+
+    # get all distinct successors of two paths through v
+    tp_succs = [] 
+    for time in t.twopathsByNode[v]:
+        for tp in t.twopathsByNode[v][time]:
+            tp_succs.append(tp[2])
+    tp_succs = set(tp_succs)
+
     index_succ = {}
     index_pred = {}
     
-    B_v = np.zeros(shape=(indeg, outdeg))
+    B_v = np.zeros(shape=(len(tp_preds), len(tp_succs)))
         
     # Create an index-to-node mapping for predecessors and successors
     i = 0
-    for u in v_vertex.predecessors():
-        index_pred[u["name"]] = i
+    for u in tp_preds:
+        index_pred[u] = i
         i = i+1
     
     i = 0
-    for w in v_vertex.successors():
-        index_succ[w["name"]] = i
+    for w in tp_succs:
+        index_succ[w] = i
         i = i+1
 
     # Calculate entries of betweenness preference matrix
@@ -252,39 +266,59 @@ def BetweennessPreference(t, v, normalized = False, method = 'MLE'):
     marginal_s = np.sum(P_v, axis=1)        
 
     if method=='Miller':
-        # To apply the Miller correction, we need to know 
-        # the number of samples (i.e. observed two-paths) 
-        # and the number of possible two-paths
-        v_vertex = g.vs.find(name=v)                        
-        N = len(t.twopathsByNode[v])
-        #print('N = ', N)
-        #print('P = ', P_v)
+        # print('v = ', v)
+        v_vertex = g.vs.find(name=v)
+           
+        # total number of samples, i.e. observed two-paths
+        N = np.sum(B_v)
+
+        #print('N = ', N)        
+        #print('B = ', B_v)
         #print('marginal_s = ', marginal_s)
         #print('marginal_d = ', marginal_d)
 
+        # marginal entropy H(S)
         H_s = Utilities.Entropy_Miller(marginal_s, len(marginal_s), N)
+        # print('H(S) = ', H_s)
+
+        # marginal entropy H(D)
         H_d = Utilities.Entropy_Miller(marginal_d, len(marginal_d), N)
-        H_ds = 0 
+        #print('H(D) = ', H_d)
+
+        # we need the conditional entropy H(D|S)
+        H_ds = 0
+
         for s in range(len(marginal_s)):
-            # an array containing probabilties of all destinations d, given the source s
-            p_ds = P_v[s,:]/np.sum(P_v[s,:])            
-            #print(p_ds)
-            #print('N_s = ', N*np.sum(P_v[s,:]))
-            #print('K_s = ', len(p_ds))
-            # marginal_s[s] is the probability to observe a source s
-            H_ds += marginal_s[s] * Utilities.Entropy_Miller(p_ds, len(p_ds), N*np.sum(P_v[s,:]))        
+            # number of two paths s -> v -> * observed in the data
+            N_s = np.sum(B_v[s,:])
+            #print('N(s=' + str(s) + ') = ' +  str(N_s))
+
+            # probabilities of all destinations, given the particular source s
+            p_ds = B_v[s,:]/np.sum(B_v[s,:])
+            #print('P(D|S=' + str(s) + ') = '+ str(p_ds))
+
+            # number of possible destinations d
+            K_s = len(p_ds)
+            #print('K(s=' + str(s) + ') = ' +  str(K_s))
+
+            # marginal_s[s] is the overall probability of source s
+            p_s = marginal_s[s]
+
+            # add to conditional entropy
+            H_ds += p_s * Utilities.Entropy_Miller(p_ds, K_s, N_s)
+
+        #print('H(D|S) = ', H_ds)
+
     else: 
-        # apply naive MLE estimation
+        # apply 'naive' MLE estimation, identical to above
         H_s = Utilities.Entropy(marginal_s)
         H_d = Utilities.Entropy(marginal_d)
-        H_ds = 0 
+        H_ds = 0
         for s in range(len(marginal_s)):
-            p_ds = P_v[s,:]/np.sum(P_v[s,:])            
-            #print(p_ds)
+            p_ds = P_v[s,:]/np.sum(P_v[s,:])
             H_ds += marginal_s[s] * Utilities.Entropy(p_ds)
         
         # Alternative calculation (without explicit entropies)
-
         # build mask for non-zero elements
         # row, col = np.nonzero(P_v)
         # pv = P_v[(row,col)]

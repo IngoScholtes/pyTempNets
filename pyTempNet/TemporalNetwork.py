@@ -90,6 +90,7 @@ class TemporalNetwork:
         self.twopathsByNode = defaultdict( lambda: dict() )
         self.twopathsByTime = defaultdict( lambda: dict() )
         self.twopathsBySource = defaultdict( lambda: dict() )
+        self.twopathsByTarget = defaultdict( lambda: dict() )
         self.tpcount = -1
 
         """The separator character to be used to generate higher-order nodes"""
@@ -117,6 +118,7 @@ class TemporalNetwork:
   
                 self.twopathsByNode[v].setdefault(t, []).append(tp)
                 self.twopathsBySource[s].setdefault(t, []).append(tp)
+                self.twopathsByTarget[d].setdefault(t, []).append(tp)
                 t +=1
             self.tpcount = len(twopaths)        
 
@@ -207,6 +209,7 @@ class TemporalNetwork:
         self.twopathsByNode = defaultdict( lambda: dict() )
         self.twopathsByTime = defaultdict( lambda: dict() )
         self.twopathsBySource = defaultdict( lambda: dict() )
+        self.twopathsByTarget = defaultdict( lambda: dict() )
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
@@ -380,6 +383,7 @@ class TemporalNetwork:
                                 self.twopathsByNode[v].setdefault(t, []).append(two_path)
                                 self.twopathsByTime[t].setdefault(v, []).append(two_path)
                                 self.twopathsBySource[s].setdefault(t, []).append(two_path)
+                                self.twopathsByTarget[d].setdefault(t, []).append(two_path)
         
         self.tpcount = len(self.twopaths)
 
