@@ -287,16 +287,16 @@ class TemporalNetwork:
         summary += 'Nodes:\t\t\t' +  str(self.vcount()) + '\n'
         summary += 'Time-stamped links:\t' + str(self.ecount()) + '\n'
         summary += 'Links/Nodes:\t\t' + str(self.ecount()/self.vcount()) + '\n'
-        summary += 'Observation period:\t[' + str(min(self.ordered_times)) + ', ' + str(max(self.ordered_times)) + ']\n'
-        summary += 'Observation length:\t' + str(max(self.ordered_times) - min(self.ordered_times)) + '\n'
-        summary += 'Time stamps:\t\t' + str(len(self.ordered_times)) + '\n'
+        if len(self.ordered_times)>0:
+            summary += 'Observation period:\t[' + str(min(self.ordered_times)) + ', ' + str(max(self.ordered_times)) + ']\n'
+            summary += 'Observation length:\t' + str(max(self.ordered_times) - min(self.ordered_times)) + '\n'
+            summary += 'Time stamps:\t\t' + str(len(self.ordered_times)) + '\n'
 
-        d = self.getInterEventTimes()
-    
-        summary += 'Avg. inter-event dt:\t' + str(np.mean(d)) + '\n'
-        summary += 'Min/Max inter-event dt:\t' + str(min(d)) + '/' + str(max(d)) + '\n'
+            d = self.getInterEventTimes()    
+            summary += 'Avg. inter-event dt:\t' + str(np.mean(d)) + '\n'
+            summary += 'Min/Max inter-event dt:\t' + str(min(d)) + '/' + str(max(d)) + '\n'
+            summary += 'Max Time Diff (delta):\t' +str(self.delta) + '\n'
 
-        summary += 'Max Time Diff (delta):\t' +str(self.delta) + '\n'
         summary += 'Two-paths:\t\t'
         if self.tpcount>=0:
             summary += str(self.tpcount) + '\n'

@@ -13,6 +13,8 @@ import scipy.sparse.linalg as sla
 
 from collections import defaultdict
 
+import itertools
+
 import pyTempNet as tn
 import datetime as dt
 
@@ -227,32 +229,14 @@ def RWTransitionMatrix(g):
     data = np.array(data)
     data = data.reshape(data.size,)
 
-    return sparse.coo_matrix((data, (row, col)), shape=(len(g.vs), len(g.vs))).tocsr()
-
-
-def EntropyGrowthRate(T):
-    """Computes the entropy growth rate of a transition matrix
-    
-    @param T: Transition matrix in sparse format."""
-    pi = StationaryDistribution(T)
-    
-    # directly work on the data object of the sparse matrix
-    # NOTE: np.log2(T.data) has no problem with elements being zeros
-    # NOTE: as we work with a sparse matrix here, where the zero elements
-    # NOTE: are not stored
-    T.data *=  np.log2(T.data)
-    
-    # NOTE: the matrix vector product only works because T is assumed to be
-    # NOTE: transposed. This is needed for sla.eigs(T) to return the correct
-    # NOTE: eigenvector anyway
-    return -np.sum( T * pi )
+    return sparse.coo_matrix((data, (row, col)), shape=(len(g.vs), len(g.vs))).tocsr()   
 
 
 def Entropy_Miller( prob, K, N ): 
     """ Computes a Miller-corrected MLE estimation of the entropy
     @param prob: the observed probabilities (i.e. relative frequencies) 
     @param K: the number of possible outcomes, i.e. outcomes with non-zero probability
-    @param N: size of the sample based on which entropy is computed
+    @param N: size of the sample based on which relative frequencies have been computed
     """
     
     if N == 0:
@@ -294,6 +278,11 @@ def StationaryDistribution( T, normalize=True ):
     if normalize:
         pi /= sum(pi)
     return pi
+
+def getPossibleTwoPaths(edges):
+    """Returns the list of different two-paths that can be constructed from edges""" 
+    twopaths = [tp for tp in itertools.combinations(edges, 2) if tp[0][1] == tp[1][0]]
+    return twopaths
 
 
 def firstOrderNameMap( t ):

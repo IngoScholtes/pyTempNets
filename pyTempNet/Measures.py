@@ -141,7 +141,7 @@ def AlgebraicConn(temporalnet, model="SECOND"):
     return np.abs(evals_sorted[1])
     
     
-def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
+def EntropyGrowthRateRatio(t, mode='FIRSTORDER', method='MLE'):
     """Computes the ratio between the entropy growth rate ratio between
     the second-order and first-order model of a temporal network t. Ratios smaller
     than one indicate that the temporal network exhibits non-Markovian characteristics"""
@@ -149,24 +149,58 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
     # NOTE to myself: most of the time here goes into computation of the
     # NOTE            EV of the transition matrix for the bigger of the
     # NOTE            two graphs below (either 2nd-order or 2nd-order null)
+
+    assert method == 'MLE' or method=='Miller'
     
-    # Generate strongly connected component of second-order networks
-    g2 = t.igraphSecondOrder().components(mode="STRONG").giant()
+    # Generate strongly connected component of second-order network
+    g2 = t.igraphSecondOrder().components(mode="STRONG").giant()       
     
+    Log.add('Calculating entropy growth rate ratio ... ', Severity.INFO)
+    
+    # Compute entropy growth rate of observed transition matrix
+    T2 = Utilities.RWTransitionMatrix(g2)
+    T2_pi = Utilities.StationaryDistribution(T2)
+
+    T2.data *=  np.log2(T2.data)    
+
+    # For T2, we can apply a Miller correction to the entropy estimation
+    if method == 'Miller':
+        # K is the number of possible two-paths that can exist based on the 
+        # time-stamped edge sequence (or observed two paths)
+        if len(t.tedges)>0:
+            edges = set((e[0], e[1]) for e in t.tedges)
+        else:
+            edges = [(tp[0], tp[1]) for tp in t.twopaths]
+            for tp in t.twopaths:
+                edges.append((tp[1], tp[2]))
+            edges = set(edges)
+        K = len(Utilities.getPossibleTwoPaths(edges))
+        #print('K = ', K)
+        # N is the number of observations used to estimate the transition probabilities
+        # in the second-order network. This corresponds to the total link weight in the 
+        # second-order network (accounting for the fractional couting of two-paths)
+        N = np.sum(g2.es["weight"])
+        #print('N = ', N)
+        H2 = np.sum( T2 * T2_pi ) + (K-1)/(2*N)
+    else:
+        # simple MLE estimation
+        H2 = -np.sum( T2 * T2_pi )
+
+    H2 = np.absolute(H2)
+
+    # Compute entropy rate of null model
     if mode == 'FIRSTORDER':
         g2n = t.igraphFirstOrder().components(mode="STRONG").giant()
     else:
         g2n = t.igraphSecondOrderNull().components(mode="STRONG").giant()
-    
-    Log.add('Calculating entropy growth rate ratio ... ', Severity.INFO)
 
-    # Calculate transition matrices
-    T2 = Utilities.RWTransitionMatrix(g2)
+    # For the entropy rate of the null model, no Miller correction is needed
+    # since we assume that transitions correspond to the true probabilities
     T2n = Utilities.RWTransitionMatrix(g2n)
-
-    # Compute entropy growth rates of transition matrices        
-    H2 = np.absolute(Utilities.EntropyGrowthRate(T2))
-    H2n = np.absolute(Utilities.EntropyGrowthRate(T2n))
+    T2n_pi = Utilities.StationaryDistribution(T2n)
+    T2n.data *=  np.log2(T2n.data)
+    H2n = -np.sum( T2n * T2n_pi )
+    H2n = np.absolute(H2n)
 
     Log.add('finished.', Severity.INFO)
 
