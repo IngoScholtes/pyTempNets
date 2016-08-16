@@ -21,7 +21,7 @@ The development of this module was generously supported by the [MTEC Foundation]
 ## Contributors
 
 Ingo Scholtes (project lead, development)  
-Roman Cattaneo (development)
+Roman Cattaneo (development)  
 Nicolas Wider (testing and development)
 
 ## Copyright
