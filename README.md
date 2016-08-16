@@ -22,8 +22,9 @@ The development of this module was generously supported by the [MTEC Foundation]
 
 Ingo Scholtes (project lead, development)  
 Roman Cattaneo (development)
+Nicolas Wider (testing and development)
 
 ## Copyright
 
-(c) Copyright ETH Zürich, Chair of Systems Design, 2015
+(c) Copyright ETH ZÃ¼rich, Chair of Systems Design, 2015
 
