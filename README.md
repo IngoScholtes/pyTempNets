@@ -1,4 +1,4 @@
-# Introduction
+  # Introduction
 
 `pyTempNet` is a python module for the analysis of time-stamped relational data. It particularly facilitates the analysis of **temporal networks** from the perspective of **higher-order networks**, a powerful framework which has been introduced in the following recent articles and which allows to overcome some of the limitations of common network-analytic methods: 
 
@@ -23,7 +23,7 @@ The development of this module was generously supported by the [MTEC Foundation]
 ## Contributors
 
 Ingo Scholtes (project lead, development)  
-Roman Cattaneo (development)
+Roman Cattaneo (development)  
 Nicolas Wider (testing, development)
 
 ## Copyright
