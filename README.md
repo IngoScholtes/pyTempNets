@@ -1,7 +1,8 @@
 # Introduction
 
-`pyTempNet` is a python module for the analysis of time-stamped relational data represented as **temporal networks**. It particularly facilitates the analysis of temporal networks from the perspective of higher-order networks, which include causality limitations due to order correlations. This perspective and the resulting analytic measures have been outlined in the papers: 
+`pyTempNet` is a python module for the analysis of time-stamped relational data. It particularly facilitates the analysis of temporal networks from the perspective of higher-order networks, a framework which has been introduced in the following recent articles: 
 
+1. I Scholtes, N Wider, A Garas: [Higher-Order Aggregate Networks in the Analysis of Temporal Networks: Path Structures and centralities](http://link.springer.com/article/10.1140%2Fepjb%2Fe2016-60663-0), EPJ B, 89:61, March 2 2016, [arXiv 1508.06467](http://arxiv.org/abs/1508.06467)
 1. I Scholtes, N Wider, R Pfitzner, A Garas, CJ Tessone, F Schweitzer: [Causality-driven slow-down and speed-up of diffusion in non-Markovian temporal networks](http://www.nature.com/ncomms/2014/140924/ncomms6024/full/ncomms6024.html), Nature Communications, 5, Sept. 2014
 2. R Pfitzner, I Scholtes, A Garas, CJ Tessone, F Schweitzer: [Betweenness preference: Quantifying correlations in the topological dynamics of temporal networks](http://journals.aps.org/prl/abstract/10.1103/PhysRevLett.110.198701), Phys Rev Lett, 110(19), 198701, May 2013
 
@@ -24,5 +25,5 @@ Roman Cattaneo (development)
 
 ## Copyright
 
-(c) Copyright ETH Zürich, Chair of Systems Design, 2015
+(c) Copyright ETH ZÃ¼rich, Chair of Systems Design, 2015-2016
 
