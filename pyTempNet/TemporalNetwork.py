@@ -90,6 +90,7 @@ class TemporalNetwork:
         self.twopathsByNode = defaultdict( lambda: dict() )
         self.twopathsByTime = defaultdict( lambda: dict() )
         self.twopathsBySource = defaultdict( lambda: dict() )
+        self.twopathsByTarget = defaultdict( lambda: dict() )
         self.tpcount = -1
 
         """The separator character to be used to generate higher-order nodes"""
@@ -117,6 +118,7 @@ class TemporalNetwork:
   
                 self.twopathsByNode[v].setdefault(t, []).append(tp)
                 self.twopathsBySource[s].setdefault(t, []).append(tp)
+                self.twopathsByTarget[d].setdefault(t, []).append(tp)
                 t +=1
             self.tpcount = len(twopaths)        
 
@@ -207,6 +209,7 @@ class TemporalNetwork:
         self.twopathsByNode = defaultdict( lambda: dict() )
         self.twopathsByTime = defaultdict( lambda: dict() )
         self.twopathsBySource = defaultdict( lambda: dict() )
+        self.twopathsByTarget = defaultdict( lambda: dict() )
         self.g1 = 0
         self.g2 = 0
         self.g2n = 0
@@ -284,16 +287,16 @@ class TemporalNetwork:
         summary += 'Nodes:\t\t\t' +  str(self.vcount()) + '\n'
         summary += 'Time-stamped links:\t' + str(self.ecount()) + '\n'
         summary += 'Links/Nodes:\t\t' + str(self.ecount()/self.vcount()) + '\n'
-        summary += 'Observation period:\t[' + str(min(self.ordered_times)) + ', ' + str(max(self.ordered_times)) + ']\n'
-        summary += 'Observation length:\t' + str(max(self.ordered_times) - min(self.ordered_times)) + '\n'
-        summary += 'Time stamps:\t\t' + str(len(self.ordered_times)) + '\n'
+        if len(self.ordered_times)>0:
+            summary += 'Observation period:\t[' + str(min(self.ordered_times)) + ', ' + str(max(self.ordered_times)) + ']\n'
+            summary += 'Observation length:\t' + str(max(self.ordered_times) - min(self.ordered_times)) + '\n'
+            summary += 'Time stamps:\t\t' + str(len(self.ordered_times)) + '\n'
 
-        d = self.getInterEventTimes()
-    
-        summary += 'Avg. inter-event dt:\t' + str(np.mean(d)) + '\n'
-        summary += 'Min/Max inter-event dt:\t' + str(min(d)) + '/' + str(max(d)) + '\n'
+            d = self.getInterEventTimes()    
+            summary += 'Avg. inter-event dt:\t' + str(np.mean(d)) + '\n'
+            summary += 'Min/Max inter-event dt:\t' + str(min(d)) + '/' + str(max(d)) + '\n'
+            summary += 'Max Time Diff (delta):\t' +str(self.delta) + '\n'
 
-        summary += 'Max Time Diff (delta):\t' +str(self.delta) + '\n'
         summary += 'Two-paths:\t\t'
         if self.tpcount>=0:
             summary += str(self.tpcount) + '\n'
@@ -380,6 +383,7 @@ class TemporalNetwork:
                                 self.twopathsByNode[v].setdefault(t, []).append(two_path)
                                 self.twopathsByTime[t].setdefault(v, []).append(two_path)
                                 self.twopathsBySource[s].setdefault(t, []).append(two_path)
+                                self.twopathsByTarget[d].setdefault(t, []).append(two_path)
         
         self.tpcount = len(self.twopaths)
 
