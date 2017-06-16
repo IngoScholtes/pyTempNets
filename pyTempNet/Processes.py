@@ -285,10 +285,10 @@ def exportDiffusionMovieFramesFirstOrder(t, file_prefix='diffusion', visual_styl
 
     if model == 'SECOND':
         g2 = t.igraphSecondOrder()
-        temporal = tn.TemporalNetwork.ShuffleTwoPaths(t)
+        temporal = tn.TemporalNetwork.ShuffleTwoPaths(t, l=steps)
     elif model == 'NULL':
         g2 = t.igraphSecondOrderNull()
-        temporal = tn.TemporalNetwork.ShuffleEdges(t) 
+        temporal = tn.TemporalNetwork.ShuffleEdges(t, l=steps) 
 
     T = Utilities.RWTransitionMatrix(g2)
 

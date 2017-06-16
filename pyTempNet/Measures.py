@@ -175,10 +175,10 @@ def EntropyGrowthRateRatio(t, mode='FIRSTORDER'):
 
 
 def BetweennessPreferences(t, normalized=False):
-    bwp = []
+    bwp = {}
     for v in t.igraphFirstOrder().vs()["name"]:
-        bwp.append(BetweennessPreference(t, v, normalized))
-    return np.array(bwp)
+        bwp[v] = BetweennessPreference(t, v, normalized)
+    return bwp
 
 
 def BetweennessPreference(t, v, normalized = False):

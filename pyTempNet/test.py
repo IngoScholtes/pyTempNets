@@ -36,7 +36,7 @@ t.addEdge("e", "b", 12);
 t.addEdge("e", "b", 13);
 
 # And one case where we have multiple edges in a single time step
-t.addEdge("g", "e", 14);
+#t.addEdge("g", "e", 14);
 t.addEdge("c", "e", 14);
 t.addEdge("e", "f", 15);
 
@@ -60,6 +60,8 @@ assert t.TwoPathCount() == 12
 
 # Plot the three aggregate networks
 g1 = t.igraphFirstOrder()
+
+print(tn.Utilities.BWPrefMatrix(t, 'e'))
 
 # Compute betweenness preference of nodes
 bw = tn.Measures.BetweennessPreference(t, v='e')

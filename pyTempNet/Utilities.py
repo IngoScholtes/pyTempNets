@@ -82,7 +82,7 @@ def readFile(filename, sep=',', fformat="TEDGE", timestampformat="%s", maxlines=
             Log.add('No time stamps found in data, assuming consecutive links', Severity.WARNING)
         
         # Read time-stamped links
-        if fformat == "TEDGES":
+        if fformat == "TEDGE":
             Log.add('Reading time-stamped links ...')
         else:
             Log.add('Reading trigram data ...')
